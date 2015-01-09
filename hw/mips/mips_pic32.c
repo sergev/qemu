@@ -74,7 +74,7 @@ typedef struct {
     SerialState     *uart;
 } PIC32State;
 
-static uint64_t pic32_fpga_read(void *opaque, hwaddr addr, unsigned size)
+static uint64_t pic32_io_read(void *opaque, hwaddr addr, unsigned size)
 {
     //PIC32State *s = opaque;
     uint32_t val = 0;
@@ -102,14 +102,14 @@ static uint64_t pic32_fpga_read(void *opaque, hwaddr addr, unsigned size)
     /* UART Registers are handled directly by the serial device */
 
     default:
-        printf ("pic32_fpga_read: Bad register offset 0x" TARGET_FMT_lx "\n",
+        printf ("pic32_io_read: Bad register offset 0x" TARGET_FMT_lx "\n",
             (unsigned) addr);
         break;
     }
     return val;
 }
 
-static void pic32_fpga_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
+static void pic32_io_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
     //PIC32State *s = opaque;
     uint32_t saddr;
@@ -135,15 +135,15 @@ static void pic32_fpga_write(void *opaque, hwaddr addr, uint64_t val, unsigned s
     /* UART Registers are handled directly by the serial device */
 
     default:
-        printf ("pic32_fpga_write: Bad register offset 0x" TARGET_FMT_lx "\n",
+        printf ("pic32_io_write: Bad register offset 0x" TARGET_FMT_lx "\n",
             (unsigned) addr);
         break;
     }
 }
 
-static const MemoryRegionOps pic32_fpga_ops = {
-    .read       = pic32_fpga_read,
-    .write      = pic32_fpga_write,
+static const MemoryRegionOps pic32_io_ops = {
+    .read       = pic32_io_read,
+    .write      = pic32_io_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
@@ -475,12 +475,14 @@ static void mips_pic32_init(MachineState *machine)
     memory_region_add_subregion(system_memory, USER_MEM_START + 0x8000, ram_user);
 
     /* FPGA */
-    memory_region_init_io(&s->iomem, NULL, &pic32_fpga_ops, s,
-                          "pic32-fpga", 0x100000);
-
+    memory_region_init_io(&s->iomem, NULL, &pic32_io_ops, s,
+                          "io", IO_MEM_SIZE);
+    memory_region_add_subregion(system_memory, IO_MEM_START, &s->iomem);
+#if 0
     /* The CBUS UART is attached to the CPU INT2 pin, ie interrupt 4 */
     s->uart = serial_mm_init(system_memory, IO_MEM_START + 0x900, 3, env->irq[4],
                              230400, serial_hds[2], DEVICE_NATIVE_ENDIAN);
+#endif
 
     /*
      * Map the flash memory.
