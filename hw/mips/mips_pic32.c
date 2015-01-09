@@ -34,13 +34,36 @@
 #include "qemu/error-report.h"
 #include "hw/empty_slot.h"
 
-/* Hardware addresses */
-#define FLASH_ADDRESS   0x1d000000ULL
-#define FPGA_ADDRESS    0x1f000000ULL
-#define RESET_ADDRESS   0x1fc00000ULL
+#define PIC32MX7
 
-#define FLASH_SIZE      (512*1024)
-#define BOOT_SIZE       (12*1024)
+/* Hardware addresses */
+#define PROGRAM_FLASH_START 0x1d000000
+#define BOOT_FLASH_START    0x1fc00000
+#define DATA_MEM_START      0x00000000
+#define IO_MEM_START        0x1f800000
+#define IO_MEM_SIZE         (1024*1024)         // 1 Mbyte
+
+#ifdef PIC32MX7
+#define PROGRAM_FLASH_SIZE  (512*1024)          // 512 kbytes
+#define BOOT_FLASH_SIZE     (12*1024)           // 12 kbytes
+#define DATA_MEM_SIZE       (128*1024)          // 128 kbytes
+#define USER_MEM_START      0xbf000000
+#endif
+
+#ifdef PIC32MZ
+#define PROGRAM_FLASH_SIZE  (2*1024*1024)       // 2 Mbytes
+#define BOOT_FLASH_SIZE     (64*1024)           // 64 kbytes
+#define DATA_MEM_SIZE       (512*1024)          // 512 kbytes
+#endif
+
+#define IN_PROGRAM_MEM(addr) (addr >= PROGRAM_FLASH_START && \
+                             addr < PROGRAM_FLASH_START+PROGRAM_FLASH_SIZE)
+#define IN_BOOT_MEM(addr)   (addr >= BOOT_FLASH_START && \
+                             addr < BOOT_FLASH_START+BOOT_FLASH_SIZE)
+
+/* Macros for converting between hex and binary. */
+#define NIBBLE(x)       (isdigit(x) ? (x)-'0' : tolower(x)+10-'a')
+#define HEX(buffer)     ((NIBBLE((buffer)[0])<<4) + NIBBLE((buffer)[1]))
 
 #define TYPE_MIPS_PIC32 "mips-pic32"
 
@@ -142,13 +165,258 @@ static void cpu_request_exit(void *opaque, int irq, int level)
 }
 #endif
 
+static void store_byte (char *progmem, char *bootmem, unsigned address, unsigned char byte)
+{
+    if (IN_PROGRAM_MEM(address)) {
+        //printf("Store %02x to program memory %08x\n", byte, address);
+        progmem[address & 0xfffff] = byte;
+    }
+    else if (IN_BOOT_MEM(address)) {
+        //printf("Store %02x to boot memory %08x\n", byte, address);
+        bootmem[address & 0xffff] = byte;
+    }
+}
+
+static unsigned virt_to_phys (unsigned address)
+{
+    if (address >= 0xa0000000 && address <= 0xbfffffff)
+        return address - 0xa0000000;
+    if (address >= 0x80000000 && address <= 0x9fffffff)
+        return address - 0x80000000;
+    return address;
+}
+
+/*
+ * Read the S record file.
+ */
+static int load_srec (void *progmem, void *bootmem, const char *filename)
+{
+    FILE *fd;
+    unsigned char buf [256];
+    unsigned char *data;
+    unsigned address;
+    int bytes, output_len;
+
+    fd = fopen (filename, "r");
+    if (! fd) {
+        perror (filename);
+        exit (1);
+    }
+    output_len = 0;
+    while (fgets ((char*) buf, sizeof(buf), fd)) {
+        if (buf[0] == '\n')
+            continue;
+        if (buf[0] != 'S') {
+            if (output_len == 0)
+                break;
+            printf("%s: bad file format\n", filename);
+            exit (1);
+        }
+
+        /* Starting an S-record.  */
+        if (! isxdigit (buf[2]) || ! isxdigit (buf[3])) {
+            printf("%s: bad record: %s\n", filename, buf);
+            exit (1);
+        }
+        bytes = HEX (buf + 2);
+
+        /* Ignore the checksum byte.  */
+        --bytes;
+
+        address = 0;
+        data = buf + 4;
+        switch (buf[1]) {
+        case '7':
+            address = HEX (data);
+            data += 2;
+            --bytes;
+            /* Fall through.  */
+        case '8':
+            address = (address << 8) | HEX (data);
+            data += 2;
+            --bytes;
+            /* Fall through.  */
+        case '9':
+            address = (address << 8) | HEX (data);
+            data += 2;
+            address = (address << 8) | HEX (data);
+            data += 2;
+            bytes -= 2;
+            if (bytes == 0) {
+                //printf("%s: start address = %08x\n", filename, address);
+                //TODO: set start address
+            }
+            goto done;
+
+        case '3':
+            address = HEX (data);
+            data += 2;
+            --bytes;
+            /* Fall through.  */
+        case '2':
+            address = (address << 8) | HEX (data);
+            data += 2;
+            --bytes;
+            /* Fall through.  */
+        case '1':
+            address = (address << 8) | HEX (data);
+            data += 2;
+            address = (address << 8) | HEX (data);
+            data += 2;
+            bytes -= 2;
+
+            address = virt_to_phys (address);
+            if (! IN_PROGRAM_MEM(address) && ! IN_BOOT_MEM(address)) {
+                printf("%s: incorrect address %08X, must be %08X-%08X or %08X-%08X\n",
+                    filename, address, PROGRAM_FLASH_START,
+                    PROGRAM_FLASH_START + PROGRAM_FLASH_SIZE - 1,
+                    BOOT_FLASH_START, BOOT_FLASH_START + BOOT_FLASH_SIZE - 1);
+                exit (1);
+            }
+            output_len += bytes;
+            while (bytes-- > 0) {
+                store_byte (progmem, bootmem, address++, HEX (data));
+                data += 2;
+            }
+            break;
+        }
+    }
+done:
+    fclose (fd);
+    return output_len;
+}
+
+/*
+ * Read HEX file.
+ */
+static int load_hex (void *progmem, void *bootmem, const char *filename)
+{
+    FILE *fd;
+    unsigned char buf [256], data[16], record_type, sum;
+    unsigned address, high;
+    int bytes, output_len, i;
+
+    fd = fopen (filename, "r");
+    if (! fd) {
+        perror (filename);
+        exit (1);
+    }
+    output_len = 0;
+    high = 0;
+    while (fgets ((char*) buf, sizeof(buf), fd)) {
+        if (buf[0] == '\n')
+            continue;
+        if (buf[0] != ':') {
+            if (output_len == 0)
+                break;
+            printf("%s: bad HEX file format\n", filename);
+            exit (1);
+        }
+        if (! isxdigit (buf[1]) || ! isxdigit (buf[2]) ||
+            ! isxdigit (buf[3]) || ! isxdigit (buf[4]) ||
+            ! isxdigit (buf[5]) || ! isxdigit (buf[6]) ||
+            ! isxdigit (buf[7]) || ! isxdigit (buf[8])) {
+            printf("%s: bad record: %s\n", filename, buf);
+            exit (1);
+        }
+	record_type = HEX (buf+7);
+	if (record_type == 1) {
+	    /* End of file. */
+            break;
+        }
+	bytes = HEX (buf+1);
+	if (strlen ((char*) buf) < bytes * 2 + 11) {
+            printf("%s: too short hex line\n", filename);
+            exit (1);
+        }
+	address = high << 16 | HEX (buf+3) << 8 | HEX (buf+5);
+        if (address & 3) {
+            printf("%s: odd address\n", filename);
+            exit (1);
+        }
+
+	sum = 0;
+	for (i=0; i<bytes; ++i) {
+            data [i] = HEX (buf+9 + i + i);
+	    sum += data [i];
+	}
+	sum += record_type + bytes + (address & 0xff) + (address >> 8 & 0xff);
+	if (sum != (unsigned char) - HEX (buf+9 + bytes + bytes)) {
+            printf("%s: bad hex checksum\n", filename);
+            printf("Line %s", buf);
+            exit (1);
+        }
+
+	if (record_type == 5) {
+	    /* Start address. */
+            if (bytes != 4) {
+                printf("%s: invalid length of hex start address record: %d bytes\n",
+                    filename, bytes);
+                exit (1);
+            }
+	    address = data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3];
+            //printf("%s: start address = %08x\n", filename, address);
+            //TODO: set start address
+	    continue;
+	}
+	if (record_type == 4) {
+	    /* Extended address. */
+            if (bytes != 2) {
+                printf("%s: invalid length of hex linear address record: %d bytes\n",
+                    filename, bytes);
+                exit (1);
+            }
+	    high = data[0] << 8 | data[1];
+	    continue;
+	}
+	if (record_type != 0) {
+            printf("%s: unknown hex record type: %d\n",
+                filename, record_type);
+            exit (1);
+        }
+
+        /* Data record found. */
+        address = virt_to_phys (address);
+        if (! IN_PROGRAM_MEM(address) && ! IN_BOOT_MEM(address)) {
+            printf("%s: incorrect address %08X, must be %08X-%08X or %08X-%08X\n",
+                filename, address, PROGRAM_FLASH_START,
+                PROGRAM_FLASH_START + PROGRAM_FLASH_SIZE - 1,
+                BOOT_FLASH_START, BOOT_FLASH_START + BOOT_FLASH_SIZE - 1);
+            exit (1);
+        }
+        output_len += bytes;
+        for (i=0; i<bytes; i++) {
+            store_byte (progmem, bootmem, address++, data [i]);
+        }
+    }
+    fclose (fd);
+    return output_len;
+}
+
+static int load_file(MemoryRegion *prog_mem, MemoryRegion *boot_mem,
+    const char *filename)
+{
+    void *prog = memory_region_get_ram_ptr(prog_mem);
+    void *boot = memory_region_get_ram_ptr(boot_mem);
+
+    int memory_len = load_srec (prog, boot, filename);
+    if (memory_len == 0) {
+        memory_len = load_hex (prog, boot, filename);
+        if (memory_len == 0) {
+            return 0;
+        }
+    }
+    printf("Load file: '%s', %d bytes\n", filename, memory_len);
+    return 1;
+}
+
 static void mips_pic32_init(MachineState *machine)
 {
     const char *cpu_model = machine->cpu_model;
     unsigned ram_size = 128*1024;
     MemoryRegion *system_memory = get_system_memory();
-    MemoryRegion *ram_high = g_new(MemoryRegion, 1);
-    MemoryRegion *ram_low = g_new(MemoryRegion, 1);
+    MemoryRegion *ram_main = g_new(MemoryRegion, 1);
+    MemoryRegion *ram_user = g_new(MemoryRegion, 1);
     MemoryRegion *prog_mem = g_new(MemoryRegion, 1);
     MemoryRegion *boot_mem = g_new(MemoryRegion, 1);
     MIPSCPU *cpu;
@@ -161,7 +429,7 @@ static void mips_pic32_init(MachineState *machine)
     /* The whole address space doesn't generate exception when
      * accessing invalid memory. Create an empty slot to
      * emulate this feature. */
-    empty_slot_init(0, 0x20000000);
+    //empty_slot_init(0, 0x20000000);
 
     qdev_init_nofail(dev);
 
@@ -194,50 +462,46 @@ static void mips_pic32_init(MachineState *machine)
     cpu = MIPS_CPU(first_cpu);
     env = &cpu->env;
 
-    /* register RAM at high address */
+    /* Register RAM */
     printf("RAM size: %u kbytes\n", ram_size / 1024);
-    memory_region_init_ram(ram_high, NULL, "mips_pic32.ram",
+    memory_region_init_ram(ram_main, NULL, "kernel.ram",
         ram_size, &error_abort);
-    vmstate_register_ram_global(ram_high);
-    memory_region_add_subregion(system_memory, 0x80000000, ram_high);
+    vmstate_register_ram_global(ram_main);
+    memory_region_add_subregion(system_memory, DATA_MEM_START, ram_main);
 
-    /* alias for user space 96 kbytes */
-    memory_region_init_alias(ram_low, NULL, "mips_pic32_low.ram",
-        ram_high, 0x8000, ram_size - 0x8000);
-    memory_region_add_subregion(system_memory, 0xbf000000 + 0x8000, ram_low);
+    /* Alias for user space 96 kbytes */
+    memory_region_init_alias(ram_user, NULL, "user.ram",
+        ram_main, 0x8000, ram_size - 0x8000);
+    memory_region_add_subregion(system_memory, USER_MEM_START + 0x8000, ram_user);
 
     /* FPGA */
     memory_region_init_io(&s->iomem, NULL, &pic32_fpga_ops, s,
                           "pic32-fpga", 0x100000);
 
     /* The CBUS UART is attached to the CPU INT2 pin, ie interrupt 4 */
-    s->uart = serial_mm_init(system_memory, FPGA_ADDRESS + 0x900, 3, env->irq[4],
+    s->uart = serial_mm_init(system_memory, IO_MEM_START + 0x900, 3, env->irq[4],
                              230400, serial_hds[2], DEVICE_NATIVE_ENDIAN);
 
     /*
      * Map the flash memory.
      */
-    memory_region_init_ram(boot_mem, NULL, "flash.1fc", BOOT_SIZE, &error_abort);
-    memory_region_init_ram(prog_mem, NULL, "flash.1d0", FLASH_SIZE, &error_abort);
+    memory_region_init_ram(boot_mem, NULL, "boot.flash", BOOT_FLASH_SIZE, &error_abort);
+    memory_region_init_ram(prog_mem, NULL, "prog.flash", PROGRAM_FLASH_SIZE, &error_abort);
 
     /* Load a Flash memory image. */
     if (! machine->kernel_filename) {
         error_report("No -kernel argument was specified.");
         exit(1);
     }
-    printf("Load file: %s\n", machine->kernel_filename);
-    int nbytes = load_image_targphys(machine->kernel_filename, FLASH_ADDRESS, BOOT_SIZE);
-    if (nbytes < 0) {
-        error_report("Could not load PIC32 firmware '%s'",
-            machine->kernel_filename);
-        exit(1);
+    if (bios_name) {
+        load_file(prog_mem, boot_mem, bios_name);
     }
-    printf("Image size: %d bytes\n", nbytes);
+    load_file(prog_mem, boot_mem, machine->kernel_filename);
 
     memory_region_set_readonly(boot_mem, true);
     memory_region_set_readonly(prog_mem, true);
-    memory_region_add_subregion(system_memory, RESET_ADDRESS, boot_mem);
-    memory_region_add_subregion(system_memory, FLASH_ADDRESS, prog_mem);
+    memory_region_add_subregion(system_memory, BOOT_FLASH_START, boot_mem);
+    memory_region_add_subregion(system_memory, PROGRAM_FLASH_START, prog_mem);
 
     /* Init internal devices */
     cpu_mips_irq_init_cpu(env);
