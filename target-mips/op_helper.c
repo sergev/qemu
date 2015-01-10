@@ -2331,6 +2331,15 @@ void mips_cpu_unassigned_access(CPUState *cs, hwaddr addr,
 }
 #endif /* !CONFIG_USER_ONLY */
 
+void helper_dump_opcode(CPUMIPSState *env, target_ulong pc,
+    target_ulong opcode, target_ulong nbytes)
+{
+    if (nbytes == 2)
+        printf("--- %s: %08x: %04x\n", __func__, pc, opcode);
+    else
+        printf("--- %s: %08x: %08x\n", __func__, pc, opcode);
+}
+
 /* Complex FPU operations which may need stack space. */
 
 #define FLOAT_TWO32 make_float32(1 << 30)

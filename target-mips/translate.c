@@ -1686,6 +1686,18 @@ generate_exception (DisasContext *ctx, int excp)
     gen_helper_0e0i(raise_exception, excp);
 }
 
+static inline void
+generate_dump_opcode (int pc, int opcode, int nbytes)
+{
+    TCGv_i32 tpc = tcg_const_i32(pc);
+    TCGv_i32 topcode = tcg_const_i32(opcode);
+    TCGv_i32 tnbytes = tcg_const_i32(nbytes);
+    gen_helper_dump_opcode(cpu_env, tpc, topcode, tnbytes);
+    tcg_temp_free_i32(tpc);
+    tcg_temp_free_i32(topcode);
+    tcg_temp_free_i32(tnbytes);
+}
+
 /* Addresses computation */
 static inline void gen_op_addr_add (DisasContext *ctx, TCGv ret, TCGv arg0, TCGv arg1)
 {
@@ -19071,6 +19083,8 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
             ctx.bstate = BS_STOP;
             break;
         }
+        if (1)
+            generate_dump_opcode(ctx.pc, ctx.opcode, insn_bytes);
 
         if (ctx.hflags & MIPS_HFLAG_BMASK) {
             if (!(ctx.hflags & (MIPS_HFLAG_BDS16 | MIPS_HFLAG_BDS32 |

@@ -1,0 +1,207 @@
+diff -ur /home/vince/qemu/qemu-snapshot-2007-08-14_05/target-mips/helper.c qemu-snapshot-2007-08-14_05-dinero/target-mips/helper.c
+--- /home/vince/qemu/qemu-snapshot-2007-08-14_05/target-mips/helper.c	2007-06-25 13:34:33.000000000 -0400
++++ qemu-snapshot-2007-08-14_05-dinero/target-mips/helper.c	2007-08-16 12:50:08.000000000 -0400
+@@ -36,6 +36,47 @@
+     TLBRET_MATCH = 0
+ };
+ 
++
++FILE *memfile=NULL;
++unsigned char memfile_buf[4096];
++
++void helper_dump_pc(unsigned long address) {
++   
++   if (memfile==NULL) {
++      memfile=fopen("trace.mem","w");
++      /* 1 = _IOLBF */
++      setvbuf(memfile, memfile_buf, 1 , sizeof(memfile_buf));
++   }
++        
++   fprintf(memfile,"i %x 4\n",address);
++   fflush(memfile);
++   
++}
++
++
++/* generates trace file for dinero cache simulator */
++/* dinero output is */
++/*    X YYYYYYY Z   */ 
++/* where X is type, Y is address, Z is type */
++/* types are r=read w=write, some others  */
++
++void helper_dump_memtrace(unsigned long address,
++			  int load,int size) {
++        
++   if (memfile==NULL) {
++      memfile=fopen("trace.mem","w");
++      /* 1 = _IOLBF */
++      setvbuf(memfile, memfile_buf, 1 , sizeof(memfile_buf));
++   }
++        
++   fprintf(memfile,"%c %x %d\n",
++           load==1?'r':'w',address,size);
++   fflush(memfile);
++
++}
++
++
++
+ /* no MMU emulation */
+ int no_mmu_map_address (CPUState *env, target_ulong *physical, int *prot,
+                         target_ulong address, int rw, int access_type)
+diff -ur /home/vince/qemu/qemu-snapshot-2007-08-14_05/target-mips/op.c qemu-snapshot-2007-08-14_05-dinero/target-mips/op.c
+--- /home/vince/qemu/qemu-snapshot-2007-08-14_05/target-mips/op.c	2007-06-25 13:34:33.000000000 -0400
++++ qemu-snapshot-2007-08-14_05-dinero/target-mips/op.c	2007-08-16 13:24:59.000000000 -0400
+@@ -246,6 +246,10 @@
+ #include "fop_template.c"
+ #undef FTN
+ 
++void op_dump_pc(void) {
++   helper_dump_pc(PARAM1);
++}
++
+ void op_dup_T0 (void)
+ {
+     T2 = T0;
+diff -ur /home/vince/qemu/qemu-snapshot-2007-08-14_05/target-mips/op_mem.c qemu-snapshot-2007-08-14_05-dinero/target-mips/op_mem.c
+--- /home/vince/qemu/qemu-snapshot-2007-08-14_05/target-mips/op_mem.c	2007-05-28 13:09:41.000000000 -0400
++++ qemu-snapshot-2007-08-14_05-dinero/target-mips/op_mem.c	2007-08-14 15:44:38.000000000 -0400
+@@ -21,55 +21,64 @@
+ /* Standard loads and stores */
+ void glue(op_lb, MEMSUFFIX) (void)
+ {
++    helper_dump_memtrace(T0,1,1);
+     T0 = glue(ldsb, MEMSUFFIX)(T0);
+     RETURN();
+ }
+ 
+ void glue(op_lbu, MEMSUFFIX) (void)
+ {
++    helper_dump_memtrace(T0,1,1);
+     T0 = glue(ldub, MEMSUFFIX)(T0);
+     RETURN();
+ }
+ 
+ void glue(op_sb, MEMSUFFIX) (void)
+ {
++    helper_dump_memtrace(T0,0,1);
+     glue(stb, MEMSUFFIX)(T0, T1);
+     RETURN();
+ }
+ 
+ void glue(op_lh, MEMSUFFIX) (void)
+ {
+-    T0 = glue(ldsw, MEMSUFFIX)(T0);
++    helper_dump_memtrace(T0,1,2);
++    T0 = glue(ldsw, MEMSUFFIX)(T0);   
+     RETURN();
+ }
+ 
+ void glue(op_lhu, MEMSUFFIX) (void)
+ {
+-    T0 = glue(lduw, MEMSUFFIX)(T0);
++    helper_dump_memtrace(T0,1,2);
++    T0 = glue(lduw, MEMSUFFIX)(T0);    
+     RETURN();
+ }
+ 
+ void glue(op_sh, MEMSUFFIX) (void)
+ {
+-    glue(stw, MEMSUFFIX)(T0, T1);
++    helper_dump_memtrace(T0,0,2);
++    glue(stw, MEMSUFFIX)(T0, T1);    
+     RETURN();
+ }
+ 
+ void glue(op_lw, MEMSUFFIX) (void)
+ {
+-    T0 = glue(ldl, MEMSUFFIX)(T0);
++    helper_dump_memtrace(T0,1,4);
++    T0 = glue(ldl, MEMSUFFIX)(T0);    
+     RETURN();
+ }
+ 
+ void glue(op_lwu, MEMSUFFIX) (void)
+ {
+-    T0 = (uint32_t)glue(ldl, MEMSUFFIX)(T0);
++    helper_dump_memtrace(T0,1,4);
++    T0 = (uint32_t)glue(ldl, MEMSUFFIX)(T0);    
+     RETURN();
+ }
+ 
+ void glue(op_sw, MEMSUFFIX) (void)
+ {
+-    glue(stl, MEMSUFFIX)(T0, T1);
++    helper_dump_memtrace(T0,0,4);
++    glue(stl, MEMSUFFIX)(T0, T1);    
+     RETURN();
+ }
+ 
+@@ -78,20 +87,25 @@
+ /* XXX: This is broken, CP0_BADVADDR has the wrong (aligned) value. */
+ void glue(op_lwl, MEMSUFFIX) (void)
+ {
++    helper_dump_memtrace(T0,1,4);
+     uint32_t tmp = glue(ldl, MEMSUFFIX)(T0 & ~3);
+     CALL_FROM_TB1(glue(do_lwl, MEMSUFFIX), tmp);
++
+     RETURN();
+ }
+ 
+ void glue(op_lwr, MEMSUFFIX) (void)
+ {
++    helper_dump_memtrace(T0,1,4);
+     uint32_t tmp = glue(ldl, MEMSUFFIX)(T0 & ~3);
+     CALL_FROM_TB1(glue(do_lwr, MEMSUFFIX), tmp);
++
+     RETURN();
+ }
+ 
+ void glue(op_swl, MEMSUFFIX) (void)
+ {
++    helper_dump_memtrace(T0,0,4);   
+     uint32_t tmp = glue(ldl, MEMSUFFIX)(T0 & ~3);
+     tmp = CALL_FROM_TB1(glue(do_swl, MEMSUFFIX), tmp);
+     glue(stl, MEMSUFFIX)(T0 & ~3, tmp);
+@@ -100,6 +114,7 @@
+ 
+ void glue(op_swr, MEMSUFFIX) (void)
+ {
++    helper_dump_memtrace(T0,0,4);
+     uint32_t tmp = glue(ldl, MEMSUFFIX)(T0 & ~3);
+     tmp = CALL_FROM_TB1(glue(do_swr, MEMSUFFIX), tmp);
+     glue(stl, MEMSUFFIX)(T0 & ~3, tmp);
+@@ -108,6 +123,7 @@
+ 
+ void glue(op_ll, MEMSUFFIX) (void)
+ {
++    helper_dump_memtrace(T0,1,4);  
+     T1 = T0;
+     T0 = glue(ldl, MEMSUFFIX)(T0);
+     env->CP0_LLAddr = T1;
+@@ -133,12 +149,14 @@
+ #ifdef TARGET_MIPS64
+ void glue(op_ld, MEMSUFFIX) (void)
+ {
++    helper_dump_memtrace(T0,1,8);
+     T0 = glue(ldq, MEMSUFFIX)(T0);
+     RETURN();
+ }
+ 
+ void glue(op_sd, MEMSUFFIX) (void)
+ {
++    helper_dump_memtrace(T0,0,8);   
+     glue(stq, MEMSUFFIX)(T0, T1);
+     RETURN();
+ }
+diff -ur /home/vince/qemu/qemu-snapshot-2007-08-14_05/target-mips/translate.c qemu-snapshot-2007-08-14_05-dinero/target-mips/translate.c
+--- /home/vince/qemu/qemu-snapshot-2007-08-14_05/target-mips/translate.c	2007-06-26 16:26:03.000000000 -0400
++++ qemu-snapshot-2007-08-14_05-dinero/target-mips/translate.c	2007-08-15 17:24:47.000000000 -0400
+@@ -5969,6 +5969,7 @@
+             gen_opc_hflags[lj] = ctx.hflags & MIPS_HFLAG_BMASK;
+             gen_opc_instr_start[lj] = 1;
+         }
++        gen_op_dump_pc(ctx.pc);
+         ctx.opcode = ldl_code(ctx.pc);
+         decode_opc(env, &ctx);
+         ctx.pc += 4;
