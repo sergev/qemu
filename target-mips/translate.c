@@ -19083,7 +19083,9 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
             ctx.bstate = BS_STOP;
             break;
         }
-        if (1)
+
+        //TODO: add option to enable instruction tracing.
+        if (qemu_logfile)
             generate_dump_opcode(ctx.pc, ctx.opcode, insn_bytes);
 
         if (ctx.hflags & MIPS_HFLAG_BMASK) {

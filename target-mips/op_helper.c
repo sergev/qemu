@@ -2331,13 +2331,54 @@ void mips_cpu_unassigned_access(CPUState *cs, hwaddr addr,
 }
 #endif /* !CONFIG_USER_ONLY */
 
-void helper_dump_opcode(CPUMIPSState *env, target_ulong pc,
-    target_ulong opcode, target_ulong nbytes)
+#include "disas/bfd.h"
+
+static void dump_print_target_address(bfd_vma addr, struct disassemble_info *info)
 {
+    fprintf(qemu_logfile, "%08x", (unsigned) addr);
+}
+
+/*
+ * Print the instruction to log file.
+ */
+void helper_dump_opcode(CPUMIPSState *env, int pc, int opcode, int nbytes)
+{
+    struct disassemble_info info;
+    int (*print_insn)(bfd_vma pc, disassemble_info *info);
+
+    /* Setup disassemble descriptor. */
+    INIT_DISASSEMBLE_INFO(info, qemu_logfile, fprintf);
+    info.read_memory_func = buffer_read_memory;
+    info.print_address_func = dump_print_target_address;
+    info.buffer_vma = pc;
+    info.buffer_length = nbytes;
+    info.buffer = (void*) &opcode;
+#ifdef TARGET_WORDS_BIGENDIAN
+    info.endian = BFD_ENDIAN_BIG;
+    print_insn = print_insn_big_mips;
+#else
+    info.endian = BFD_ENDIAN_LITTLE;
+    print_insn = print_insn_little_mips;
+#endif
+
+    /* Print instruction address, opcode and mnemonics. */
     if (nbytes == 2)
-        printf("--- %s: %08x: %04x\n", __func__, pc, opcode);
+        fprintf(qemu_logfile, "%08x: %04x          ", pc, opcode);
     else
-        printf("--- %s: %08x: %08x\n", __func__, pc, opcode);
+        fprintf(qemu_logfile, "%08x: %08x      ", pc, opcode);
+    print_insn(pc, &info);
+    fprintf(qemu_logfile, "\n");
+
+    /* Handle magic opcodes. */
+    if (opcode == 0x2c00abc1 || opcode == 0x2c00abc2) {
+        /* Halt the processor. */
+        fprintf(qemu_logfile, "Application terminated with %s code.\n",
+            opcode == 0x2c00abc2 ? "PASS" : "FAIL");
+        if (fileno(stdout) != fileno(qemu_logfile))
+            printf("Application terminated with %s code.\n",
+                opcode == 0x2c00abc2 ? "PASS" : "FAIL");
+        exit(1);
+    }
 }
 
 /* Complex FPU operations which may need stack space. */
