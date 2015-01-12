@@ -1698,6 +1698,22 @@ generate_dump_opcode (int pc, int opcode, int nbytes)
     tcg_temp_free_i32(tnbytes);
 }
 
+static inline void
+generate_dump_store (int op, TCGv addr, TCGv value)
+{
+    TCGv_i32 top = tcg_const_i32(op);
+    gen_helper_dump_store(cpu_env, top, addr, value);
+    tcg_temp_free_i32(top);
+}
+
+static inline void
+generate_dump_load (int op, TCGv addr, TCGv value)
+{
+    TCGv_i32 top = tcg_const_i32(op);
+    gen_helper_dump_load(cpu_env, top, addr, value);
+    tcg_temp_free_i32(top);
+}
+
 /* Addresses computation */
 static inline void gen_op_addr_add (DisasContext *ctx, TCGv ret, TCGv arg0, TCGv arg1)
 {
@@ -2079,7 +2095,7 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
                    int rt, int base, int16_t offset)
 {
     const char *opn = "ld";
-    TCGv t0, t1, t2;
+    TCGv t0, t1, t2, t3;
 
     if (rt == 0 && ctx->insn_flags & (INSN_LOONGSON2E | INSN_LOONGSON2F)) {
         /* Loongson CPU uses a load to zero register for prefetch.
@@ -2092,15 +2108,23 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
     t0 = tcg_temp_new();
     gen_base_offset_addr(ctx, t0, base, offset);
 
+    if (qemu_logfile) { //TODO: add option to enable memory tracing.
+        t3 = tcg_temp_new();
+        tcg_gen_mov_tl(t3, t0);
+    }
     switch (opc) {
 #if defined(TARGET_MIPS64)
     case OPC_LWU:
         tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUL);
+        if (qemu_logfile) //TODO: add option to enable memory tracing.
+            generate_dump_load(opc, t3, t0);
         gen_store_gpr(t0, rt);
         opn = "lwu";
         break;
     case OPC_LD:
         tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEQ);
+        if (qemu_logfile) //TODO: add option to enable memory tracing.
+            generate_dump_load(opc, t3, t0);
         gen_store_gpr(t0, rt);
         opn = "ld";
         break;
@@ -2172,26 +2196,36 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         break;
     case OPC_LW:
         tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TESL);
+        if (qemu_logfile) //TODO: add option to enable memory tracing.
+            generate_dump_load(opc, t3, t0);
         gen_store_gpr(t0, rt);
         opn = "lw";
         break;
     case OPC_LH:
         tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TESW);
+        if (qemu_logfile) //TODO: add option to enable memory tracing.
+            generate_dump_load(opc, t3, t0);
         gen_store_gpr(t0, rt);
         opn = "lh";
         break;
     case OPC_LHU:
         tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUW);
+        if (qemu_logfile) //TODO: add option to enable memory tracing.
+            generate_dump_load(opc, t3, t0);
         gen_store_gpr(t0, rt);
         opn = "lhu";
         break;
     case OPC_LB:
         tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_SB);
+        if (qemu_logfile) //TODO: add option to enable memory tracing.
+            generate_dump_load(opc, t3, t0);
         gen_store_gpr(t0, rt);
         opn = "lb";
         break;
     case OPC_LBU:
         tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_UB);
+        if (qemu_logfile) //TODO: add option to enable memory tracing.
+            generate_dump_load(opc, t3, t0);
         gen_store_gpr(t0, rt);
         opn = "lbu";
         break;
@@ -2250,6 +2284,8 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
     (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s, %d(%s)", opn, regnames[rt], offset, regnames[base]);
     tcg_temp_free(t0);
+    if (qemu_logfile) //TODO: add option to enable memory tracing.
+        tcg_temp_free(t3);
 }
 
 /* Store */
@@ -2304,6 +2340,11 @@ static void gen_st (DisasContext *ctx, uint32_t opc, int rt,
     }
     (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s, %d(%s)", opn, regnames[rt], offset, regnames[base]);
+
+    //TODO: add option to enable memory tracing.
+    if (qemu_logfile)
+        generate_dump_store(opc, t0, t1);
+
     tcg_temp_free(t0);
     tcg_temp_free(t1);
 }

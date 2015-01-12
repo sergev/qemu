@@ -2381,6 +2381,97 @@ void helper_dump_opcode(CPUMIPSState *env, int pc, int opcode, int nbytes)
     }
 }
 
+enum {
+    /* Load and stores */
+    OPC_LDL      = (0x1A << 26),
+    OPC_LDR      = (0x1B << 26),
+    OPC_LB       = (0x20 << 26),
+    OPC_LH       = (0x21 << 26),
+    OPC_LWL      = (0x22 << 26),
+    OPC_LW       = (0x23 << 26),
+    OPC_LWPC     = OPC_LW | 0x5,
+    OPC_LBU      = (0x24 << 26),
+    OPC_LHU      = (0x25 << 26),
+    OPC_LWR      = (0x26 << 26),
+    OPC_LWU      = (0x27 << 26),
+    OPC_SB       = (0x28 << 26),
+    OPC_SH       = (0x29 << 26),
+    OPC_SWL      = (0x2A << 26),
+    OPC_SW       = (0x2B << 26),
+    OPC_SDL      = (0x2C << 26),
+    OPC_SDR      = (0x2D << 26),
+    OPC_SWR      = (0x2E << 26),
+    OPC_LL       = (0x30 << 26),
+    OPC_LLD      = (0x34 << 26),
+    OPC_LD       = (0x37 << 26),
+    OPC_LDPC     = OPC_LD | 0x5,
+    OPC_SC       = (0x38 << 26),
+    OPC_SCD      = (0x3C << 26),
+    OPC_SD       = (0x3F << 26),
+};
+
+
+/*
+ * Print the memory store to log file.
+ */
+void helper_dump_store(CPUMIPSState *env, int opc, int addr, int value)
+{
+    switch (opc) {
+#if defined(TARGET_MIPS64)
+    case OPC_SD:
+    case OPC_SDL:
+    case OPC_SDR:
+        fprintf(qemu_logfile, "Memory Write [%08x] = %016x\n", addr, value);
+        break;
+#endif
+    case OPC_SW:
+    case OPC_SWL:
+    case OPC_SWR:
+        fprintf(qemu_logfile, "Memory Write [%08x] = %08x\n", addr, (uint32_t) value);
+        break;
+    case OPC_SH:
+        fprintf(qemu_logfile, "Memory Write [%08x] = %04x\n", addr, (uint16_t) value);
+        break;
+    case OPC_SB:
+        fprintf(qemu_logfile, "Memory Write [%08x] = %02x\n", addr, (uint8_t) value);
+        break;
+    default:
+        fprintf(qemu_logfile, "Memory op%u [%08x] = %08x\n", opc, addr, (uint32_t) value);
+    }
+}
+
+/*
+ * Print the memory load to log file.
+ */
+void helper_dump_load(CPUMIPSState *env, int opc, int addr, int value)
+{
+    switch (opc) {
+#if defined(TARGET_MIPS64)
+    case OPC_LD:
+    case OPC_LDL:
+    case OPC_LDR:
+    case OPC_LDPC:
+        fprintf(qemu_logfile, "Memory Read [%08x] = %016x\n", addr, value);
+        break;
+    case OPC_LWU:
+#endif
+    case OPC_LW:
+    case OPC_LWPC:
+    case OPC_LWL:
+    case OPC_LWR:
+        fprintf(qemu_logfile, "Memory Read [%08x] = %08x\n", addr, (uint32_t) value);
+        break;
+    case OPC_LH:
+    case OPC_LHU:
+        fprintf(qemu_logfile, "Memory Read [%08x] = %04x\n", addr, (uint16_t) value);
+        break;
+    case OPC_LB:
+    case OPC_LBU:
+        fprintf(qemu_logfile, "Memory Read [%08x] = %02x\n", addr, (uint8_t) value);
+        break;
+    }
+}
+
 /* Complex FPU operations which may need stack space. */
 
 #define FLOAT_TWO32 make_float32(1 << 30)

@@ -34,7 +34,8 @@
 #include "qemu/error-report.h"
 #include "hw/empty_slot.h"
 
-#define PIC32MX7
+//#define PIC32MX7
+#define PIC32MZ
 
 /* Hardware addresses */
 #define PROGRAM_FLASH_START 0x1d000000
@@ -416,7 +417,6 @@ static void mips_pic32_init(MachineState *machine)
     unsigned ram_size = 128*1024;
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *ram_main = g_new(MemoryRegion, 1);
-    MemoryRegion *ram_user = g_new(MemoryRegion, 1);
     MemoryRegion *prog_mem = g_new(MemoryRegion, 1);
     MemoryRegion *boot_mem = g_new(MemoryRegion, 1);
     MIPSCPU *cpu;
@@ -469,10 +469,14 @@ static void mips_pic32_init(MachineState *machine)
     vmstate_register_ram_global(ram_main);
     memory_region_add_subregion(system_memory, DATA_MEM_START, ram_main);
 
-    /* Alias for user space 96 kbytes */
+#ifdef USER_MEM_START
+    /* Alias for user space 96 kbytes.
+     * For MX family only. */
+    MemoryRegion *ram_user = g_new(MemoryRegion, 1);
     memory_region_init_alias(ram_user, NULL, "user.ram",
         ram_main, 0x8000, ram_size - 0x8000);
     memory_region_add_subregion(system_memory, USER_MEM_START + 0x8000, ram_user);
+#endif
 
     /* FPGA */
     memory_region_init_io(&s->iomem, NULL, &pic32_io_ops, s,
