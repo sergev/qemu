@@ -1919,6 +1919,32 @@ static void r4k_fill_tlb(CPUMIPSState *env, int idx)
     tlb->PFN[1] = (env->CP0_EntryLo1 >> 6) << 12;
 }
 
+static void r4k_dump_tlb(CPUMIPSState *env, int idx)
+{
+    r4k_tlb_t *tlb = &env->tlb->mmu.r4k.tlb[idx];
+    unsigned pagemask, hi, lo0, lo1;
+
+    if (tlb->EHINV) {
+        pagemask = 0;
+        hi  = 1 << CP0EnHi_EHINV;
+        lo0 = 0;
+        lo1 = 0;
+    } else {
+        pagemask = tlb->PageMask;
+        hi  = tlb->VPN | tlb->ASID;
+        lo0 = tlb->G | (tlb->V0 << 1) | (tlb->D0 << 2) |
+              ((target_ulong)tlb->RI0 << CP0EnLo_RI) |
+              ((target_ulong)tlb->XI0 << CP0EnLo_XI) |
+              (tlb->C0 << 3) | (tlb->PFN[0] >> 6);
+        lo1 = tlb->G | (tlb->V1 << 1) | (tlb->D1 << 2) |
+              ((target_ulong)tlb->RI1 << CP0EnLo_RI) |
+              ((target_ulong)tlb->XI1 << CP0EnLo_XI) |
+              (tlb->C1 << 3) | (tlb->PFN[1] >> 6);
+    }
+    fprintf(qemu_logfile, "Write TLB[%u] = %08x %08x %08x %08x\n",
+        idx, pagemask, hi, lo0, lo1);
+}
+
 void r4k_helper_tlbinv(CPUMIPSState *env)
 {
     int idx;
@@ -1975,6 +2001,9 @@ void r4k_helper_tlbwi(CPUMIPSState *env)
 
     r4k_invalidate_tlb(env, idx, 0);
     r4k_fill_tlb(env, idx);
+
+    if (qemu_logfile) //TODO: add option to enable instruction tracing.
+        r4k_dump_tlb(env, idx);
 }
 
 void r4k_helper_tlbwr(CPUMIPSState *env)
@@ -1983,6 +2012,9 @@ void r4k_helper_tlbwr(CPUMIPSState *env)
 
     r4k_invalidate_tlb(env, r, 1);
     r4k_fill_tlb(env, r);
+
+    if (qemu_logfile) //TODO: add option to enable instruction tracing.
+        r4k_dump_tlb(env, r);
 }
 
 void r4k_helper_tlbp(CPUMIPSState *env)
