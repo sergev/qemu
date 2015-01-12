@@ -2106,7 +2106,7 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
     t0 = tcg_temp_new();
     gen_base_offset_addr(ctx, t0, base, offset);
 
-    if (qemu_logfile) { //TODO: add option to enable memory tracing.
+    if (qemu_loglevel_mask(CPU_LOG_INSTR)) {
         t3 = tcg_temp_new();
         tcg_gen_mov_tl(t3, t0);
     }
@@ -2114,14 +2114,14 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
 #if defined(TARGET_MIPS64)
     case OPC_LWU:
         tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUL);
-        if (qemu_logfile) //TODO: add option to enable memory tracing.
+        if (qemu_loglevel_mask(CPU_LOG_INSTR))
             generate_dump_load(opc, t3, t0);
         gen_store_gpr(t0, rt);
         opn = "lwu";
         break;
     case OPC_LD:
         tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEQ);
-        if (qemu_logfile) //TODO: add option to enable memory tracing.
+        if (qemu_loglevel_mask(CPU_LOG_INSTR))
             generate_dump_load(opc, t3, t0);
         gen_store_gpr(t0, rt);
         opn = "ld";
@@ -2194,35 +2194,35 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         break;
     case OPC_LW:
         tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TESL);
-        if (qemu_logfile) //TODO: add option to enable memory tracing.
+        if (qemu_loglevel_mask(CPU_LOG_INSTR))
             generate_dump_load(opc, t3, t0);
         gen_store_gpr(t0, rt);
         opn = "lw";
         break;
     case OPC_LH:
         tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TESW);
-        if (qemu_logfile) //TODO: add option to enable memory tracing.
+        if (qemu_loglevel_mask(CPU_LOG_INSTR))
             generate_dump_load(opc, t3, t0);
         gen_store_gpr(t0, rt);
         opn = "lh";
         break;
     case OPC_LHU:
         tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUW);
-        if (qemu_logfile) //TODO: add option to enable memory tracing.
+        if (qemu_loglevel_mask(CPU_LOG_INSTR))
             generate_dump_load(opc, t3, t0);
         gen_store_gpr(t0, rt);
         opn = "lhu";
         break;
     case OPC_LB:
         tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_SB);
-        if (qemu_logfile) //TODO: add option to enable memory tracing.
+        if (qemu_loglevel_mask(CPU_LOG_INSTR))
             generate_dump_load(opc, t3, t0);
         gen_store_gpr(t0, rt);
         opn = "lb";
         break;
     case OPC_LBU:
         tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_UB);
-        if (qemu_logfile) //TODO: add option to enable memory tracing.
+        if (qemu_loglevel_mask(CPU_LOG_INSTR))
             generate_dump_load(opc, t3, t0);
         gen_store_gpr(t0, rt);
         opn = "lbu";
@@ -2282,7 +2282,7 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
     (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s, %d(%s)", opn, regnames[rt], offset, regnames[base]);
     tcg_temp_free(t0);
-    if (qemu_logfile) //TODO: add option to enable memory tracing.
+    if (qemu_loglevel_mask(CPU_LOG_INSTR))
         tcg_temp_free(t3);
 }
 
@@ -2339,8 +2339,7 @@ static void gen_st (DisasContext *ctx, uint32_t opc, int rt,
     (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s, %d(%s)", opn, regnames[rt], offset, regnames[base]);
 
-    //TODO: add option to enable memory tracing.
-    if (qemu_logfile)
+    if (qemu_loglevel_mask(CPU_LOG_INSTR))
         generate_dump_store(opc, t0, t1);
 
     tcg_temp_free(t0);
@@ -19106,7 +19105,7 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
             gen_io_start();
 
-        if (qemu_logfile) //TODO: add option to enable instruction tracing.
+        if (qemu_loglevel_mask(CPU_LOG_INSTR))
             generate_dump_pc(ctx.pc,
                 (ctx.hflags & MIPS_HFLAG_M16) == 0 ? 0 :
                 (ctx.insn_flags & ASE_MICROMIPS) ? 1 : 2);

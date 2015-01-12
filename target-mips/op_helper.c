@@ -2002,7 +2002,7 @@ void r4k_helper_tlbwi(CPUMIPSState *env)
     r4k_invalidate_tlb(env, idx, 0);
     r4k_fill_tlb(env, idx);
 
-    if (qemu_logfile) //TODO: add option to enable instruction tracing.
+    if (qemu_loglevel_mask(CPU_LOG_INSTR))
         r4k_dump_tlb(env, idx);
 }
 
@@ -2013,7 +2013,7 @@ void r4k_helper_tlbwr(CPUMIPSState *env)
     r4k_invalidate_tlb(env, r, 1);
     r4k_fill_tlb(env, r);
 
-    if (qemu_logfile) //TODO: add option to enable instruction tracing.
+    if (qemu_loglevel_mask(CPU_LOG_INSTR))
         r4k_dump_tlb(env, r);
 }
 
