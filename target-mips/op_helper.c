@@ -1941,7 +1941,7 @@ static void r4k_dump_tlb(CPUMIPSState *env, int idx)
               ((target_ulong)tlb->XI1 << CP0EnLo_XI) |
               (tlb->C1 << 3) | (tlb->PFN[1] >> 6);
     }
-    fprintf(qemu_logfile, "Write TLB[%u] = %08x %08x %08x %08x\n",
+    fprintf(qemu_logfile, "    Write TLB[%u] = %08x %08x %08x %08x\n",
         idx, pagemask, hi, lo0, lo1);
 }
 
@@ -2365,6 +2365,47 @@ void mips_cpu_unassigned_access(CPUState *cs, hwaddr addr,
 
 #include "disas/bfd.h"
 
+/*
+ * Processor state after the last instruction.
+ */
+static TCState last;
+
+static void dump_changed_regs(CPUMIPSState *env)
+{
+    TCState *cur = &env->active_tc;
+    int i;
+
+    for (i=1; i<32; i++) {
+        if (cur->gpr[i] != last.gpr[i]) {
+            last.gpr[i] = cur->gpr[i];
+            fprintf(qemu_logfile, "    Write GPR[%u] = %08x\n",
+                i, (unsigned) cur->gpr[i]);
+        }
+    }
+    for (i=0; i<MIPS_DSP_ACC; i++) {
+        if (cur->LO[i] != last.LO[i]) {
+            last.LO[i] = cur->LO[i];
+            fprintf(qemu_logfile, "    Write Lo[%u] = %08x\n",
+                i, (unsigned) cur->LO[i]);
+        }
+        if (cur->HI[i] != last.HI[i]) {
+            last.HI[i] = cur->HI[i];
+            fprintf(qemu_logfile, "    Write Hi[%u] = %08x\n",
+                i, (unsigned) cur->HI[i]);
+        }
+    }
+    if (cur->DSPControl != last.DSPControl) {
+        last.DSPControl = cur->DSPControl;
+        fprintf(qemu_logfile, "    Write DSPControl = %08x\n",
+            (unsigned) cur->DSPControl);
+    }
+}
+
+static void dump_changed_cop0(CPUMIPSState *env)
+{
+    //TODO
+}
+
 static void dump_print_target_address(bfd_vma addr, struct disassemble_info *info)
 {
     fprintf(qemu_logfile, "%08x", (unsigned) addr);
@@ -2379,6 +2420,11 @@ void helper_dump_pc(CPUMIPSState *env, int pc, int isa)
     int (*print_insn)(bfd_vma pc, disassemble_info *info);
     int opcode, nbytes;
 
+    /* Dump changed state: GPR, HI/LO, COP0. */
+    dump_changed_regs(env);
+    dump_changed_cop0(env);
+
+    /* Fetch opcode. */
     if (isa == 0) {
         /* mips32 instruction set */
         opcode = cpu_ldl_code(env, pc);
@@ -2493,22 +2539,22 @@ void helper_dump_store(CPUMIPSState *env, int opc, int addr, int value)
     case OPC_SD:
     case OPC_SDL:
     case OPC_SDR:
-        fprintf(qemu_logfile, "Memory Write [%08x] = %016x\n", addr, value);
+        fprintf(qemu_logfile, "    Memory Write [%08x] = %016x\n", addr, value);
         break;
 #endif
     case OPC_SW:
     case OPC_SWL:
     case OPC_SWR:
-        fprintf(qemu_logfile, "Memory Write [%08x] = %08x\n", addr, (uint32_t) value);
+        fprintf(qemu_logfile, "    Memory Write [%08x] = %08x\n", addr, (uint32_t) value);
         break;
     case OPC_SH:
-        fprintf(qemu_logfile, "Memory Write [%08x] = %04x\n", addr, (uint16_t) value);
+        fprintf(qemu_logfile, "    Memory Write [%08x] = %04x\n", addr, (uint16_t) value);
         break;
     case OPC_SB:
-        fprintf(qemu_logfile, "Memory Write [%08x] = %02x\n", addr, (uint8_t) value);
+        fprintf(qemu_logfile, "    Memory Write [%08x] = %02x\n", addr, (uint8_t) value);
         break;
     default:
-        fprintf(qemu_logfile, "Memory op%u [%08x] = %08x\n", opc, addr, (uint32_t) value);
+        fprintf(qemu_logfile, "    Memory op%u [%08x] = %08x\n", opc, addr, (uint32_t) value);
     }
 }
 
@@ -2523,7 +2569,7 @@ void helper_dump_load(CPUMIPSState *env, int opc, int addr, int value)
     case OPC_LDL:
     case OPC_LDR:
     case OPC_LDPC:
-        fprintf(qemu_logfile, "Memory Read [%08x] = %016x\n", addr, value);
+        fprintf(qemu_logfile, "    Memory Read [%08x] = %016x\n", addr, value);
         break;
     case OPC_LWU:
 #endif
@@ -2531,15 +2577,15 @@ void helper_dump_load(CPUMIPSState *env, int opc, int addr, int value)
     case OPC_LWPC:
     case OPC_LWL:
     case OPC_LWR:
-        fprintf(qemu_logfile, "Memory Read [%08x] = %08x\n", addr, (uint32_t) value);
+        fprintf(qemu_logfile, "    Memory Read [%08x] = %08x\n", addr, (uint32_t) value);
         break;
     case OPC_LH:
     case OPC_LHU:
-        fprintf(qemu_logfile, "Memory Read [%08x] = %04x\n", addr, (uint16_t) value);
+        fprintf(qemu_logfile, "    Memory Read [%08x] = %04x\n", addr, (uint16_t) value);
         break;
     case OPC_LB:
     case OPC_LBU:
-        fprintf(qemu_logfile, "Memory Read [%08x] = %02x\n", addr, (uint8_t) value);
+        fprintf(qemu_logfile, "    Memory Read [%08x] = %02x\n", addr, (uint8_t) value);
         break;
     }
 }
