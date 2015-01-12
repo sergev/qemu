@@ -2368,11 +2368,52 @@ void mips_cpu_unassigned_access(CPUState *cs, hwaddr addr,
 /*
  * Processor state after the last instruction.
  */
-target_ulong last_gpr[32];
-target_ulong last_HI[MIPS_DSP_ACC];
-target_ulong last_LO[MIPS_DSP_ACC];
-target_ulong last_DSPControl;
-target_ulong last_cop0[32*8];
+static target_ulong last_gpr[32];
+static target_ulong last_HI[MIPS_DSP_ACC];
+static target_ulong last_LO[MIPS_DSP_ACC];
+static target_ulong last_DSPControl;
+static target_ulong last_cop0[32*8];
+static const char *last_mode;
+
+/*
+ * Print changed kernel/user/debug mode.
+ */
+static void dump_changed_mode(CPUMIPSState *env)
+{
+    const char *kernel0, *kernel1, *mode;
+
+#if defined(TARGET_MIPS64)
+    if (env->CP0_Status & (1 << CP0St_KX)) {
+        kernel0 = "Kernel mode (ERL=0, KX=1)";
+        kernel1 = "Kernel mode (ERL=1, KX=1)";
+    } else {
+        kernel0 = "Kernel mode (ERL=0, KX=0)";
+        kernel1 = "Kernel mode (ERL=1, KX=0)";
+    }
+#else
+    kernel0 = "Kernel mode (ERL=0)";
+    kernel1 = "Kernel mode (ERL=1)";
+#endif
+
+    if (env->CP0_Debug & (1 << CP0DB_DM)) {
+        mode = "Debug mode";
+    } else if (env->CP0_Status & (1 << CP0St_ERL)) {
+        mode = kernel1;
+    } else if (env->CP0_Status & (1 << CP0St_EXL)) {
+        mode = kernel0;
+    } else {
+        switch (extract32(env->CP0_Status, CP0St_KSU, 2)) {
+        case 0:  mode = kernel0;           break;
+        case 1:  mode = "Supervisor mode"; break;
+        default: mode = "User mode";       break;
+        }
+    }
+
+    if (mode != last_mode) {
+        last_mode = mode;
+        fprintf(qemu_logfile, "--- %s\n", mode);
+    }
+}
 
 /*
  * Print changed values of GPR, HI/LO and DSPControl registers.
@@ -2640,9 +2681,12 @@ void helper_dump_pc(CPUMIPSState *env, int pc, int isa)
     int (*print_insn)(bfd_vma pc, disassemble_info *info);
     int opcode, nbytes;
 
-    /* Dump changed state: GPR, HI/LO, COP0. */
+    /* Print changed state: GPR, HI/LO, COP0. */
     dump_changed_regs(env);
     dump_changed_cop0(env);
+
+    /* Printed changed mode: kernel/user/debug */
+    dump_changed_mode(env);
 
     /* Fetch opcode. */
     if (isa == 0) {
