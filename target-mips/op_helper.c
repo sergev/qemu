@@ -2368,42 +2368,732 @@ void mips_cpu_unassigned_access(CPUState *cs, hwaddr addr,
 /*
  * Processor state after the last instruction.
  */
-static TCState last;
+target_ulong last_gpr[32];
+target_ulong last_HI[MIPS_DSP_ACC];
+target_ulong last_LO[MIPS_DSP_ACC];
+target_ulong last_DSPControl;
+target_ulong last_cop0[32*8];
 
+/*
+ * Print changed values of GPR, HI/LO and DSPControl registers.
+ */
 static void dump_changed_regs(CPUMIPSState *env)
 {
     TCState *cur = &env->active_tc;
     int i;
 
     for (i=1; i<32; i++) {
-        if (cur->gpr[i] != last.gpr[i]) {
-            last.gpr[i] = cur->gpr[i];
+        if (cur->gpr[i] != last_gpr[i]) {
+            last_gpr[i] = cur->gpr[i];
             fprintf(qemu_logfile, "    Write GPR[%u] = %08x\n",
                 i, (unsigned) cur->gpr[i]);
         }
     }
     for (i=0; i<MIPS_DSP_ACC; i++) {
-        if (cur->LO[i] != last.LO[i]) {
-            last.LO[i] = cur->LO[i];
+        if (cur->LO[i] != last_LO[i]) {
+            last_LO[i] = cur->LO[i];
             fprintf(qemu_logfile, "    Write Lo[%u] = %08x\n",
                 i, (unsigned) cur->LO[i]);
         }
-        if (cur->HI[i] != last.HI[i]) {
-            last.HI[i] = cur->HI[i];
+        if (cur->HI[i] != last_HI[i]) {
+            last_HI[i] = cur->HI[i];
             fprintf(qemu_logfile, "    Write Hi[%u] = %08x\n",
                 i, (unsigned) cur->HI[i]);
         }
     }
-    if (cur->DSPControl != last.DSPControl) {
-        last.DSPControl = cur->DSPControl;
+    if (cur->DSPControl != last_DSPControl) {
+        last_DSPControl = cur->DSPControl;
         fprintf(qemu_logfile, "    Write DSPControl = %08x\n",
             (unsigned) cur->DSPControl);
     }
 }
 
+/*
+ * Names of coprocessor 0 registers.
+ */
+static const char *cop0_name[32*8] = {
+/*0*/   "Index",    "MVPControl",   "MVPConf0",     "MVPConf1",
+        0,          0,              0,              0,
+/*1*/   "Random",   "VPEControl",   "VPEConf0",     "VPEConf1",
+        "YQMask",   "VPESchedule",  "VPEScheFBack", "VPEOpt",
+/*2*/   "EntryLo0", "TCStatus",     "TCBind",       "TCRestart",
+        "TCHalt",   "TCContext",    "TCSchedule",   "TCScheFBack",
+/*3*/   "EntryLo1", 0,              0,              0,
+        0,          0,              0,              "TCOpt",
+/*4*/   "Context",  "ContextConfig","UserLocal",    "XContextConfig",
+        0,          0,              0,              0,
+/*5*/   "PageMask", "PageGrain",    "SegCtl0",      "SegCtl1",
+        "SegCtl2",  0,              0,              0,
+/*6*/   "Wired",    "SRSConf0",     "SRSConf1",     "SRSConf2",
+        "SRSConf3", "SRSConf4",     0,              0,
+/*7*/   "HWREna",   0,              0,              0,
+        0,          0,              0,              0,
+/*8*/   "BadVAddr", 0,              0,              0,
+        0,          0,              0,              0,
+/*9*/   "Count",    0,              0,              0,
+        0,          0,              0,              0,
+/*10*/  "EntryHi",  0,              0,              0,
+        0,          "MSAAccess",    "MSASave",      "MSARequest",
+/*11*/  "Compare",  0,              0,              0,
+        0,          0,              0,              0,
+/*12*/  "Status",   "IntCtl",       "SRSCtl",       "SRSMap",
+        "ViewIPL",  "SRSMap2",      0,              0,
+/*13*/  "Cause",    0,              0,              0,
+        "ViewRIPL", "NestedExc",    0,              0,
+/*14*/  "EPC",      0,              "NestedEPC",    0,
+        0,          0,              0,              0,
+/*15*/  "PRId",     "EBase",        "CDMMBase",     "CMGCRBase",
+        0,          0,              0,              0,
+/*16*/  "Config",   "Config1",      "Config2",      "Config3",
+        "Config4",  "Config5",      "Config6",      "Config7",
+/*17*/  "LLAddr",   0,              0,              0,
+        0,          0,              0,              0,
+/*18*/  "WatchLo",  "WatchLo1",     "WatchLo2",     "WatchLo3",
+        "WatchLo4", "WatchLo5",     "WatchLo6",     "WatchLo7",
+/*19*/  "WatchHi",  "WatchHi1",     "WatchHi2",     "WatchHi3",
+        "WatchHi4", "WatchHi5",     "WatchHi6",     "WatchHi7",
+/*20*/  "XContext", 0,              0,              0,
+        0,          0,              0,              0,
+/*21*/  0,          0,              0,              0,
+        0,          0,              0,              0,
+/*22*/  0,          0,              0,              0,
+        0,          0,              0,              0,
+/*23*/  "Debug",    "TraceControl", "TraceControl2","UserTraceData",
+        "TraceIBPC","TraceDBPC",    "Debug2",       0,
+/*24*/  "DEPC",     0,              "TraceControl3","UserTraceData2",
+        0,          0,              0,              0,
+/*25*/  "PerfCnt",  "PerfCnt1",     "PerfCnt2",     "PerfCnt3",
+        "PerfCnt4", "PerfCnt5",     "PerfCnt6",     "PerfCnt7",
+/*26*/  "ErrCtl",   0,              0,              0,
+        0,          0,              0,              0,
+/*27*/  "CacheErr", 0,              0,              0,
+        0,          0,              0,              0,
+/*28*/  "ITagLo",   "IDataLo",      "DTagLo",       "DDataLo",
+        "L23TagLo", "L23DataLo",    0,              0,
+/*29*/  "ITagHi",   "IDataHi",      "DTagHi",       0,
+        0,          "L23DataHi",    0,              0,
+/*30*/  "ErrorEPC", 0,              0,              0,
+        0,          0,              0,              0,
+/*31*/  "DESAVE",   0,              0,              0,
+        0,          0,              0,              0,
+};
+
+/*
+ * Print changed values of COP0 registers.
+ */
+static void dump_changed_cop0_reg(CPUMIPSState *env, int idx, target_ulong value)
+{
+    if (value != last_cop0[idx]) {
+        last_cop0[idx] = value;
+        fprintf(qemu_logfile, "    Write %s = %08x\n",
+            cop0_name[idx], (unsigned) value);
+    }
+}
+
+/*
+ * Print changed values of COP0 registers.
+ */
 static void dump_changed_cop0(CPUMIPSState *env)
 {
+    dump_changed_cop0_reg(env, 0*8 + 0, env->CP0_Index);
+    if (env->CP0_Config3 & (1 << CP0C3_MT)) {
+        dump_changed_cop0_reg(env, 0*8 + 1, env->mvp->CP0_MVPControl);
+        dump_changed_cop0_reg(env, 0*8 + 2, env->mvp->CP0_MVPConf0);
+        dump_changed_cop0_reg(env, 0*8 + 3, env->mvp->CP0_MVPConf1);
+    }
+
     //TODO
+#if 0
+    case 1:
+        switch (sel) {
+        case 0:
+            CP0_CHECK(!(ctx->insn_flags & ISA_MIPS32R6));
+            gen_helper_mfc0_random(arg, cpu_env);
+            rn = "Random";
+            break;
+        case 1:
+            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_VPEControl));
+            rn = "VPEControl";
+            break;
+        case 2:
+            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_VPEConf0));
+            rn = "VPEConf0";
+            break;
+        case 3:
+            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_VPEConf1));
+            rn = "VPEConf1";
+            break;
+        case 4:
+            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            gen_mfc0_load64(arg, offsetof(CPUMIPSState, CP0_YQMask));
+            rn = "YQMask";
+            break;
+        case 5:
+            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            gen_mfc0_load64(arg, offsetof(CPUMIPSState, CP0_VPESchedule));
+            rn = "VPESchedule";
+            break;
+        case 6:
+            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            gen_mfc0_load64(arg, offsetof(CPUMIPSState, CP0_VPEScheFBack));
+            rn = "VPEScheFBack";
+            break;
+        case 7:
+            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_VPEOpt));
+            rn = "VPEOpt";
+            break;
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    case 2:
+        switch (sel) {
+        case 0:
+            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_EntryLo0));
+#if defined(TARGET_MIPS64)
+            if (ctx->rxi) {
+                TCGv tmp = tcg_temp_new();
+                tcg_gen_andi_tl(tmp, arg, (3ull << 62));
+                tcg_gen_shri_tl(tmp, tmp, 32);
+                tcg_gen_or_tl(arg, arg, tmp);
+                tcg_temp_free(tmp);
+            }
+#endif
+            tcg_gen_ext32s_tl(arg, arg);
+            rn = "EntryLo0";
+            break;
+        case 1:
+            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            gen_helper_mfc0_tcstatus(arg, cpu_env);
+            rn = "TCStatus";
+            break;
+        case 2:
+            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            gen_helper_mfc0_tcbind(arg, cpu_env);
+            rn = "TCBind";
+            break;
+        case 3:
+            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            gen_helper_mfc0_tcrestart(arg, cpu_env);
+            rn = "TCRestart";
+            break;
+        case 4:
+            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            gen_helper_mfc0_tchalt(arg, cpu_env);
+            rn = "TCHalt";
+            break;
+        case 5:
+            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            gen_helper_mfc0_tccontext(arg, cpu_env);
+            rn = "TCContext";
+            break;
+        case 6:
+            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            gen_helper_mfc0_tcschedule(arg, cpu_env);
+            rn = "TCSchedule";
+            break;
+        case 7:
+            CP0_CHECK(ctx->insn_flags & ASE_MT);
+            gen_helper_mfc0_tcschefback(arg, cpu_env);
+            rn = "TCScheFBack";
+            break;
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    case 3:
+        switch (sel) {
+        case 0:
+            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_EntryLo1));
+#if defined(TARGET_MIPS64)
+            if (ctx->rxi) {
+                TCGv tmp = tcg_temp_new();
+                tcg_gen_andi_tl(tmp, arg, (3ull << 62));
+                tcg_gen_shri_tl(tmp, tmp, 32);
+                tcg_gen_or_tl(arg, arg, tmp);
+                tcg_temp_free(tmp);
+            }
+#endif
+            tcg_gen_ext32s_tl(arg, arg);
+            rn = "EntryLo1";
+            break;
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    case 4:
+        switch (sel) {
+        case 0:
+            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_Context));
+            tcg_gen_ext32s_tl(arg, arg);
+            rn = "Context";
+            break;
+        case 1:
+//            gen_helper_mfc0_contextconfig(arg); /* SmartMIPS ASE */
+            rn = "ContextConfig";
+            goto cp0_unimplemented;
+//            break;
+        case 2:
+            CP0_CHECK(ctx->ulri);
+            tcg_gen_ld32s_tl(arg, cpu_env,
+                             offsetof(CPUMIPSState, active_tc.CP0_UserLocal));
+            rn = "UserLocal";
+            break;
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    case 5:
+        switch (sel) {
+        case 0:
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_PageMask));
+            rn = "PageMask";
+            break;
+        case 1:
+            check_insn(ctx, ISA_MIPS32R2);
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_PageGrain));
+            rn = "PageGrain";
+            break;
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    case 6:
+        switch (sel) {
+        case 0:
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_Wired));
+            rn = "Wired";
+            break;
+        case 1:
+            check_insn(ctx, ISA_MIPS32R2);
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_SRSConf0));
+            rn = "SRSConf0";
+            break;
+        case 2:
+            check_insn(ctx, ISA_MIPS32R2);
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_SRSConf1));
+            rn = "SRSConf1";
+            break;
+        case 3:
+            check_insn(ctx, ISA_MIPS32R2);
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_SRSConf2));
+            rn = "SRSConf2";
+            break;
+        case 4:
+            check_insn(ctx, ISA_MIPS32R2);
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_SRSConf3));
+            rn = "SRSConf3";
+            break;
+        case 5:
+            check_insn(ctx, ISA_MIPS32R2);
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_SRSConf4));
+            rn = "SRSConf4";
+            break;
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    case 7:
+        switch (sel) {
+        case 0:
+            check_insn(ctx, ISA_MIPS32R2);
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_HWREna));
+            rn = "HWREna";
+            break;
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    case 8:
+        switch (sel) {
+        case 0:
+            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_BadVAddr));
+            tcg_gen_ext32s_tl(arg, arg);
+            rn = "BadVAddr";
+            break;
+        case 1:
+            CP0_CHECK(ctx->bi);
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_BadInstr));
+            rn = "BadInstr";
+            break;
+        case 2:
+            CP0_CHECK(ctx->bp);
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_BadInstrP));
+            rn = "BadInstrP";
+            break;
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    case 9:
+        switch (sel) {
+        case 0:
+            /* Mark as an IO operation because we read the time.  */
+            if (use_icount)
+                gen_io_start();
+            gen_helper_mfc0_count(arg, cpu_env);
+            if (use_icount) {
+                gen_io_end();
+            }
+            /* Break the TB to be able to take timer interrupts immediately
+               after reading count.  */
+            ctx->bstate = BS_STOP;
+            rn = "Count";
+            break;
+        /* 6,7 are implementation dependent */
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    case 10:
+        switch (sel) {
+        case 0:
+            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_EntryHi));
+            tcg_gen_ext32s_tl(arg, arg);
+            rn = "EntryHi";
+            break;
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    case 11:
+        switch (sel) {
+        case 0:
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_Compare));
+            rn = "Compare";
+            break;
+        /* 6,7 are implementation dependent */
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    case 12:
+        switch (sel) {
+        case 0:
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_Status));
+            rn = "Status";
+            break;
+        case 1:
+            check_insn(ctx, ISA_MIPS32R2);
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_IntCtl));
+            rn = "IntCtl";
+            break;
+        case 2:
+            check_insn(ctx, ISA_MIPS32R2);
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_SRSCtl));
+            rn = "SRSCtl";
+            break;
+        case 3:
+            check_insn(ctx, ISA_MIPS32R2);
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_SRSMap));
+            rn = "SRSMap";
+            break;
+        default:
+            goto cp0_unimplemented;
+       }
+        break;
+    case 13:
+        switch (sel) {
+        case 0:
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_Cause));
+            rn = "Cause";
+            break;
+        default:
+            goto cp0_unimplemented;
+       }
+        break;
+    case 14:
+        switch (sel) {
+        case 0:
+            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_EPC));
+            tcg_gen_ext32s_tl(arg, arg);
+            rn = "EPC";
+            break;
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    case 15:
+        switch (sel) {
+        case 0:
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_PRid));
+            rn = "PRid";
+            break;
+        case 1:
+            check_insn(ctx, ISA_MIPS32R2);
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_EBase));
+            rn = "EBase";
+            break;
+        default:
+            goto cp0_unimplemented;
+       }
+        break;
+    case 16:
+        switch (sel) {
+        case 0:
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_Config0));
+            rn = "Config";
+            break;
+        case 1:
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_Config1));
+            rn = "Config1";
+            break;
+        case 2:
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_Config2));
+            rn = "Config2";
+            break;
+        case 3:
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_Config3));
+            rn = "Config3";
+            break;
+        case 4:
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_Config4));
+            rn = "Config4";
+            break;
+        case 5:
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_Config5));
+            rn = "Config5";
+            break;
+        /* 6,7 are implementation dependent */
+        case 6:
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_Config6));
+            rn = "Config6";
+            break;
+        case 7:
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_Config7));
+            rn = "Config7";
+            break;
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    case 17:
+        switch (sel) {
+        case 0:
+            gen_helper_mfc0_lladdr(arg, cpu_env);
+            rn = "LLAddr";
+            break;
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    case 18:
+        switch (sel) {
+        case 0 ... 7:
+            gen_helper_1e0i(mfc0_watchlo, arg, sel);
+            rn = "WatchLo";
+            break;
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    case 19:
+        switch (sel) {
+        case 0 ...7:
+            gen_helper_1e0i(mfc0_watchhi, arg, sel);
+            rn = "WatchHi";
+            break;
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    case 20:
+        switch (sel) {
+        case 0:
+#if defined(TARGET_MIPS64)
+            check_insn(ctx, ISA_MIPS3);
+            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_XContext));
+            tcg_gen_ext32s_tl(arg, arg);
+            rn = "XContext";
+            break;
+#endif
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    case 21:
+       /* Officially reserved, but sel 0 is used for R1x000 framemask */
+        CP0_CHECK(!(ctx->insn_flags & ISA_MIPS32R6));
+        switch (sel) {
+        case 0:
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_Framemask));
+            rn = "Framemask";
+            break;
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    case 22:
+        tcg_gen_movi_tl(arg, 0); /* unimplemented */
+        rn = "'Diagnostic"; /* implementation dependent */
+        break;
+    case 23:
+        switch (sel) {
+        case 0:
+            gen_helper_mfc0_debug(arg, cpu_env); /* EJTAG support */
+            rn = "Debug";
+            break;
+        case 1:
+//            gen_helper_mfc0_tracecontrol(arg); /* PDtrace support */
+            rn = "TraceControl";
+//            break;
+        case 2:
+//            gen_helper_mfc0_tracecontrol2(arg); /* PDtrace support */
+            rn = "TraceControl2";
+//            break;
+        case 3:
+//            gen_helper_mfc0_usertracedata(arg); /* PDtrace support */
+            rn = "UserTraceData";
+//            break;
+        case 4:
+//            gen_helper_mfc0_tracebpc(arg); /* PDtrace support */
+            rn = "TraceBPC";
+//            break;
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    case 24:
+        switch (sel) {
+        case 0:
+            /* EJTAG support */
+            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_DEPC));
+            tcg_gen_ext32s_tl(arg, arg);
+            rn = "DEPC";
+            break;
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    case 25:
+        switch (sel) {
+        case 0:
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_Performance0));
+            rn = "Performance0";
+            break;
+        case 1:
+//            gen_helper_mfc0_performance1(arg);
+            rn = "Performance1";
+//            break;
+        case 2:
+//            gen_helper_mfc0_performance2(arg);
+            rn = "Performance2";
+//            break;
+        case 3:
+//            gen_helper_mfc0_performance3(arg);
+            rn = "Performance3";
+//            break;
+        case 4:
+//            gen_helper_mfc0_performance4(arg);
+            rn = "Performance4";
+//            break;
+        case 5:
+//            gen_helper_mfc0_performance5(arg);
+            rn = "Performance5";
+//            break;
+        case 6:
+//            gen_helper_mfc0_performance6(arg);
+            rn = "Performance6";
+//            break;
+        case 7:
+//            gen_helper_mfc0_performance7(arg);
+            rn = "Performance7";
+//            break;
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    case 26:
+        tcg_gen_movi_tl(arg, 0); /* unimplemented */
+        rn = "ECC";
+        break;
+    case 27:
+        switch (sel) {
+        case 0 ... 3:
+            tcg_gen_movi_tl(arg, 0); /* unimplemented */
+            rn = "CacheErr";
+            break;
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    case 28:
+        switch (sel) {
+        case 0:
+        case 2:
+        case 4:
+        case 6:
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_TagLo));
+            rn = "TagLo";
+            break;
+        case 1:
+        case 3:
+        case 5:
+        case 7:
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_DataLo));
+            rn = "DataLo";
+            break;
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    case 29:
+        switch (sel) {
+        case 0:
+        case 2:
+        case 4:
+        case 6:
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_TagHi));
+            rn = "TagHi";
+            break;
+        case 1:
+        case 3:
+        case 5:
+        case 7:
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_DataHi));
+            rn = "DataHi";
+            break;
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    case 30:
+        switch (sel) {
+        case 0:
+            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_ErrorEPC));
+            tcg_gen_ext32s_tl(arg, arg);
+            rn = "ErrorEPC";
+            break;
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    case 31:
+        switch (sel) {
+        case 0:
+            /* EJTAG support */
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_DESAVE));
+            rn = "DESAVE";
+            break;
+        case 2 ... 7:
+            CP0_CHECK(ctx->kscrexist & (1 << sel));
+            tcg_gen_ld_tl(arg, cpu_env,
+                          offsetof(CPUMIPSState, CP0_KScratch[sel-2]));
+            tcg_gen_ext32s_tl(arg, arg);
+            rn = "KScratch";
+            break;
+        default:
+            goto cp0_unimplemented;
+        }
+        break;
+    default:
+       goto cp0_unimplemented;
+    }
+#endif
 }
 
 static void dump_print_target_address(bfd_vma addr, struct disassemble_info *info)
