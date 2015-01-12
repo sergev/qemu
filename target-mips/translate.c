@@ -1687,15 +1687,13 @@ generate_exception (DisasContext *ctx, int excp)
 }
 
 static inline void
-generate_dump_opcode (int pc, int opcode, int nbytes)
+generate_dump_pc (int pc, int isa)
 {
     TCGv_i32 tpc = tcg_const_i32(pc);
-    TCGv_i32 topcode = tcg_const_i32(opcode);
-    TCGv_i32 tnbytes = tcg_const_i32(nbytes);
-    gen_helper_dump_opcode(cpu_env, tpc, topcode, tnbytes);
+    TCGv_i32 tisa = tcg_const_i32(isa);
+    gen_helper_dump_pc(cpu_env, tpc, tisa);
     tcg_temp_free_i32(tpc);
-    tcg_temp_free_i32(topcode);
-    tcg_temp_free_i32(tnbytes);
+    tcg_temp_free_i32(tisa);
 }
 
 static inline void
@@ -19108,6 +19106,11 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
             gen_io_start();
 
+        if (qemu_logfile) //TODO: add option to enable instruction tracing.
+            generate_dump_pc(ctx.pc,
+                (ctx.hflags & MIPS_HFLAG_M16) == 0 ? 0 :
+                (ctx.insn_flags & ASE_MICROMIPS) ? 1 : 2);
+
         is_slot = ctx.hflags & MIPS_HFLAG_BMASK;
         if (!(ctx.hflags & MIPS_HFLAG_M16)) {
             ctx.opcode = cpu_ldl_code(env, ctx.pc);
@@ -19124,10 +19127,6 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
             ctx.bstate = BS_STOP;
             break;
         }
-
-        //TODO: add option to enable instruction tracing.
-        if (qemu_logfile)
-            generate_dump_opcode(ctx.pc, ctx.opcode, insn_bytes);
 
         if (ctx.hflags & MIPS_HFLAG_BMASK) {
             if (!(ctx.hflags & (MIPS_HFLAG_BDS16 | MIPS_HFLAG_BDS32 |

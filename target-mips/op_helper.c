@@ -2341,10 +2341,50 @@ static void dump_print_target_address(bfd_vma addr, struct disassemble_info *inf
 /*
  * Print the instruction to log file.
  */
-void helper_dump_opcode(CPUMIPSState *env, int pc, int opcode, int nbytes)
+void helper_dump_pc(CPUMIPSState *env, int pc, int isa)
 {
     struct disassemble_info info;
     int (*print_insn)(bfd_vma pc, disassemble_info *info);
+    int opcode, nbytes;
+
+    if (isa == 0) {
+        /* mips32 instruction set */
+        opcode = cpu_ldl_code(env, pc);
+        nbytes = 4;
+    } else {
+        /* micromips or mips16 */
+        opcode = cpu_lduw_code(env, pc);
+        nbytes = 2;
+        if (isa == 1) {
+            /* micromips */
+            switch (opcode >> 10) {
+            case 0x01: case 0x02: case 0x03: case 0x09:
+            case 0x0a: case 0x0b:
+            case 0x11: case 0x12: case 0x13: case 0x19:
+            case 0x1a: case 0x1b:
+            case 0x20: case 0x21: case 0x22: case 0x23:
+            case 0x28: case 0x29: case 0x2a: case 0x2b:
+            case 0x30: case 0x31: case 0x32: case 0x33:
+            case 0x38: case 0x39: case 0x3a: case 0x3b:
+                break;
+            default:
+                opcode <<= 16;
+                opcode |= cpu_lduw_code(env, pc + 2);
+                nbytes += 2;
+                break;
+            }
+        } else {
+            /* mips16 */
+            switch (opcode >> 11) {
+            case 0x03:
+            case 0x1e:
+                opcode <<= 16;
+                opcode |= cpu_lduw_code(env, pc + 2);
+                nbytes += 2;
+                break;
+            }
+        }
+    }
 
     /* Setup disassemble descriptor. */
     INIT_DISASSEMBLE_INFO(info, qemu_logfile, fprintf);

@@ -356,7 +356,7 @@ DEF_HELPER_1(rdhwr_ccres, tl, env)
 DEF_HELPER_2(pmon, void, env, int)
 DEF_HELPER_1(wait, void, env)
 
-DEF_HELPER_4(dump_opcode, void, env, int, int, int)
+DEF_HELPER_3(dump_pc, void, env, int, int)
 DEF_HELPER_4(dump_store, void, env, int, int, int)
 DEF_HELPER_4(dump_load, void, env, int, int, int)
 
