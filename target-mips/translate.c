@@ -2093,7 +2093,7 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
                    int rt, int base, int16_t offset)
 {
     const char *opn = "ld";
-    TCGv t0, t1, t2, t3;
+    TCGv t0, t1, t2, t3 = 0;
 
     if (rt == 0 && ctx->insn_flags & (INSN_LOONGSON2E | INSN_LOONGSON2F)) {
         /* Loongson CPU uses a load to zero register for prefetch.
