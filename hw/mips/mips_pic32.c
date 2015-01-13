@@ -151,8 +151,18 @@ static const MemoryRegionOps pic32_io_ops = {
 static void main_cpu_reset(void *opaque)
 {
     MIPSCPU *cpu = opaque;
+    CPUMIPSState *env = &cpu->env;
 
     cpu_reset(CPU(cpu));
+
+    /* Adjust the initial configuration for microAptivP core. */
+    env->CP0_IntCtl = 0x00030000;
+    env->CP0_WatchHi[3] = 0;
+    env->CP0_WatchHi[4] = 0;
+    env->CP0_WatchHi[5] = 0;
+    env->CP0_WatchHi[6] = 0;
+    env->CP0_Performance0 = 0x80000000;
+    env->CP0_Debug = (1 << CP0DB_CNT) | (5 << CP0DB_VER);
 }
 
 #if 0
@@ -444,7 +454,11 @@ static void mips_pic32_init(MachineState *machine)
 
     /* Init CPU. */
     if (! cpu_model) {
-        cpu_model = "4KEc";
+#ifdef PIC32MX7
+        cpu_model = "M4K";
+#else
+        cpu_model = "microAptivP";
+#endif
     }
     printf("Processor: %s\n", cpu_model);
     cpu = cpu_mips_init(cpu_model);
