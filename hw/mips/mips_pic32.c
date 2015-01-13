@@ -152,17 +152,23 @@ static void main_cpu_reset(void *opaque)
 {
     MIPSCPU *cpu = opaque;
     CPUMIPSState *env = &cpu->env;
+    int i;
 
     cpu_reset(CPU(cpu));
 
     /* Adjust the initial configuration for microAptivP core. */
+#ifdef PIC32MX7
+    env->CP0_IntCtl = 0;
+    env->CP0_Debug = (1 << CP0DB_CNT) | (3 << CP0DB_VER);
+    for (i=0; i<7; i++)
+        env->CP0_WatchHi[i] = 0;
+#else
     env->CP0_IntCtl = 0x00030000;
-    env->CP0_WatchHi[3] = 0;
-    env->CP0_WatchHi[4] = 0;
-    env->CP0_WatchHi[5] = 0;
-    env->CP0_WatchHi[6] = 0;
-    env->CP0_Performance0 = 0x80000000;
     env->CP0_Debug = (1 << CP0DB_CNT) | (5 << CP0DB_VER);
+    env->CP0_Performance0 = 0x80000000;
+    for (i=0; i<7; i++)
+        env->CP0_WatchHi[i] = (i < 3) ? 0x80000000 : 0;
+#endif
 }
 
 #if 0
