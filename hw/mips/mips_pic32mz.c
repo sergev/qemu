@@ -62,7 +62,7 @@ typedef struct {
  */
 static char *prog_ptr;
 static char *boot_ptr;
-uint32_t iomem [IO_MEM_SIZE/4];             /* backing storage for I/O area */
+static uint32_t iomem [IO_MEM_SIZE/4];      /* backing storage for I/O area */
 static int stop_on_reset = 1;               /* halt simulation on soft reset */
 
 extern int load_hex_file(const char *filename,
@@ -91,7 +91,7 @@ extern int load_hex_file(const char *filename,
 
 #define BOOTMEM(addr) ((uint32_t*) boot_ptr) [(addr & 0xffff) >> 2]
 
-static unsigned syskey_unlock;	// syskey state
+static unsigned syskey_unlock;      // syskey state
 
 static unsigned sdcard_spi_port;    // SPI port number of SD card
 static unsigned sdcard_gpio_port0;  // GPIO port number of CS0 signal
@@ -861,6 +861,9 @@ static unsigned io_read32 (PIC32State *s, unsigned offset, const char **namep)
     default:
         fprintf (stderr, "--- Read 1f8%05x: peripheral register not supported\n",
             offset);
+        if (qemu_loglevel_mask(CPU_LOG_INSTR))
+            printf ("--- Read 1f8%05x: peripheral register not supported\n",
+                offset);
         exit (1);
     }
     return *bufp;
@@ -1492,10 +1495,16 @@ irq:    update_irq_status();
     default:
         fprintf (stderr, "--- Write %08x to 1f8%05x: peripheral register not supported\n",
             data, offset);
+        if (qemu_loglevel_mask(CPU_LOG_INSTR))
+            printf ("--- Write %08x to 1f8%05x: peripheral register not supported\n",
+                data, offset);
         exit (1);
 readonly:
         fprintf (stderr, "--- Write %08x to %s: readonly register\n",
             data, *namep);
+        if (qemu_loglevel_mask(CPU_LOG_INSTR))
+            printf ("--- Write %08x to %s: readonly register\n",
+                data, *namep);
         *namep = 0;
         return;
     }
@@ -1781,7 +1790,7 @@ static void mips_pic32_init(MachineState *machine)
     vtty_create (0, "uart1", 0);                // console on UART1
 #endif
     vtty_init();
-#endif /*0*/
+#endif
 
     /*
      * Generic reset of all peripherals.
