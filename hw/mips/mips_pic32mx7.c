@@ -178,7 +178,7 @@ static void store_byte (unsigned address, unsigned char byte)
 static void mips_pic32_init(MachineState *machine)
 {
     const char *cpu_model = machine->cpu_model;
-    unsigned ram_size = 128*1024;
+    unsigned ram_size = DATA_MEM_SIZE;
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *ram_main = g_new(MemoryRegion, 1);
     MemoryRegion *prog_mem = g_new(MemoryRegion, 1);
