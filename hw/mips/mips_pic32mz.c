@@ -1857,9 +1857,32 @@ static void mips_pic32_init(MachineState *machine)
     s->spi_stat[4] = SPI5STAT;
     s->spi_stat[5] = SPI6STAT;
 
-    //TODO
-    const char *sd0_file = 0;
-    const char *sd1_file = 0;
+    /*
+     * Load SD card images.
+     * Use options:
+     *      -sd filename
+     * or   -hda filename
+     * and  -hdb filename
+     */
+    const char *sd0_file = 0, *sd1_file = 0;
+    DriveInfo *dinfo = drive_get(IF_IDE, 0, 0);
+    if (dinfo) {
+        sd0_file = qemu_opt_get(dinfo->opts, "file");
+        dinfo->is_default = (sd0_file != 0);
+
+        dinfo = drive_get(IF_IDE, 0, 1);
+        if (dinfo) {
+            sd1_file = qemu_opt_get(dinfo->opts, "file");
+            dinfo->is_default = (sd1_file != 0);
+        }
+    }
+    if (! sd0_file) {
+        dinfo = drive_get(IF_SD, 0, 0);
+        if (dinfo) {
+            sd0_file = qemu_opt_get(dinfo->opts, "file");
+            dinfo->is_default = (sd0_file != 0);
+        }
+    }
     pic32_sdcard_init (s, 0, "sd0", sd0_file, cs0_port, cs0_pin);
     pic32_sdcard_init (s, 1, "sd1", sd1_file, cs1_port, cs1_pin);
 
