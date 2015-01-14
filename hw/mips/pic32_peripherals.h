@@ -21,6 +21,7 @@
  * arising out of or in connection with the use or performance of
  * this software.
  */
+#include "hw/sysbus.h"             /* SysBusDevice */
 
 #define IO_MEM_SIZE     (1024*1024)     /* 1 Mbyte */
 
@@ -47,10 +48,9 @@ typedef struct sdcard sdcard_t;
 typedef struct _pic32_t pic32_t;
 
 struct _pic32_t {
-    //SysBusDevice    parent_obj;
+    SysBusDevice    parent_obj;
     //SerialState     *uart;
 
-    uint32_t        iomem [IO_MEM_SIZE/4];  /* backing storage for I/O area */
     int             stop_on_reset;          /* halt simulation on soft reset */
     unsigned        syskey_unlock;          /* syskey state */
 
@@ -69,12 +69,14 @@ struct _pic32_t {
     unsigned        spi_con [NUM_SPI];      /* SPIxCON address */
     unsigned        spi_stat [NUM_SPI];     /* SPIxSTAT address */
 
-    sdcard_t        sdcard [2];             /* SD card data */
     unsigned        sdcard_spi_port;        /* SPI port number of SD card */
     unsigned        sdcard_gpio_port0;      /* GPIO port number of CS0 signal */
     unsigned        sdcard_gpio_port1;      /* GPIO port number of CS1 signal */
     unsigned        sdcard_gpio_cs0;        /* GPIO pin mask of CS0 signal */
     unsigned        sdcard_gpio_cs1;        /* GPIO pin mask of CS1 signal */
+    sdcard_t        sdcard [2];             /* SD card data */
+
+    uint32_t        iomem [IO_MEM_SIZE/4];  /* backing storage for I/O area */
 
     void (*irq_raise) (pic32_t *s, int irq); /* set interrupt request */
     void (*irq_clear) (pic32_t *s, int irq); /* clear interrupt request */

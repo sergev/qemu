@@ -32,7 +32,6 @@
 #include "hw/mips/cpudevs.h"
 #include "sysemu/char.h"
 #include "hw/loader.h"
-#include "hw/sysbus.h"             /* SysBusDevice */
 #include "qemu/error-report.h"
 #include "hw/empty_slot.h"
 
@@ -1266,7 +1265,7 @@ static void mips_pic32_init(MachineState *machine)
     MemoryRegion *ram_main = g_new(MemoryRegion, 1);
     MemoryRegion *prog_mem = g_new(MemoryRegion, 1);
     MemoryRegion *boot_mem = g_new(MemoryRegion, 1);
-    MemoryRegion io_mem;
+    MemoryRegion *io_mem = g_new(MemoryRegion, 1);
     MIPSCPU *cpu;
     CPUMIPSState *env;
     int i;
@@ -1327,9 +1326,9 @@ static void mips_pic32_init(MachineState *machine)
     memory_region_add_subregion(system_memory, USER_MEM_START + 0x8000, ram_user);
 
     /* Special function registers. */
-    memory_region_init_io(&io_mem, NULL, &pic32_io_ops, s,
+    memory_region_init_io(io_mem, NULL, &pic32_io_ops, s,
                           "io", IO_MEM_SIZE);
-    memory_region_add_subregion(system_memory, IO_MEM_START, &io_mem);
+    memory_region_add_subregion(system_memory, IO_MEM_START, io_mem);
 #if 0
     /* The CBUS UART is attached to the CPU INT2 pin, ie interrupt 4 */
     s->uart = serial_mm_init(system_memory, IO_MEM_START + 0x900, 3, env->irq[4],
@@ -1425,24 +1424,6 @@ static void mips_pic32_init(MachineState *machine)
 #endif
     printf("Board: %s\n", board);
 
-    //TODO
-    const char *sd0_file = "sd0.img";
-    const char *sd1_file = "sd1.img";
-    pic32_sdcard_init (s, 0, "sd0", sd0_file, cs0_port, cs0_pin);
-    pic32_sdcard_init (s, 1, "sd1", sd1_file, cs1_port, cs1_pin);
-
-#if 0
-    //
-    // Create console port.
-    //
-#if defined EXPLORER16
-    vtty_create (1, "uart2", 0);                // console on UART2
-#else
-    vtty_create (0, "uart1", 0);                // console on UART1
-#endif
-    vtty_init();
-#endif
-
     //
     // Generic reset of all peripherals.
     //
@@ -1491,9 +1472,27 @@ static void mips_pic32_init(MachineState *machine)
 
     /* SPIxSTAT addresses */
     s->spi_stat[0] = SPI1STAT;
-    s->spi_stat[0] = SPI2STAT;
-    s->spi_stat[0] = SPI3STAT;
-    s->spi_stat[0] = SPI4STAT;
+    s->spi_stat[1] = SPI2STAT;
+    s->spi_stat[2] = SPI3STAT;
+    s->spi_stat[3] = SPI4STAT;
+
+    //TODO
+    const char *sd0_file = 0;
+    const char *sd1_file = 0;
+    pic32_sdcard_init (s, 0, "sd0", sd0_file, cs0_port, cs0_pin);
+    pic32_sdcard_init (s, 1, "sd1", sd1_file, cs1_port, cs1_pin);
+
+#if 0
+    //
+    // Create console port.
+    //
+#if defined EXPLORER16
+    vtty_create (1, "uart2", 0);                // console on UART2
+#else
+    vtty_create (0, "uart1", 0);                // console on UART1
+#endif
+    vtty_init();
+#endif
 
     io_reset(s);
     pic32_sdcard_reset(s);
