@@ -35,14 +35,15 @@
 #include "hw/sysbus.h"             /* SysBusDevice */
 #include "qemu/error-report.h"
 #include "hw/empty_slot.h"
+
 #include "pic32mz.h"
+#include "pic32_peripherals.h"
 
 /* Hardware addresses */
 #define PROGRAM_FLASH_START 0x1d000000
 #define BOOT_FLASH_START    0x1fc00000
 #define DATA_MEM_START      0x00000000
 #define IO_MEM_START        0x1f800000
-#define IO_MEM_SIZE         (1024*1024)         // 1 Mbyte
 
 #define PROGRAM_FLASH_SIZE  (2*1024*1024)       // 2 Mbytes
 #define BOOT_FLASH_SIZE     (64*1024)           // 64 kbytes
@@ -50,73 +51,16 @@
 
 #define TYPE_MIPS_PIC32     "mips-pic32mz"
 
-typedef struct {
-    SysBusDevice    parent_obj;
-    //qemu_irq        *i8259;
-    MemoryRegion    iomem;
-    SerialState     *uart;
-} PIC32State;
-
 /*
  * Pointers to Flash memory contents.
  */
 static char *prog_ptr;
 static char *boot_ptr;
-static uint32_t iomem [IO_MEM_SIZE/4];      /* backing storage for I/O area */
-static int stop_on_reset = 1;               /* halt simulation on soft reset */
 
 extern int load_hex_file(const char *filename,
     void (*store_byte) (unsigned address, unsigned char byte));
 
-#define VALUE(name)     iomem[(name & 0xfffff) >> 2]
-#define STORAGE(name)   case name: *namep = #name;
-#define READONLY(name)  case name: *namep = #name; goto readonly
-#define WRITEOP(name)   case name: *namep = #name; goto op_##name;\
-                        case name+4: *namep = #name"CLR"; goto op_##name;\
-                        case name+8: *namep = #name"SET"; goto op_##name;\
-                        case name+12: *namep = #name"INV"; op_##name: \
-                        VALUE(name) = write_op (VALUE(name), data, offset)
-#define WRITEOPX(name,label) \
-                        case name: *namep = #name; goto op_##label;\
-                        case name+4: *namep = #name"CLR"; goto op_##label;\
-                        case name+8: *namep = #name"SET"; goto op_##label;\
-                        case name+12: *namep = #name"INV"; goto op_##label
-#define WRITEOPR(name,romask) \
-                        case name: *namep = #name; goto op_##name;\
-                        case name+4: *namep = #name"CLR"; goto op_##name;\
-                        case name+8: *namep = #name"SET"; goto op_##name;\
-                        case name+12: *namep = #name"INV"; op_##name: \
-                        VALUE(name) &= romask; \
-                        VALUE(name) |= write_op (VALUE(name), data, offset) & ~(romask)
-
 #define BOOTMEM(addr) ((uint32_t*) boot_ptr) [(addr & 0xffff) >> 2]
-
-static unsigned syskey_unlock;      // syskey state
-
-static unsigned sdcard_spi_port;    // SPI port number of SD card
-static unsigned sdcard_gpio_port0;  // GPIO port number of CS0 signal
-static unsigned sdcard_gpio_port1;  // GPIO port number of CS1 signal
-static unsigned sdcard_gpio_cs0;    // GPIO pin mask of CS0 signal
-static unsigned sdcard_gpio_cs1;    // GPIO pin mask of CS1 signal
-
-static void sdcard_init (int unit, const char *name, const char *filename, int cs_port, int cs_pin) { }
-static void sdcard_reset (void) { }
-static void sdcard_select (int unit, int on) { }
-//static unsigned sdcard_io (unsigned data) { return 0; }
-
-static void uart_reset (void) { }
-static unsigned uart_get_char (int unit) { return 0; }
-static void uart_poll_status (int unit) { }
-static void uart_put_char (int unit, unsigned data) { }
-static void uart_update_mode (int unit) { }
-static void uart_update_status (int unit) { }
-//static void uart_poll (void) { }
-//static int uart_active (void) { return 0; }
-
-static void spi_reset (void) { }
-static void spi_control (int unit) { }
-static unsigned spi_readbuf (int unit) { return 0; }
-static void spi_writebuf (int unit, unsigned val) { }
 
 /*
  * Generate EIC interrupt.
@@ -133,7 +77,7 @@ static void eic_level_vector (int ripl, int vector)
 #endif
 }
 
-static void update_irq_status(void)
+static void update_irq_status(PIC32State *s)
 {
     /* Assume no interrupts pending. */
     int cause_ripl = 0;
@@ -180,37 +124,37 @@ static void update_irq_status(void)
 /*
  * Set interrupt flag status
  */
-static void irq_raise (int irq)
+static void irq_raise (PIC32State *s, int irq)
 {
     if (VALUE(IFS(irq >> 5)) & (1 << (irq & 31)))
         return;
 //printf ("-- %s() irq = %d\n", __func__, irq);
     VALUE(IFS(irq >> 5)) |= 1 << (irq & 31);
-    update_irq_status();
+    update_irq_status(s);
 }
 
 /*
  * Clear interrupt flag status
  */
-static void irq_clear (int irq)
+static void irq_clear (PIC32State *s, int irq)
 {
     if (! (VALUE(IFS(irq >> 5)) & (1 << (irq & 31))))
         return;
 //printf ("-- %s() irq = %d\n", __func__, irq);
     VALUE(IFS(irq >> 5)) &= ~(1 << (irq & 31));
-    update_irq_status();
+    update_irq_status(s);
 }
 #endif
 
-static void gpio_write (int gpio_port, unsigned lat_value)
+static void gpio_write (PIC32State *s, int gpio_port, unsigned lat_value)
 {
     /* Control SD card 0 */
-    if (gpio_port == sdcard_gpio_port0 && sdcard_gpio_cs0) {
-        sdcard_select (0, ! (lat_value & sdcard_gpio_cs0));
+    if (gpio_port == s->sdcard_gpio_port0 && s->sdcard_gpio_cs0) {
+        sdcard_select (s, 0, ! (lat_value & s->sdcard_gpio_cs0));
     }
     /* Control SD card 1 */
-    if (gpio_port == sdcard_gpio_port1 && sdcard_gpio_cs1) {
-        sdcard_select (1, ! (lat_value & sdcard_gpio_cs1));
+    if (gpio_port == s->sdcard_gpio_port1 && s->sdcard_gpio_cs1) {
+        sdcard_select (s, 1, ! (lat_value & s->sdcard_gpio_cs1));
     }
 }
 
@@ -228,7 +172,7 @@ static inline unsigned write_op (int a, int b, int op)
     return a;
 }
 
-static void io_reset(void)
+static void io_reset(PIC32State *s)
 {
     /*
      * Prefetch controller.
@@ -238,7 +182,7 @@ static void io_reset(void)
     /*
      * System controller.
      */
-    syskey_unlock = 0;
+    s->syskey_unlock = 0;
     VALUE(CFGCON) = PIC32_CFGCON_ECC_DISWR | PIC32_CFGCON_TDOEN;
     VALUE(SYSKEY) = 0;
     VALUE(RCON)   = 0;
@@ -427,7 +371,7 @@ static unsigned io_read32 (PIC32State *s, unsigned offset, const char **namep)
     STORAGE (SYSKEY); break;	// System Key
     STORAGE (RCON); break;	// Reset Control
     STORAGE (RSWRST);           // Software Reset
-        if ((VALUE(RSWRST) & 1) && stop_on_reset) {
+        if ((VALUE(RSWRST) & 1) && s->stop_on_reset) {
             exit(0);
         }
         break;
@@ -1077,7 +1021,7 @@ static void io_write32 (PIC32State *s, unsigned offset, unsigned data, const cha
     WRITEOP (IPC45); goto irq;
     WRITEOP (IPC46); goto irq;
     WRITEOP (IPC47);
-irq:    update_irq_status();
+irq:    update_irq_status(s);
         return;
 
     /*-------------------------------------------------------------------------
@@ -1102,22 +1046,22 @@ irq:    update_irq_status();
     READONLY(DEVID);		// Device Identifier
     STORAGE (SYSKEY);		// System Key
 	/* Unlock state machine. */
-	if (syskey_unlock == 0 && VALUE(SYSKEY) == 0xaa996655)
-	    syskey_unlock = 1;
-	if (syskey_unlock == 1 && VALUE(SYSKEY) == 0x556699aa)
-	    syskey_unlock = 2;
+	if (s->syskey_unlock == 0 && VALUE(SYSKEY) == 0xaa996655)
+	    s->syskey_unlock = 1;
+	if (s->syskey_unlock == 1 && VALUE(SYSKEY) == 0x556699aa)
+	    s->syskey_unlock = 2;
 	else
-	    syskey_unlock = 0;
+	    s->syskey_unlock = 0;
 	break;
     STORAGE (RCON); break;	// Reset Control
     WRITEOP (RSWRST);		// Software Reset
-	if (syskey_unlock == 2 && (VALUE(RSWRST) & 1)) {
+	if (s->syskey_unlock == 2 && (VALUE(RSWRST) & 1)) {
             /* Reset CPU. */
             qemu_system_reset_request();
 
             /* Reset all devices */
-            io_reset();
-            sdcard_reset();
+            io_reset(s);
+            sdcard_reset(s);
         }
 	break;
     STORAGE (OSCCON); break;	// Oscillator Control
@@ -1256,7 +1200,7 @@ irq:    update_irq_status();
     WRITEOP (TRISA); return;	    // Port A: mask of inputs
     WRITEOPX(PORTA, LATA);          // Port A: write outputs
     WRITEOP (LATA);                 // Port A: write outputs
-        gpio_write (0, VALUE(LATA));
+        gpio_write (s, 0, VALUE(LATA));
 	return;
     WRITEOP (ODCA); return;	    // Port A: open drain configuration
     WRITEOP (CNPUA); return;	    // Input pin pull-up
@@ -1269,7 +1213,7 @@ irq:    update_irq_status();
     WRITEOP (TRISB); return;	    // Port B: mask of inputs
     WRITEOPX(PORTB, LATB);          // Port B: write outputs
     WRITEOP (LATB);		    // Port B: write outputs
-        gpio_write (1, VALUE(LATB));
+        gpio_write (s, 1, VALUE(LATB));
 	return;
     WRITEOP (ODCB); return;	    // Port B: open drain configuration
     WRITEOP (CNPUB); return;	    // Input pin pull-up
@@ -1282,7 +1226,7 @@ irq:    update_irq_status();
     WRITEOP (TRISC); return;	    // Port C: mask of inputs
     WRITEOPX(PORTC, LATC);          // Port C: write outputs
     WRITEOP (LATC);                 // Port C: write outputs
-        gpio_write (2, VALUE(LATC));
+        gpio_write (s, 2, VALUE(LATC));
 	return;
     WRITEOP (ODCC); return;	    // Port C: open drain configuration
     WRITEOP (CNPUC); return;	    // Input pin pull-up
@@ -1295,7 +1239,7 @@ irq:    update_irq_status();
     WRITEOP (TRISD); return;	    // Port D: mask of inputs
     WRITEOPX(PORTD, LATD);          // Port D: write outputs
     WRITEOP (LATD);		    // Port D: write outputs
-        gpio_write (3, VALUE(LATD));
+        gpio_write (s, 3, VALUE(LATD));
 	return;
     WRITEOP (ODCD); return;	    // Port D: open drain configuration
     WRITEOP (CNPUD); return;	    // Input pin pull-up
@@ -1308,7 +1252,7 @@ irq:    update_irq_status();
     WRITEOP (TRISE); return;	    // Port E: mask of inputs
     WRITEOPX(PORTE, LATE);          // Port E: write outputs
     WRITEOP (LATE);		    // Port E: write outputs
-        gpio_write (4, VALUE(LATE));
+        gpio_write (s, 4, VALUE(LATE));
 	return;
     WRITEOP (ODCE); return;	    // Port E: open drain configuration
     WRITEOP (CNPUE); return;	    // Input pin pull-up
@@ -1321,7 +1265,7 @@ irq:    update_irq_status();
     WRITEOP (TRISF); return;	    // Port F: mask of inputs
     WRITEOPX(PORTF, LATF);          // Port F: write outputs
     WRITEOP (LATF);		    // Port F: write outputs
-        gpio_write (5, VALUE(LATF));
+        gpio_write (s, 5, VALUE(LATF));
 	return;
     WRITEOP (ODCF); return;	    // Port F: open drain configuration
     WRITEOP (CNPUF); return;	    // Input pin pull-up
@@ -1334,7 +1278,7 @@ irq:    update_irq_status();
     WRITEOP (TRISG); return;	    // Port G: mask of inputs
     WRITEOPX(PORTG, LATG);          // Port G: write outputs
     WRITEOP (LATG);		    // Port G: write outputs
-        gpio_write (6, VALUE(LATG));
+        gpio_write (s, 6, VALUE(LATG));
 	return;
     WRITEOP (ODCG); return;	    // Port G: open drain configuration
     WRITEOP (CNPUG); return;	    // Input pin pull-up
@@ -1626,6 +1570,7 @@ static void mips_pic32_init(MachineState *machine)
     MemoryRegion *ram_main = g_new(MemoryRegion, 1);
     MemoryRegion *prog_mem = g_new(MemoryRegion, 1);
     MemoryRegion *boot_mem = g_new(MemoryRegion, 1);
+    MemoryRegion io_mem;
     MIPSCPU *cpu;
     CPUMIPSState *env;
     int i;
@@ -1677,9 +1622,9 @@ static void mips_pic32_init(MachineState *machine)
     memory_region_add_subregion(system_memory, DATA_MEM_START, ram_main);
 
     /* Special function registers. */
-    memory_region_init_io(&s->iomem, NULL, &pic32_io_ops, s,
+    memory_region_init_io(&io_mem, NULL, &pic32_io_ops, s,
                           "io", IO_MEM_SIZE);
-    memory_region_add_subregion(system_memory, IO_MEM_START, &s->iomem);
+    memory_region_add_subregion(system_memory, IO_MEM_START, &io_mem);
 #if 0
     /* The CBUS UART is attached to the CPU INT2 pin, ie interrupt 4 */
     s->uart = serial_mm_init(system_memory, IO_MEM_START + 0x900, 3, env->irq[4],
@@ -1756,17 +1701,17 @@ static void mips_pic32_init(MachineState *machine)
     const char *board;
 #if defined EXPLORER16
     board = "Microchip Explorer16";
-    sdcard_spi_port = 0;                        // SD card at SPI1,
+    s->sdcard_spi_port = 0;                     // SD card at SPI1,
     cs0_port = 1; cs0_pin = 1;                  // select0 at B1,
     cs1_port = 1; cs1_pin = 2;                  // select1 at B2
 #elif defined WIFIRE
     board = "chipKIT WiFire";
-    sdcard_spi_port = 2;                        // SD card at SPI3,
+    s->sdcard_spi_port = 2;                     // SD card at SPI3,
     cs0_port = 2; cs0_pin = 3;                  // select0 at C3,
     cs1_port = -1; cs1_pin = -1;                // select1 not available
 #elif defined MEBII
     board = "Microchip MEB-II";
-    sdcard_spi_port = 1;                        // SD card at SPI2,
+    s->sdcard_spi_port = 1;                     // SD card at SPI2,
     cs0_port = 1; cs0_pin = 14;                 // select0 at B14,
     cs1_port = -1; cs1_pin = -1;                // select1 not available
 #else
@@ -1777,8 +1722,8 @@ static void mips_pic32_init(MachineState *machine)
     //TODO
     const char *sd0_file = "sd0.img";
     const char *sd1_file = "sd1.img";
-    sdcard_init (0, "sd0", sd0_file, cs0_port, cs0_pin);
-    sdcard_init (1, "sd1", sd1_file, cs1_port, cs1_pin);
+    sdcard_init (s, 0, "sd0", sd0_file, cs0_port, cs0_pin);
+    sdcard_init (s, 1, "sd1", sd1_file, cs1_port, cs1_pin);
 
 #if 0
     //
@@ -1819,8 +1764,8 @@ static void mips_pic32_init(MachineState *machine)
     VALUE(OSCCON)    = 0x00001120;      // external oscillator 24MHz
 #endif
 
-    io_reset();
-    sdcard_reset();
+    io_reset(s);
+    sdcard_reset(s);
 }
 
 static int mips_pic32_sysbus_device_init(SysBusDevice *sysbusdev)

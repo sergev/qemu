@@ -1,5 +1,5 @@
 /*
- * Hardware register defines for all Microchip PIC32MX microcontrollers.
+ * Hardware register defines for Microchip PIC32MX microcontrollers.
  *
  * Copyright (C) 2010 Serge Vakulenko, <serge@vak.ru>
  *
