@@ -148,57 +148,57 @@ static int load_hex (const char *filename,
             printf("%s: bad record: %s\n", filename, buf);
             exit (1);
         }
-	record_type = HEX (buf+7);
-	if (record_type == 1) {
-	    /* End of file. */
+        record_type = HEX (buf+7);
+        if (record_type == 1) {
+            /* End of file. */
             break;
         }
-	bytes = HEX (buf+1);
-	if (strlen ((char*) buf) < bytes * 2 + 11) {
+        bytes = HEX (buf+1);
+        if (strlen ((char*) buf) < bytes * 2 + 11) {
             printf("%s: too short hex line\n", filename);
             exit (1);
         }
-	address = high << 16 | HEX (buf+3) << 8 | HEX (buf+5);
+        address = high << 16 | HEX (buf+3) << 8 | HEX (buf+5);
         if (address & 3) {
             printf("%s: odd address\n", filename);
             exit (1);
         }
 
-	sum = 0;
-	for (i=0; i<bytes; ++i) {
+        sum = 0;
+        for (i=0; i<bytes; ++i) {
             data [i] = HEX (buf+9 + i + i);
-	    sum += data [i];
-	}
-	sum += record_type + bytes + (address & 0xff) + (address >> 8 & 0xff);
-	if (sum != (unsigned char) - HEX (buf+9 + bytes + bytes)) {
+            sum += data [i];
+        }
+        sum += record_type + bytes + (address & 0xff) + (address >> 8 & 0xff);
+        if (sum != (unsigned char) - HEX (buf+9 + bytes + bytes)) {
             printf("%s: bad hex checksum\n", filename);
             printf("Line %s", buf);
             exit (1);
         }
 
-	if (record_type == 5) {
-	    /* Start address. */
+        if (record_type == 5) {
+            /* Start address. */
             if (bytes != 4) {
                 printf("%s: invalid length of hex start address record: %d bytes\n",
                     filename, bytes);
                 exit (1);
             }
-	    address = data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3];
+            address = data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3];
             //printf("%s: start address = %08x\n", filename, address);
             //TODO: set start address
-	    continue;
-	}
-	if (record_type == 4) {
-	    /* Extended address. */
+            continue;
+        }
+        if (record_type == 4) {
+            /* Extended address. */
             if (bytes != 2) {
                 printf("%s: invalid length of hex linear address record: %d bytes\n",
                     filename, bytes);
                 exit (1);
             }
-	    high = data[0] << 8 | data[1];
-	    continue;
-	}
-	if (record_type != 0) {
+            high = data[0] << 8 | data[1];
+            continue;
+        }
+        if (record_type != 0) {
             printf("%s: unknown hex record type: %d\n",
                 filename, record_type);
             exit (1);

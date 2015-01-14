@@ -176,22 +176,7 @@ static const int irq_to_vector[] = {
     PIC32_VECT_U5,      /* 75 - UART5 Transmitter */
 };
 
-/*
- * Generate EIC interrupt.
- */
-static void eic_level_vector (int ripl, int vector)
-{
-    if (qemu_loglevel_mask(CPU_LOG_INSTR))
-        printf ("--- RIPL = %u\n", ripl);
-
-    //TODO
-#if 0
-    icmWriteNet (eic_vector, 0);
-    icmWriteNet (eic_ripl, ripl);
-#endif
-}
-
-static void update_irq_status(PIC32State *s)
+static void update_irq_status(pic32_t *s)
 {
     /* Assume no interrupts pending. */
     int cause_ripl = 0;
@@ -228,14 +213,23 @@ static void update_irq_status(PIC32State *s)
     }
 //else printf ("-- no irq pending\n");
 
-    eic_level_vector (cause_ripl, vector);
+    /*
+     * Generate EIC interrupt.
+     */
+    if (qemu_loglevel_mask(CPU_LOG_INSTR))
+        fprintf (qemu_logfile, "--- RIPL = %u\n", cause_ripl);
+
+    //TODO
+#if 0
+    icmWriteNet (eic_vector, 0);
+    icmWriteNet (eic_ripl, cause_ripl);
+#endif
 }
 
-#if 0
 /*
  * Set interrupt flag status
  */
-static void irq_raise (PIC32State *s, int irq)
+static void irq_raise (pic32_t *s, int irq)
 {
     if (VALUE(IFS(irq >> 5)) & (1 << (irq & 31)))
         return;
@@ -247,7 +241,7 @@ static void irq_raise (PIC32State *s, int irq)
 /*
  * Clear interrupt flag status
  */
-static void irq_clear (PIC32State *s, int irq)
+static void irq_clear (pic32_t *s, int irq)
 {
     if (! (VALUE(IFS(irq >> 5)) & (1 << (irq & 31))))
         return;
@@ -255,17 +249,16 @@ static void irq_clear (PIC32State *s, int irq)
     VALUE(IFS(irq >> 5)) &= ~(1 << (irq & 31));
     update_irq_status(s);
 }
-#endif
 
-static void gpio_write (PIC32State *s, int gpio_port, unsigned lat_value)
+static void gpio_write (pic32_t *s, int gpio_port, unsigned lat_value)
 {
     /* Control SD card 0 */
     if (gpio_port == s->sdcard_gpio_port0 && s->sdcard_gpio_cs0) {
-        sdcard_select (s, 0, ! (lat_value & s->sdcard_gpio_cs0));
+        pic32_sdcard_select (s, 0, ! (lat_value & s->sdcard_gpio_cs0));
     }
     /* Control SD card 1 */
     if (gpio_port == s->sdcard_gpio_port1 && s->sdcard_gpio_cs1) {
-        sdcard_select (s, 1, ! (lat_value & s->sdcard_gpio_cs1));
+        pic32_sdcard_select (s, 1, ! (lat_value & s->sdcard_gpio_cs1));
     }
 }
 
@@ -283,7 +276,7 @@ static inline unsigned write_op (int a, int b, int op)
     return a;
 }
 
-static void io_reset(PIC32State *s)
+static void io_reset(pic32_t *s)
 {
     /*
      * Bus matrix control registers.
@@ -327,43 +320,96 @@ static void io_reset(PIC32State *s)
      * All pins are inputs, high, open drains and pullups disabled.
      * No interrupts on change.
      */
-    VALUE(TRISA) = 0xFFFF;		// Port A: mask of inputs
-    VALUE(PORTA) = 0xFFFF;		// Port A: read inputs, write outputs
-    VALUE(LATA)  = 0xFFFF;		// Port A: read/write outputs
-    VALUE(ODCA)  = 0;			// Port A: open drain configuration
-    VALUE(TRISB) = 0xFFFF;		// Port B: mask of inputs
-    VALUE(PORTB) = 0xFFFF;		// Port B: read inputs, write outputs
-    VALUE(LATB)  = 0xFFFF;		// Port B: read/write outputs
-    VALUE(ODCB)  = 0;			// Port B: open drain configuration
-    VALUE(TRISC) = 0xFFFF;		// Port C: mask of inputs
-    VALUE(PORTC) = 0xFFFF;		// Port C: read inputs, write outputs
-    VALUE(LATC)  = 0xFFFF;		// Port C: read/write outputs
-    VALUE(ODCC)  = 0;			// Port C: open drain configuration
-    VALUE(TRISD) = 0xFFFF;		// Port D: mask of inputs
-    VALUE(PORTD) = 0xFFFF;		// Port D: read inputs, write outputs
-    VALUE(LATD)  = 0xFFFF;		// Port D: read/write outputs
-    VALUE(ODCD)  = 0;			// Port D: open drain configuration
-    VALUE(TRISE) = 0xFFFF;		// Port E: mask of inputs
-    VALUE(PORTE) = 0xFFFF;		// Port D: read inputs, write outputs
-    VALUE(LATE)  = 0xFFFF;		// Port E: read/write outputs
-    VALUE(ODCE)  = 0;			// Port E: open drain configuration
-    VALUE(TRISF) = 0xFFFF;		// Port F: mask of inputs
-    VALUE(PORTF) = 0xFFFF;		// Port F: read inputs, write outputs
-    VALUE(LATF)  = 0xFFFF;		// Port F: read/write outputs
-    VALUE(ODCF)  = 0;			// Port F: open drain configuration
-    VALUE(TRISG) = 0xFFFF;		// Port G: mask of inputs
-    VALUE(PORTG) = 0xFFFF;		// Port G: read inputs, write outputs
-    VALUE(LATG)  = 0xFFFF;		// Port G: read/write outputs
-    VALUE(ODCG)  = 0;			// Port G: open drain configuration
-    VALUE(CNCON) = 0;			// Interrupt-on-change control
-    VALUE(CNEN)  = 0;			// Input change interrupt enable
-    VALUE(CNPUE) = 0;			// Input pin pull-up enable
+    VALUE(TRISA) = 0xFFFF;              // Port A: mask of inputs
+    VALUE(PORTA) = 0xFFFF;              // Port A: read inputs, write outputs
+    VALUE(LATA)  = 0xFFFF;              // Port A: read/write outputs
+    VALUE(ODCA)  = 0;                   // Port A: open drain configuration
+    VALUE(TRISB) = 0xFFFF;              // Port B: mask of inputs
+    VALUE(PORTB) = 0xFFFF;              // Port B: read inputs, write outputs
+    VALUE(LATB)  = 0xFFFF;              // Port B: read/write outputs
+    VALUE(ODCB)  = 0;                   // Port B: open drain configuration
+    VALUE(TRISC) = 0xFFFF;              // Port C: mask of inputs
+    VALUE(PORTC) = 0xFFFF;              // Port C: read inputs, write outputs
+    VALUE(LATC)  = 0xFFFF;              // Port C: read/write outputs
+    VALUE(ODCC)  = 0;                   // Port C: open drain configuration
+    VALUE(TRISD) = 0xFFFF;              // Port D: mask of inputs
+    VALUE(PORTD) = 0xFFFF;              // Port D: read inputs, write outputs
+    VALUE(LATD)  = 0xFFFF;              // Port D: read/write outputs
+    VALUE(ODCD)  = 0;                   // Port D: open drain configuration
+    VALUE(TRISE) = 0xFFFF;              // Port E: mask of inputs
+    VALUE(PORTE) = 0xFFFF;              // Port D: read inputs, write outputs
+    VALUE(LATE)  = 0xFFFF;              // Port E: read/write outputs
+    VALUE(ODCE)  = 0;                   // Port E: open drain configuration
+    VALUE(TRISF) = 0xFFFF;              // Port F: mask of inputs
+    VALUE(PORTF) = 0xFFFF;              // Port F: read inputs, write outputs
+    VALUE(LATF)  = 0xFFFF;              // Port F: read/write outputs
+    VALUE(ODCF)  = 0;                   // Port F: open drain configuration
+    VALUE(TRISG) = 0xFFFF;              // Port G: mask of inputs
+    VALUE(PORTG) = 0xFFFF;              // Port G: read inputs, write outputs
+    VALUE(LATG)  = 0xFFFF;              // Port G: read/write outputs
+    VALUE(ODCG)  = 0;                   // Port G: open drain configuration
+    VALUE(CNCON) = 0;                   // Interrupt-on-change control
+    VALUE(CNEN)  = 0;                   // Input change interrupt enable
+    VALUE(CNPUE) = 0;                   // Input pin pull-up enable
 
-    uart_reset();
-    spi_reset();
+    /*
+     * Reset UARTs.
+     */
+    VALUE(U1MODE)  = 0;
+    VALUE(U1STA)   = PIC32_USTA_RIDLE | PIC32_USTA_TRMT;
+    VALUE(U1TXREG) = 0;
+    VALUE(U1RXREG) = 0;
+    VALUE(U1BRG)   = 0;
+    VALUE(U2MODE)  = 0;
+    VALUE(U2STA)   = PIC32_USTA_RIDLE | PIC32_USTA_TRMT;
+    VALUE(U2TXREG) = 0;
+    VALUE(U2RXREG) = 0;
+    VALUE(U2BRG)   = 0;
+    VALUE(U3MODE)  = 0;
+    VALUE(U3STA)   = PIC32_USTA_RIDLE | PIC32_USTA_TRMT;
+    VALUE(U3TXREG) = 0;
+    VALUE(U3RXREG) = 0;
+    VALUE(U3BRG)   = 0;
+    VALUE(U4MODE)  = 0;
+    VALUE(U4STA)   = PIC32_USTA_RIDLE | PIC32_USTA_TRMT;
+    VALUE(U4TXREG) = 0;
+    VALUE(U4RXREG) = 0;
+    VALUE(U4BRG)   = 0;
+    VALUE(U5MODE)  = 0;
+    VALUE(U5STA)   = PIC32_USTA_RIDLE | PIC32_USTA_TRMT;
+    VALUE(U5TXREG) = 0;
+    VALUE(U5RXREG) = 0;
+    VALUE(U5BRG)   = 0;
+    VALUE(U6MODE)  = 0;
+    VALUE(U6STA)   = PIC32_USTA_RIDLE | PIC32_USTA_TRMT;
+    VALUE(U6TXREG) = 0;
+    VALUE(U6RXREG) = 0;
+    VALUE(U6BRG)   = 0;
+
+    /*
+     * Reset SPI.
+     */
+    VALUE(SPI1CON)  = 0;
+    VALUE(SPI1STAT) = PIC32_SPISTAT_SPITBE;     // Transmit buffer is empty
+    VALUE(SPI1BRG)  = 0;
+
+    VALUE(SPI2CON)  = 0;
+    VALUE(SPI2STAT) = PIC32_SPISTAT_SPITBE;     // Transmit buffer is empty
+    VALUE(SPI2BRG)  = 0;
+
+    VALUE(SPI3CON)  = 0;
+    VALUE(SPI3STAT) = PIC32_SPISTAT_SPITBE;     // Transmit buffer is empty
+    VALUE(SPI3BRG)  = 0;
+
+    VALUE(SPI4CON)  = 0;
+    VALUE(SPI4STAT) = PIC32_SPISTAT_SPITBE;     // Transmit buffer is empty
+    VALUE(SPI4BRG)  = 0;
+
+    memset(s->spi_rfifo, 0, sizeof(s->spi_rfifo));
+    memset(s->spi_wfifo, 0, sizeof(s->spi_wfifo));
 }
 
-static unsigned io_read32 (PIC32State *s, unsigned offset, const char **namep)
+static unsigned io_read32 (pic32_t *s, unsigned offset, const char **namep)
 {
     unsigned *bufp = &VALUE(offset);
 
@@ -383,15 +429,15 @@ static unsigned io_read32 (PIC32State *s, unsigned offset, const char **namep)
     /*-------------------------------------------------------------------------
      * Interrupt controller registers.
      */
-    STORAGE (INTCON); break;	// Interrupt Control
+    STORAGE (INTCON); break;    // Interrupt Control
     STORAGE (INTSTAT); break;   // Interrupt Status
-    STORAGE (IFS0); break;	// IFS(0..2) - Interrupt Flag Status
+    STORAGE (IFS0); break;      // IFS(0..2) - Interrupt Flag Status
     STORAGE (IFS1); break;
     STORAGE (IFS2); break;
-    STORAGE (IEC0); break;	// IEC(0..2) - Interrupt Enable Control
+    STORAGE (IEC0); break;      // IEC(0..2) - Interrupt Enable Control
     STORAGE (IEC1); break;
     STORAGE (IEC2); break;
-    STORAGE (IPC0); break;	// IPC(0..11) - Interrupt Priority Control
+    STORAGE (IPC0); break;      // IPC(0..11) - Interrupt Priority Control
     STORAGE (IPC1); break;
     STORAGE (IPC2); break;
     STORAGE (IPC3); break;
@@ -408,18 +454,18 @@ static unsigned io_read32 (PIC32State *s, unsigned offset, const char **namep)
     /*-------------------------------------------------------------------------
      * Prefetch controller.
      */
-    STORAGE (CHECON); break;	// Prefetch Control
+    STORAGE (CHECON); break;    // Prefetch Control
 
     /*-------------------------------------------------------------------------
      * System controller.
      */
-    STORAGE (OSCCON); break;	// Oscillator Control
-    STORAGE (OSCTUN); break;	// Oscillator Tuning
-    STORAGE (DDPCON); break;	// Debug Data Port Control
-    STORAGE (DEVID); break;	// Device Identifier
-    STORAGE (SYSKEY); break;	// System Key
-    STORAGE (RCON); break;	// Reset Control
-    STORAGE (RSWRST);    	// Software Reset
+    STORAGE (OSCCON); break;    // Oscillator Control
+    STORAGE (OSCTUN); break;    // Oscillator Tuning
+    STORAGE (DDPCON); break;    // Debug Data Port Control
+    STORAGE (DEVID); break;     // Device Identifier
+    STORAGE (SYSKEY); break;    // System Key
+    STORAGE (RCON); break;      // Reset Control
+    STORAGE (RSWRST);           // Software Reset
         if ((VALUE(RSWRST) & 1) && s->stop_on_reset) {
             exit(0);
         }
@@ -428,9 +474,9 @@ static unsigned io_read32 (PIC32State *s, unsigned offset, const char **namep)
     /*-------------------------------------------------------------------------
      * Analog to digital converter.
      */
-    STORAGE (AD1CON1); break;	// Control register 1
-    STORAGE (AD1CON2); break;	// Control register 2
-    STORAGE (AD1CON3); break;	// Control register 3
+    STORAGE (AD1CON1); break;   // Control register 1
+    STORAGE (AD1CON2); break;   // Control register 2
+    STORAGE (AD1CON3); break;   // Control register 3
     STORAGE (AD1CHS); break;    // Channel select
     STORAGE (AD1CSSL); break;   // Input scan selection
     STORAGE (AD1PCFG); break;   // Port configuration
@@ -454,27 +500,27 @@ static unsigned io_read32 (PIC32State *s, unsigned offset, const char **namep)
     /*--------------------------------------
      * USB registers.
      */
-    STORAGE (U1OTGIR); break;	// OTG interrupt flags
-    STORAGE (U1OTGIE); break;	// OTG interrupt enable
-    STORAGE (U1OTGSTAT); break;	// Comparator and pin status
-    STORAGE (U1OTGCON); break;	// Resistor and pin control
-    STORAGE (U1PWRC); break;	// Power control
-    STORAGE (U1IR); break;	// Pending interrupt
-    STORAGE (U1IE); break;	// Interrupt enable
-    STORAGE (U1EIR); break;	// Pending error interrupt
-    STORAGE (U1EIE); break;	// Error interrupt enable
-    STORAGE (U1STAT); break;	// Status FIFO
-    STORAGE (U1CON); break;	// Control
-    STORAGE (U1ADDR); break;	// Address
-    STORAGE (U1BDTP1); break;	// Buffer descriptor table pointer 1
-    STORAGE (U1FRML); break;	// Frame counter low
-    STORAGE (U1FRMH); break;	// Frame counter high
-    STORAGE (U1TOK); break;	// Host control
-    STORAGE (U1SOF); break;	// SOF counter
-    STORAGE (U1BDTP2); break;	// Buffer descriptor table pointer 2
-    STORAGE (U1BDTP3); break;	// Buffer descriptor table pointer 3
-    STORAGE (U1CNFG1); break;	// Debug and idle
-    STORAGE (U1EP(0)); break;	// Endpoint control
+    STORAGE (U1OTGIR); break;   // OTG interrupt flags
+    STORAGE (U1OTGIE); break;   // OTG interrupt enable
+    STORAGE (U1OTGSTAT); break; // Comparator and pin status
+    STORAGE (U1OTGCON); break;  // Resistor and pin control
+    STORAGE (U1PWRC); break;    // Power control
+    STORAGE (U1IR); break;      // Pending interrupt
+    STORAGE (U1IE); break;      // Interrupt enable
+    STORAGE (U1EIR); break;     // Pending error interrupt
+    STORAGE (U1EIE); break;     // Error interrupt enable
+    STORAGE (U1STAT); break;    // Status FIFO
+    STORAGE (U1CON); break;     // Control
+    STORAGE (U1ADDR); break;    // Address
+    STORAGE (U1BDTP1); break;   // Buffer descriptor table pointer 1
+    STORAGE (U1FRML); break;    // Frame counter low
+    STORAGE (U1FRMH); break;    // Frame counter high
+    STORAGE (U1TOK); break;     // Host control
+    STORAGE (U1SOF); break;     // SOF counter
+    STORAGE (U1BDTP2); break;   // Buffer descriptor table pointer 2
+    STORAGE (U1BDTP3); break;   // Buffer descriptor table pointer 3
+    STORAGE (U1CNFG1); break;   // Debug and idle
+    STORAGE (U1EP(0)); break;   // Endpoint control
     STORAGE (U1EP(1)); break;
     STORAGE (U1EP(2)); break;
     STORAGE (U1EP(3)); break;
@@ -507,11 +553,11 @@ static unsigned io_read32 (PIC32State *s, unsigned offset, const char **namep)
     STORAGE (LATC); break;      // Port C: read outputs
     STORAGE (ODCC); break;      // Port C: open drain configuration
     STORAGE (TRISD); break;     // Port D: mask of inputs
-    STORAGE (PORTD); break;	// Port D: read inputs
+    STORAGE (PORTD); break;     // Port D: read inputs
     STORAGE (LATD); break;      // Port D: read outputs
     STORAGE (ODCD); break;      // Port D: open drain configuration
     STORAGE (TRISE); break;     // Port E: mask of inputs
-    STORAGE (PORTE); break;	// Port E: read inputs
+    STORAGE (PORTE); break;     // Port E: read inputs
     STORAGE (LATE); break;      // Port E: read outputs
     STORAGE (ODCE); break;      // Port E: open drain configuration
     STORAGE (TRISF); break;     // Port F: mask of inputs
@@ -530,12 +576,12 @@ static unsigned io_read32 (PIC32State *s, unsigned offset, const char **namep)
      * UART 1.
      */
     STORAGE (U1RXREG);                          // Receive data
-        *bufp = uart_get_char(0);
+        *bufp = pic32_uart_get_char(s, 0);
         break;
     STORAGE (U1BRG); break;                     // Baud rate
     STORAGE (U1MODE); break;                    // Mode
     STORAGE (U1STA);                            // Status and control
-        uart_poll_status(0);
+        pic32_uart_poll_status(s, 0);
         break;
     STORAGE (U1TXREG);   *bufp = 0; break;      // Transmit
     STORAGE (U1MODECLR); *bufp = 0; break;
@@ -552,12 +598,12 @@ static unsigned io_read32 (PIC32State *s, unsigned offset, const char **namep)
      * UART 2.
      */
     STORAGE (U2RXREG);                          // Receive data
-        *bufp = uart_get_char(1);
+        *bufp = pic32_uart_get_char(s, 1);
         break;
     STORAGE (U2BRG); break;                     // Baud rate
     STORAGE (U2MODE); break;                    // Mode
     STORAGE (U2STA);                            // Status and control
-        uart_poll_status(1);
+        pic32_uart_poll_status(s, 1);
         break;
     STORAGE (U2TXREG);   *bufp = 0; break;      // Transmit
     STORAGE (U2MODECLR); *bufp = 0; break;
@@ -574,12 +620,12 @@ static unsigned io_read32 (PIC32State *s, unsigned offset, const char **namep)
      * UART 3.
      */
     STORAGE (U3RXREG);                          // Receive data
-        *bufp = uart_get_char(2);
+        *bufp = pic32_uart_get_char(s, 2);
         break;
     STORAGE (U3BRG); break;                     // Baud rate
     STORAGE (U3MODE); break;                    // Mode
     STORAGE (U3STA);                            // Status and control
-        uart_poll_status(2);
+        pic32_uart_poll_status(s, 2);
         break;
     STORAGE (U3TXREG);   *bufp = 0; break;      // Transmit
     STORAGE (U3MODECLR); *bufp = 0; break;
@@ -596,12 +642,12 @@ static unsigned io_read32 (PIC32State *s, unsigned offset, const char **namep)
      * UART 4.
      */
     STORAGE (U4RXREG);                          // Receive data
-        *bufp = uart_get_char(3);
+        *bufp = pic32_uart_get_char(s, 3);
         break;
     STORAGE (U4BRG); break;                     // Baud rate
     STORAGE (U4MODE); break;                    // Mode
     STORAGE (U4STA);                            // Status and control
-        uart_poll_status(3);
+        pic32_uart_poll_status(s, 3);
         break;
     STORAGE (U4TXREG);   *bufp = 0; break;      // Transmit
     STORAGE (U4MODECLR); *bufp = 0; break;
@@ -618,12 +664,12 @@ static unsigned io_read32 (PIC32State *s, unsigned offset, const char **namep)
      * UART 5.
      */
     STORAGE (U5RXREG);                          // Receive data
-        *bufp = uart_get_char(4);
+        *bufp = pic32_uart_get_char(s, 4);
         break;
     STORAGE (U5BRG); break;                     // Baud rate
     STORAGE (U5MODE); break;                    // Mode
     STORAGE (U5STA);                            // Status and control
-        uart_poll_status(4);
+        pic32_uart_poll_status(s, 4);
         break;
     STORAGE (U5TXREG);   *bufp = 0; break;      // Transmit
     STORAGE (U5MODECLR); *bufp = 0; break;
@@ -640,12 +686,12 @@ static unsigned io_read32 (PIC32State *s, unsigned offset, const char **namep)
      * UART 6.
      */
     STORAGE (U6RXREG);                          // Receive data
-        *bufp = uart_get_char(5);
+        *bufp = pic32_uart_get_char(s, 5);
         break;
     STORAGE (U6BRG); break;                     // Baud rate
     STORAGE (U6MODE); break;                    // Mode
     STORAGE (U6STA);                            // Status and control
-        uart_poll_status(5);
+        pic32_uart_poll_status(s, 5);
         break;
     STORAGE (U6TXREG);   *bufp = 0; break;      // Transmit
     STORAGE (U6MODECLR); *bufp = 0; break;
@@ -670,7 +716,7 @@ static unsigned io_read32 (PIC32State *s, unsigned offset, const char **namep)
     STORAGE (SPI1STATSET); *bufp = 0; break;
     STORAGE (SPI1STATINV); *bufp = 0; break;
     STORAGE (SPI1BUF);                          // Buffer
-        *bufp = spi_readbuf (0);
+        *bufp = pic32_spi_readbuf (s, 0);
         break;
     STORAGE (SPI1BRG); break;                   // Baud rate
     STORAGE (SPI1BRGCLR); *bufp = 0; break;
@@ -689,7 +735,7 @@ static unsigned io_read32 (PIC32State *s, unsigned offset, const char **namep)
     STORAGE (SPI2STATSET); *bufp = 0; break;
     STORAGE (SPI2STATINV); *bufp = 0; break;
     STORAGE (SPI2BUF);                          // Buffer
-        *bufp = spi_readbuf (1);
+        *bufp = pic32_spi_readbuf (s, 1);
         break;
     STORAGE (SPI2BRG); break;                   // Baud rate
     STORAGE (SPI2BRGCLR); *bufp = 0; break;
@@ -708,7 +754,7 @@ static unsigned io_read32 (PIC32State *s, unsigned offset, const char **namep)
     STORAGE (SPI3STATSET); *bufp = 0; break;
     STORAGE (SPI3STATINV); *bufp = 0; break;
     STORAGE (SPI3BUF);                          // SPIx Buffer
-        *bufp = spi_readbuf (2);
+        *bufp = pic32_spi_readbuf (s, 2);
         break;
     STORAGE (SPI3BRG); break;                   // Baud rate
     STORAGE (SPI3BRGCLR); *bufp = 0; break;
@@ -727,7 +773,7 @@ static unsigned io_read32 (PIC32State *s, unsigned offset, const char **namep)
     STORAGE (SPI4STATSET); *bufp = 0; break;
     STORAGE (SPI4STATINV); *bufp = 0; break;
     STORAGE (SPI4BUF);                          // Buffer
-        *bufp = spi_readbuf (3);
+        *bufp = pic32_spi_readbuf (s, 3);
         break;
     STORAGE (SPI4BRG); break;                   // Baud rate
     STORAGE (SPI4BRGCLR); *bufp = 0; break;
@@ -735,17 +781,17 @@ static unsigned io_read32 (PIC32State *s, unsigned offset, const char **namep)
     STORAGE (SPI4BRGINV); *bufp = 0; break;
 
     default:
-        fprintf (stderr, "--- Read 1f8%05x: peripheral register not supported\n",
+        printf ("--- Read 1f8%05x: peripheral register not supported\n",
             offset);
         if (qemu_loglevel_mask(CPU_LOG_INSTR))
-            printf ("--- Read 1f8%05x: peripheral register not supported\n",
+            fprintf (qemu_logfile, "--- Read 1f8%05x: peripheral register not supported\n",
                 offset);
         exit (1);
     }
     return *bufp;
 }
 
-static void io_write32 (PIC32State *s, unsigned offset, unsigned data, const char **namep)
+static void io_write32 (pic32_t *s, unsigned offset, unsigned data, const char **namep)
 {
     unsigned *bufp = &VALUE(offset);
 
@@ -768,13 +814,13 @@ static void io_write32 (PIC32State *s, unsigned offset, unsigned data, const cha
     WRITEOP (INTCON); return;   // Interrupt Control
     READONLY(INTSTAT);          // Interrupt Status
     WRITEOP (IPTMR);  return;   // Temporal Proximity Timer
-    WRITEOP (IFS0); goto irq;	// IFS(0..2) - Interrupt Flag Status
+    WRITEOP (IFS0); goto irq;   // IFS(0..2) - Interrupt Flag Status
     WRITEOP (IFS1); goto irq;
     WRITEOP (IFS2); goto irq;
-    WRITEOP (IEC0); goto irq;	// IEC(0..2) - Interrupt Enable Control
+    WRITEOP (IEC0); goto irq;   // IEC(0..2) - Interrupt Enable Control
     WRITEOP (IEC1); goto irq;
     WRITEOP (IEC2); goto irq;
-    WRITEOP (IPC0); goto irq;	// IPC(0..11) - Interrupt Priority Control
+    WRITEOP (IPC0); goto irq;   // IPC(0..11) - Interrupt Priority Control
     WRITEOP (IPC1); goto irq;
     WRITEOP (IPC2); goto irq;
     WRITEOP (IPC3); goto irq;
@@ -798,37 +844,37 @@ irq:    update_irq_status(s);
     /*-------------------------------------------------------------------------
      * System controller.
      */
-    STORAGE (OSCCON); break;	// Oscillator Control
-    STORAGE (OSCTUN); break;	// Oscillator Tuning
-    STORAGE (DDPCON); break;	// Debug Data Port Control
-    READONLY(DEVID);		// Device Identifier
-    STORAGE (SYSKEY);		// System Key
-	/* Unlock state machine. */
-	if (s->syskey_unlock == 0 && VALUE(SYSKEY) == 0xaa996655)
-	    s->syskey_unlock = 1;
-	if (s->syskey_unlock == 1 && VALUE(SYSKEY) == 0x556699aa)
-	    s->syskey_unlock = 2;
-	else
-	    s->syskey_unlock = 0;
-	break;
-    STORAGE (RCON); break;	// Reset Control
-    WRITEOP (RSWRST);		// Software Reset
-	if (s->syskey_unlock == 2 && (VALUE(RSWRST) & 1)) {
+    STORAGE (OSCCON); break;    // Oscillator Control
+    STORAGE (OSCTUN); break;    // Oscillator Tuning
+    STORAGE (DDPCON); break;    // Debug Data Port Control
+    READONLY(DEVID);            // Device Identifier
+    STORAGE (SYSKEY);           // System Key
+        /* Unlock state machine. */
+        if (s->syskey_unlock == 0 && VALUE(SYSKEY) == 0xaa996655)
+            s->syskey_unlock = 1;
+        if (s->syskey_unlock == 1 && VALUE(SYSKEY) == 0x556699aa)
+            s->syskey_unlock = 2;
+        else
+            s->syskey_unlock = 0;
+        break;
+    STORAGE (RCON); break;      // Reset Control
+    WRITEOP (RSWRST);           // Software Reset
+        if (s->syskey_unlock == 2 && (VALUE(RSWRST) & 1)) {
             /* Reset CPU. */
             qemu_system_reset_request();
 
             /* Reset all devices */
             io_reset(s);
-            sdcard_reset(s);
+            pic32_sdcard_reset(s);
         }
-	break;
+        break;
 
     /*-------------------------------------------------------------------------
      * Analog to digital converter.
      */
-    WRITEOP (AD1CON1); return;	// Control register 1
-    WRITEOP (AD1CON2); return;	// Control register 2
-    WRITEOP (AD1CON3); return;	// Control register 3
+    WRITEOP (AD1CON1); return;  // Control register 1
+    WRITEOP (AD1CON2); return;  // Control register 2
+    WRITEOP (AD1CON3); return;  // Control register 3
     WRITEOP (AD1CHS); return;   // Channel select
     WRITEOP (AD1CSSL); return;  // Input scan selection
     WRITEOP (AD1PCFG); return;  // Port configuration
@@ -852,33 +898,33 @@ irq:    update_irq_status(s);
     /*--------------------------------------
      * USB registers.
      */
-    STORAGE (U1OTGIR);		// OTG interrupt flags
+    STORAGE (U1OTGIR);          // OTG interrupt flags
         VALUE(U1OTGIR) = 0;
         return;
-    STORAGE (U1OTGIE); break;	// OTG interrupt enable
-    READONLY(U1OTGSTAT);	// Comparator and pin status
-    STORAGE (U1OTGCON); break;	// Resistor and pin control
-    STORAGE (U1PWRC); break;	// Power control
+    STORAGE (U1OTGIE); break;   // OTG interrupt enable
+    READONLY(U1OTGSTAT);        // Comparator and pin status
+    STORAGE (U1OTGCON); break;  // Resistor and pin control
+    STORAGE (U1PWRC); break;    // Power control
     STORAGE (U1IR);             // Pending interrupt
         VALUE(U1IR) = 0;
         return;
-    STORAGE (U1IE); break;	// Interrupt enable
-    STORAGE (U1EIR);		// Pending error interrupt
+    STORAGE (U1IE); break;      // Interrupt enable
+    STORAGE (U1EIR);            // Pending error interrupt
         VALUE(U1EIR) = 0;
         return;
-    STORAGE (U1EIE); break;	// Error interrupt enable
-    READONLY(U1STAT);		// Status FIFO
-    STORAGE (U1CON); break;	// Control
-    STORAGE (U1ADDR); break;	// Address
-    STORAGE (U1BDTP1); break;	// Buffer descriptor table pointer 1
-    READONLY(U1FRML);		// Frame counter low
-    READONLY(U1FRMH);		// Frame counter high
-    STORAGE (U1TOK); break;	// Host control
-    STORAGE (U1SOF); break;	// SOF counter
-    STORAGE (U1BDTP2); break;	// Buffer descriptor table pointer 2
-    STORAGE (U1BDTP3); break;	// Buffer descriptor table pointer 3
-    STORAGE (U1CNFG1); break;	// Debug and idle
-    STORAGE (U1EP(0)); break;	// Endpoint control
+    STORAGE (U1EIE); break;     // Error interrupt enable
+    READONLY(U1STAT);           // Status FIFO
+    STORAGE (U1CON); break;     // Control
+    STORAGE (U1ADDR); break;    // Address
+    STORAGE (U1BDTP1); break;   // Buffer descriptor table pointer 1
+    READONLY(U1FRML);           // Frame counter low
+    READONLY(U1FRMH);           // Frame counter high
+    STORAGE (U1TOK); break;     // Host control
+    STORAGE (U1SOF); break;     // SOF counter
+    STORAGE (U1BDTP2); break;   // Buffer descriptor table pointer 2
+    STORAGE (U1BDTP3); break;   // Buffer descriptor table pointer 3
+    STORAGE (U1CNFG1); break;   // Debug and idle
+    STORAGE (U1EP(0)); break;   // Endpoint control
     STORAGE (U1EP(1)); break;
     STORAGE (U1EP(2)); break;
     STORAGE (U1EP(3)); break;
@@ -898,65 +944,65 @@ irq:    update_irq_status(s);
     /*-------------------------------------------------------------------------
      * General purpose IO signals.
      */
-    WRITEOP (TRISA); return;	    // Port A: mask of inputs
+    WRITEOP (TRISA); return;        // Port A: mask of inputs
     WRITEOPX(PORTA, LATA);          // Port A: write outputs
     WRITEOP (LATA);                 // Port A: write outputs
         gpio_write (s, 0, VALUE(LATA));
-	return;
-    WRITEOP (ODCA); return;	    // Port A: open drain configuration
-    WRITEOP (TRISB); return;	    // Port B: mask of inputs
+        return;
+    WRITEOP (ODCA); return;         // Port A: open drain configuration
+    WRITEOP (TRISB); return;        // Port B: mask of inputs
     WRITEOPX(PORTB, LATB);          // Port B: write outputs
-    WRITEOP (LATB);		    // Port B: write outputs
+    WRITEOP (LATB);                 // Port B: write outputs
         gpio_write (s, 1, VALUE(LATB));
-	return;
-    WRITEOP (ODCB); return;	    // Port B: open drain configuration
-    WRITEOP (TRISC); return;	    // Port C: mask of inputs
+        return;
+    WRITEOP (ODCB); return;         // Port B: open drain configuration
+    WRITEOP (TRISC); return;        // Port C: mask of inputs
     WRITEOPX(PORTC, LATC);          // Port C: write outputs
     WRITEOP (LATC);                 // Port C: write outputs
         gpio_write (s, 2, VALUE(LATC));
-	return;
-    WRITEOP (ODCC); return;	    // Port C: open drain configuration
-    WRITEOP (TRISD); return;	    // Port D: mask of inputs
+        return;
+    WRITEOP (ODCC); return;         // Port C: open drain configuration
+    WRITEOP (TRISD); return;        // Port D: mask of inputs
     WRITEOPX(PORTD, LATD);          // Port D: write outputs
-    WRITEOP (LATD);		    // Port D: write outputs
+    WRITEOP (LATD);                 // Port D: write outputs
         gpio_write (s, 3, VALUE(LATD));
-	return;
-    WRITEOP (ODCD); return;	    // Port D: open drain configuration
-    WRITEOP (TRISE); return;	    // Port E: mask of inputs
+        return;
+    WRITEOP (ODCD); return;         // Port D: open drain configuration
+    WRITEOP (TRISE); return;        // Port E: mask of inputs
     WRITEOPX(PORTE, LATE);          // Port E: write outputs
-    WRITEOP (LATE);		    // Port E: write outputs
+    WRITEOP (LATE);                 // Port E: write outputs
         gpio_write (s, 4, VALUE(LATE));
-	return;
-    WRITEOP (ODCE); return;	    // Port E: open drain configuration
-    WRITEOP (TRISF); return;	    // Port F: mask of inputs
+        return;
+    WRITEOP (ODCE); return;         // Port E: open drain configuration
+    WRITEOP (TRISF); return;        // Port F: mask of inputs
     WRITEOPX(PORTF, LATF);          // Port F: write outputs
-    WRITEOP (LATF);		    // Port F: write outputs
+    WRITEOP (LATF);                 // Port F: write outputs
         gpio_write (s, 5, VALUE(LATF));
-	return;
-    WRITEOP (ODCF); return;	    // Port F: open drain configuration
-    WRITEOP (TRISG); return;	    // Port G: mask of inputs
+        return;
+    WRITEOP (ODCF); return;         // Port F: open drain configuration
+    WRITEOP (TRISG); return;        // Port G: mask of inputs
     WRITEOPX(PORTG, LATG);          // Port G: write outputs
-    WRITEOP (LATG);		    // Port G: write outputs
+    WRITEOP (LATG);                 // Port G: write outputs
         gpio_write (s, 6, VALUE(LATG));
-	return;
-    WRITEOP (ODCG); return;	    // Port G: open drain configuration
-    WRITEOP (CNCON); return;	    // Interrupt-on-change control
-    WRITEOP (CNEN); return;	    // Input change interrupt enable
-    WRITEOP (CNPUE); return;	    // Input pin pull-up enable
+        return;
+    WRITEOP (ODCG); return;         // Port G: open drain configuration
+    WRITEOP (CNCON); return;        // Interrupt-on-change control
+    WRITEOP (CNEN); return;         // Input change interrupt enable
+    WRITEOP (CNPUE); return;        // Input pin pull-up enable
 
     /*-------------------------------------------------------------------------
      * UART 1.
      */
     STORAGE (U1TXREG);                              // Transmit
-        uart_put_char (0, data);
+        pic32_uart_put_char (s, 0, data);
         break;
     WRITEOP (U1MODE);                               // Mode
-        uart_update_mode (0);
+        pic32_uart_update_mode (s, 0);
         return;
     WRITEOPR (U1STA,                                // Status and control
         PIC32_USTA_URXDA | PIC32_USTA_FERR | PIC32_USTA_PERR |
         PIC32_USTA_RIDLE | PIC32_USTA_TRMT | PIC32_USTA_UTXBF);
-        uart_update_status (0);
+        pic32_uart_update_status (s, 0);
         return;
     WRITEOP (U1BRG); return;                        // Baud rate
     READONLY (U1RXREG);                             // Receive
@@ -965,15 +1011,15 @@ irq:    update_irq_status(s);
      * UART 2.
      */
     STORAGE (U2TXREG);                              // Transmit
-        uart_put_char (1, data);
+        pic32_uart_put_char (s, 1, data);
         break;
     WRITEOP (U2MODE);                               // Mode
-        uart_update_mode (1);
+        pic32_uart_update_mode (s, 1);
         return;
     WRITEOPR (U2STA,                                // Status and control
         PIC32_USTA_URXDA | PIC32_USTA_FERR | PIC32_USTA_PERR |
         PIC32_USTA_RIDLE | PIC32_USTA_TRMT | PIC32_USTA_UTXBF);
-        uart_update_status (1);
+        pic32_uart_update_status (s, 1);
         return;
     WRITEOP (U2BRG); return;                        // Baud rate
     READONLY (U2RXREG);                             // Receive
@@ -982,15 +1028,15 @@ irq:    update_irq_status(s);
      * UART 3.
      */
     STORAGE (U3TXREG);                              // Transmit
-        uart_put_char (2, data);
+        pic32_uart_put_char (s, 2, data);
         break;
     WRITEOP (U3MODE);                               // Mode
-        uart_update_mode (2);
+        pic32_uart_update_mode (s, 2);
         return;
     WRITEOPR (U3STA,                                // Status and control
         PIC32_USTA_URXDA | PIC32_USTA_FERR | PIC32_USTA_PERR |
         PIC32_USTA_RIDLE | PIC32_USTA_TRMT | PIC32_USTA_UTXBF);
-        uart_update_status (2);
+        pic32_uart_update_status (s, 2);
         return;
     WRITEOP (U3BRG); return;                        // Baud rate
     READONLY (U3RXREG);                             // Receive
@@ -999,15 +1045,15 @@ irq:    update_irq_status(s);
      * UART 4.
      */
     STORAGE (U4TXREG);                              // Transmit
-        uart_put_char (3, data);
+        pic32_uart_put_char (s, 3, data);
         break;
     WRITEOP (U4MODE);                               // Mode
-        uart_update_mode (3);
+        pic32_uart_update_mode (s, 3);
         return;
     WRITEOPR (U4STA,                                // Status and control
         PIC32_USTA_URXDA | PIC32_USTA_FERR | PIC32_USTA_PERR |
         PIC32_USTA_RIDLE | PIC32_USTA_TRMT | PIC32_USTA_UTXBF);
-        uart_update_status (3);
+        pic32_uart_update_status (s, 3);
         return;
     WRITEOP (U4BRG); return;                        // Baud rate
     READONLY (U4RXREG);                             // Receive
@@ -1016,15 +1062,15 @@ irq:    update_irq_status(s);
      * UART 5.
      */
     STORAGE (U5TXREG);                              // Transmit
-        uart_put_char (4, data);
+        pic32_uart_put_char (s, 4, data);
         break;
     WRITEOP (U5MODE);                               // Mode
-        uart_update_mode (4);
+        pic32_uart_update_mode (s, 4);
         return;
     WRITEOPR (U5STA,                                // Status and control
         PIC32_USTA_URXDA | PIC32_USTA_FERR | PIC32_USTA_PERR |
         PIC32_USTA_RIDLE | PIC32_USTA_TRMT | PIC32_USTA_UTXBF);
-        uart_update_status (4);
+        pic32_uart_update_status (s, 4);
         return;
     WRITEOP (U5BRG); return;                        // Baud rate
     READONLY (U5RXREG);                             // Receive
@@ -1033,15 +1079,15 @@ irq:    update_irq_status(s);
      * UART 6.
      */
     STORAGE (U6TXREG);                              // Transmit
-        uart_put_char (5, data);
+        pic32_uart_put_char (s, 5, data);
         break;
     WRITEOP (U6MODE);                               // Mode
-        uart_update_mode (5);
+        pic32_uart_update_mode (s, 5);
         return;
     WRITEOPR (U6STA,                                // Status and control
         PIC32_USTA_URXDA | PIC32_USTA_FERR | PIC32_USTA_PERR |
         PIC32_USTA_RIDLE | PIC32_USTA_TRMT | PIC32_USTA_UTXBF);
-        uart_update_status (5);
+        pic32_uart_update_status (s, 5);
         return;
     WRITEOP (U6BRG); return;                        // Baud rate
     READONLY (U6RXREG);                             // Receive
@@ -1050,55 +1096,55 @@ irq:    update_irq_status(s);
      * SPI.
      */
     WRITEOP (SPI1CON);                              // Control
-	spi_control (0);
+        pic32_spi_control (s, 0);
         return;
     WRITEOPR (SPI1STAT, ~PIC32_SPISTAT_SPIROV);     // Status
         return;                                     // Only ROV bit is writable
     STORAGE (SPI1BUF);                              // Buffer
-        spi_writebuf (0, data);
+        pic32_spi_writebuf (s, 0, data);
         return;
     WRITEOP (SPI1BRG); return;                      // Baud rate
     WRITEOP (SPI2CON);                              // Control
-	spi_control (1);
+        pic32_spi_control (s, 1);
         return;
     WRITEOPR (SPI2STAT, ~PIC32_SPISTAT_SPIROV);     // Status
         return;                                     // Only ROV bit is writable
     STORAGE (SPI2BUF);                              // Buffer
-        spi_writebuf (1, data);
+        pic32_spi_writebuf (s, 1, data);
         return;
     WRITEOP (SPI2BRG); return;                      // Baud rate
     WRITEOP (SPI3CON);                              // Control
-	spi_control (2);
+        pic32_spi_control (s, 2);
         return;
     WRITEOPR (SPI3STAT, ~PIC32_SPISTAT_SPIROV);     // Status
         return;                                     // Only ROV bit is writable
     STORAGE (SPI3BUF);                              // Buffer
-        spi_writebuf (2, data);
+        pic32_spi_writebuf (s, 2, data);
         return;
     WRITEOP (SPI3BRG); return;                      // Baud rate
     WRITEOP (SPI4CON);                              // Control
-	spi_control (3);
+        pic32_spi_control (s, 3);
         return;
     WRITEOPR (SPI4STAT, ~PIC32_SPISTAT_SPIROV);     // Status
         return;                                     // Only ROV bit is writable
     STORAGE (SPI4BUF);                              // Buffer
-        spi_writebuf (3, data);
+        pic32_spi_writebuf (s, 3, data);
         return;
-    WRITEOP (SPI4BRG); return;      // Baud rate
+    WRITEOP (SPI4BRG); return;                      // Baud rate
 
     default:
-        fprintf (stderr, "--- Write %08x to 1f8%05x: peripheral register not supported\n",
+        printf ("--- Write %08x to 1f8%05x: peripheral register not supported\n",
             data, offset);
         if (qemu_loglevel_mask(CPU_LOG_INSTR))
-            printf ("--- Write %08x to 1f8%05x: peripheral register not supported\n",
+            fprintf (qemu_logfile, "--- Write %08x to 1f8%05x: peripheral register not supported\n",
                 data, offset);
         exit (1);
 
 readonly:
-        fprintf (stderr, "--- Write %08x to %s: readonly register\n",
+        printf ("--- Write %08x to %s: readonly register\n",
             data, *namep);
         if (qemu_loglevel_mask(CPU_LOG_INSTR))
-            printf ("--- Write %08x to %s: readonly register\n",
+            fprintf (qemu_logfile, "--- Write %08x to %s: readonly register\n",
                 data, *namep);
         *namep = 0;
         return;
@@ -1108,7 +1154,7 @@ readonly:
 
 static uint64_t pic32_io_read(void *opaque, hwaddr addr, unsigned bytes)
 {
-    PIC32State *s = opaque;
+    pic32_t *s = opaque;
     uint32_t offset = addr & 0xfffff;
     const char *name = "???";
     uint32_t data = 0;
@@ -1144,7 +1190,7 @@ static uint64_t pic32_io_read(void *opaque, hwaddr addr, unsigned bytes)
 
 static void pic32_io_write(void *opaque, hwaddr addr, uint64_t data, unsigned bytes)
 {
-    PIC32State *s = opaque;
+    pic32_t *s = opaque;
     uint32_t offset = addr & 0xfffff;
     const char *name = "???";
 
@@ -1226,7 +1272,7 @@ static void mips_pic32_init(MachineState *machine)
     int i;
 
     DeviceState *dev = qdev_create(NULL, TYPE_MIPS_PIC32);
-    PIC32State *s = OBJECT_CHECK(PIC32State, dev, TYPE_MIPS_PIC32);
+    pic32_t *s = OBJECT_CHECK(pic32_t, dev, TYPE_MIPS_PIC32);
 
     /* The whole address space doesn't generate exception when
      * accessing invalid memory. Create an empty slot to
@@ -1257,6 +1303,8 @@ static void mips_pic32_init(MachineState *machine)
     env = &cpu->env;
 
     /* Init internal devices */
+    s->irq_raise = irq_raise;
+    s->irq_clear = irq_clear;
     cpu_mips_irq_init_cpu(env);
     cpu_mips_clock_init(env);
     qemu_register_reset(main_cpu_reset, cpu);
@@ -1380,8 +1428,8 @@ static void mips_pic32_init(MachineState *machine)
     //TODO
     const char *sd0_file = "sd0.img";
     const char *sd1_file = "sd1.img";
-    sdcard_init (s, 0, "sd0", sd0_file, cs0_port, cs0_pin);
-    sdcard_init (s, 1, "sd1", sd1_file, cs1_port, cs1_pin);
+    pic32_sdcard_init (s, 0, "sd0", sd0_file, cs0_port, cs0_pin);
+    pic32_sdcard_init (s, 1, "sd1", sd1_file, cs1_port, cs1_pin);
 
 #if 0
     //
@@ -1405,8 +1453,50 @@ static void mips_pic32_init(MachineState *machine)
     VALUE(DEVID)     = 0x04307053;      // DEVID: MX795F512L
     VALUE(OSCCON)    = 0x01453320;      // external oscillator 8MHz
 
+    /* UART interrupt numbers */
+    s->uart_irq[0] = PIC32_IRQ_U1E;
+    s->uart_irq[1] = PIC32_IRQ_U2E;
+    s->uart_irq[2] = PIC32_IRQ_U3E;
+    s->uart_irq[3] = PIC32_IRQ_U4E;
+    s->uart_irq[4] = PIC32_IRQ_U5E;
+    s->uart_irq[5] = PIC32_IRQ_U6E;
+
+    /* UxSTA address */
+    s->uart_sta[0] = U1STA;
+    s->uart_sta[1] = U2STA;
+    s->uart_sta[2] = U3STA;
+    s->uart_sta[3] = U4STA;
+    s->uart_sta[4] = U5STA;
+    s->uart_sta[5] = U6STA;
+
+    /* UxMODE address */
+    s->uart_mode[0] = U1MODE;
+    s->uart_mode[1] = U2MODE;
+    s->uart_mode[2] = U3MODE;
+    s->uart_mode[3] = U4MODE;
+    s->uart_mode[4] = U5MODE;
+    s->uart_mode[5] = U6MODE;
+
+    /* SPI interrupt numbers */
+    s->spi_irq[0] = PIC32_IRQ_SPI1E;
+    s->spi_irq[1] = PIC32_IRQ_SPI2E;
+    s->spi_irq[2] = PIC32_IRQ_SPI3E;
+    s->spi_irq[3] = PIC32_IRQ_SPI4E;
+
+    /* SPIxCON addresses */
+    s->spi_con[0] = SPI1CON;
+    s->spi_con[1] = SPI2CON;
+    s->spi_con[2] = SPI3CON;
+    s->spi_con[3] = SPI4CON;
+
+    /* SPIxSTAT addresses */
+    s->spi_stat[0] = SPI1STAT;
+    s->spi_stat[0] = SPI2STAT;
+    s->spi_stat[0] = SPI3STAT;
+    s->spi_stat[0] = SPI4STAT;
+
     io_reset(s);
-    sdcard_reset(s);
+    pic32_sdcard_reset(s);
 }
 
 static int mips_pic32_sysbus_device_init(SysBusDevice *sysbusdev)
@@ -1424,7 +1514,7 @@ static void mips_pic32_class_init(ObjectClass *klass, void *data)
 static const TypeInfo mips_pic32_device = {
     .name          = TYPE_MIPS_PIC32,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PIC32State),
+    .instance_size = sizeof(pic32_t),
     .class_init    = mips_pic32_class_init,
 };
 
