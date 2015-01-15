@@ -62,7 +62,13 @@ static void cpu_mips_timer_expire(CPUMIPSState *env)
     if (env->insn_flags & ISA_MIPS32R2) {
         env->CP0_Cause |= 1 << CP0Ca_TI;
     }
-    qemu_irq_raise(env->irq[(env->CP0_IntCtl >> CP0IntCtl_IPTI) & 0x7]);
+    if (env->CP0_Config3 & (1 << CP0C3_VEIC)) {
+        /* External interrupt controller mode. */
+        env->eic_timer_irq(env);
+    } else {
+        /* Legacy or vectored interrupt mode. */
+        qemu_irq_raise(env->irq[(env->CP0_IntCtl >> CP0IntCtl_IPTI) & 0x7]);
+    }
 }
 
 uint32_t cpu_mips_get_count (CPUMIPSState *env)
@@ -110,7 +116,13 @@ void cpu_mips_store_compare (CPUMIPSState *env, uint32_t value)
         cpu_mips_timer_update(env);
     if (env->insn_flags & ISA_MIPS32R2)
         env->CP0_Cause &= ~(1 << CP0Ca_TI);
-    qemu_irq_lower(env->irq[(env->CP0_IntCtl >> CP0IntCtl_IPTI) & 0x7]);
+
+    if (env->CP0_Config3 & (1 << CP0C3_VEIC)) {
+        /* External interrupt controller mode: nothing to do. */
+    } else {
+        /* Legacy or vectored interrupt mode. */
+        qemu_irq_lower(env->irq[(env->CP0_IntCtl >> CP0IntCtl_IPTI) & 0x7]);
+    }
 }
 
 void cpu_mips_start_count(CPUMIPSState *env)

@@ -49,6 +49,7 @@ typedef struct _pic32_t pic32_t;
 
 struct _pic32_t {
     SysBusDevice    parent_obj;
+    MIPSCPU         *cpu;                   /* back pointer to cpu object */
     //SerialState     *uart;
 
     int             stop_on_reset;          /* halt simulation on soft reset */

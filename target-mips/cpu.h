@@ -584,6 +584,11 @@ struct CPUMIPSState {
     const mips_def_t *cpu_model;
     void *irq[8];
     QEMUTimer *timer; /* Internal timer */
+
+    /* Fields for external interrupt controller. */
+    void *eic_context;
+    void (*eic_timer_irq)(CPUMIPSState *env);
+    void (*eic_soft_irq)(CPUMIPSState *env, int num);
 };
 
 #include "cpu-qom.h"

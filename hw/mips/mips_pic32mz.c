@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 
+//TODO: add option to select board type at runtime.
 #define WIFIRE
 
 /* Only 32-bit little endian mode supported. */
@@ -98,20 +99,16 @@ static void update_irq_status(pic32_t *s)
     }
 //else printf ("-- no irq pending\n");
 
-//printf ("   IFS=%08x %08x %08x %08x %08x %08x\n", VALUE(IFS0), VALUE(IFS1), VALUE(IFS2), VALUE(IFS3), VALUE(IFS4), VALUE(IFS5));
-//printf ("   IEC=%08x %08x %08x %08x %08x %08x\n", VALUE(IEC0), VALUE(IEC1), VALUE(IEC2), VALUE(IEC3), VALUE(IEC4), VALUE(IEC5));
-
-    /*
-     * Generate EIC interrupt.
-     */
     if (qemu_loglevel_mask(CPU_LOG_INSTR))
         fprintf (qemu_logfile, "--- RIPL = %u\n", cause_ripl);
 
-    //TODO
-#if 0
-    icmWriteNet (eic_vector, 0);
-    icmWriteNet (eic_ripl, cause_ripl);
-#endif
+    /*
+     * Modify Cause.RIPL field and take EIC interrupt.
+     */
+    CPUMIPSState *env = &s->cpu->env;
+    env->CP0_Cause &= ~(0x3f << (CP0Ca_IP + 2));
+    env->CP0_Cause |= cause_ripl << (CP0Ca_IP + 2);
+    cpu_interrupt(CPU(s->cpu), CPU_INTERRUPT_HARD);
 }
 
 /*
@@ -136,6 +133,30 @@ static void irq_clear (pic32_t *s, int irq)
 //printf ("-- %s() irq = %d\n", __func__, irq);
     VALUE(IFS(irq >> 5)) &= ~(1 << (irq & 31));
     update_irq_status(s);
+}
+
+/*
+ * Timer interrupt.
+ */
+static void pic32_timer_irq (CPUMIPSState *env)
+{
+    pic32_t *s = env->eic_context;
+
+    if (qemu_loglevel_mask(CPU_LOG_INSTR))
+        fprintf (qemu_logfile, "--- timer interrupt\n");
+    irq_raise (s, 0);
+}
+
+/*
+ * Software interrupt.
+ */
+static void pic32_soft_irq (CPUMIPSState *env, int num)
+{
+    pic32_t *s = env->eic_context;
+
+    if (qemu_loglevel_mask(CPU_LOG_INSTR))
+        fprintf (qemu_logfile, "--- soft interrupt %u\n", num);
+    irq_raise (s, num + 1);
 }
 
 static void gpio_write (pic32_t *s, int gpio_port, unsigned lat_value)
@@ -1622,7 +1643,7 @@ static void store_byte (unsigned address, unsigned char byte)
     }
 }
 
-static void mips_pic32_init(MachineState *machine)
+static void pic32_init(MachineState *machine)
 {
     const char *cpu_model = machine->cpu_model;
     unsigned ram_size = DATA_MEM_SIZE;
@@ -1665,14 +1686,7 @@ static void mips_pic32_init(MachineState *machine)
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-    env = &cpu->env;
-
-    /* Init internal devices */
-    cpu_mips_irq_init_cpu(env);
-    cpu_mips_clock_init(env);
-    qemu_register_reset(main_cpu_reset, cpu);
-
-    cpu = MIPS_CPU(first_cpu);
+    s->cpu = cpu;
     env = &cpu->env;
 
     /* Register RAM */
@@ -1717,8 +1731,17 @@ static void mips_pic32_init(MachineState *machine)
     /* Init internal devices */
     s->irq_raise = irq_raise;
     s->irq_clear = irq_clear;
+    s->stop_on_reset = 1;               /* halt simulation on soft reset */
+    qemu_register_reset(main_cpu_reset, cpu);
+
+    /* Setup interrupt controller in EIC mode. */
+    env->CP0_Config3 |= 1 << CP0C3_VEIC;
     cpu_mips_irq_init_cpu(env);
     cpu_mips_clock_init(env);
+    env->eic_timer_irq = pic32_timer_irq;
+    env->eic_soft_irq = pic32_soft_irq;
+    env->eic_context = s;
+
 #if 0
     /*
      * We have a circular dependency problem: pci_bus depends on isa_irq,
@@ -1868,19 +1891,19 @@ static void mips_pic32_init(MachineState *machine)
     DriveInfo *dinfo = drive_get(IF_IDE, 0, 0);
     if (dinfo) {
         sd0_file = qemu_opt_get(dinfo->opts, "file");
-        dinfo->is_default = (sd0_file != 0);
+        dinfo->is_default = 1;
 
         dinfo = drive_get(IF_IDE, 0, 1);
         if (dinfo) {
             sd1_file = qemu_opt_get(dinfo->opts, "file");
-            dinfo->is_default = (sd1_file != 0);
+            dinfo->is_default = 1;
         }
     }
     if (! sd0_file) {
         dinfo = drive_get(IF_SD, 0, 0);
         if (dinfo) {
             sd0_file = qemu_opt_get(dinfo->opts, "file");
-            dinfo->is_default = (sd0_file != 0);
+            dinfo->is_default = 1;
         }
     }
     pic32_sdcard_init (s, 0, "sd0", sd0_file, cs0_port, cs0_pin);
@@ -1902,43 +1925,43 @@ static void mips_pic32_init(MachineState *machine)
     pic32_sdcard_reset(s);
 }
 
-static int mips_pic32_sysbus_device_init(SysBusDevice *sysbusdev)
+static int pic32_sysbus_device_init(SysBusDevice *sysbusdev)
 {
     return 0;
 }
 
-static void mips_pic32_class_init(ObjectClass *klass, void *data)
+static void pic32_class_init(ObjectClass *klass, void *data)
 {
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = mips_pic32_sysbus_device_init;
+    k->init = pic32_sysbus_device_init;
 }
 
-static const TypeInfo mips_pic32_device = {
+static const TypeInfo pic32_device = {
     .name          = TYPE_MIPS_PIC32,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(pic32_t),
-    .class_init    = mips_pic32_class_init,
+    .class_init    = pic32_class_init,
 };
 
-static QEMUMachine mips_pic32_machine = {
+static QEMUMachine pic32_machine = {
     .name           = "pic32mz",
     .desc           = "Microchip PIC32MZ microcontroller",
-    .init           = mips_pic32_init,
+    .init           = pic32_init,
     .max_cpus       = 1,
 };
 
-static void mips_pic32_register_types(void)
+static void pic32_register_types(void)
 {
-    type_register_static(&mips_pic32_device);
+    type_register_static(&pic32_device);
 }
 
-static void mips_pic32_machine_init(void)
+static void pic32_machine_init(void)
 {
-    qemu_register_machine(&mips_pic32_machine);
+    qemu_register_machine(&pic32_machine);
 }
 
-type_init(mips_pic32_register_types)
-machine_init(mips_pic32_machine_init);
+type_init(pic32_register_types)
+machine_init(pic32_machine_init);
 
 #endif /* !TARGET_MIPS64 && !TARGET_WORDS_BIGENDIAN */
