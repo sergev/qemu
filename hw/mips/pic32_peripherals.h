@@ -52,6 +52,7 @@ struct _pic32_t {
     MIPSCPU         *cpu;                   /* back pointer to cpu object */
     //SerialState     *uart;
 
+    int             board_type;             /* board variant */
     int             stop_on_reset;          /* halt simulation on soft reset */
     unsigned        syskey_unlock;          /* syskey state */
 

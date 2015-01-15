@@ -22,9 +22,6 @@
  * THE SOFTWARE.
  */
 
-//TODO: add option to select board type at runtime.
-#define MAX32
-
 /* Only 32-bit little endian mode supported. */
 #if !defined TARGET_MIPS64 && !defined TARGET_WORDS_BIGENDIAN
 
@@ -52,6 +49,13 @@
 #define USER_MEM_START      0xbf000000
 
 #define TYPE_MIPS_PIC32     "mips-pic32mx7"
+
+/* Board variants. */
+enum {
+    BOARD_MAX32,            /* chipKIT Max32 board */
+    BOARD_MAXIMITE,         /* Geoff's Maximite board */
+    BOARD_EXPLORER16,       /* Microchip Explorer-16 board */
+};
 
 /*
  * Pointers to Flash memory contents.
@@ -1281,7 +1285,7 @@ static void store_byte (unsigned address, unsigned char byte)
     }
 }
 
-static void pic32_init(MachineState *machine)
+static void pic32_init(MachineState *machine, int board_type)
 {
     const char *cpu_model = machine->cpu_model;
     unsigned ram_size = DATA_MEM_SIZE;
@@ -1296,6 +1300,8 @@ static void pic32_init(MachineState *machine)
 
     DeviceState *dev = qdev_create(NULL, TYPE_MIPS_PIC32);
     pic32_t *s = OBJECT_CHECK(pic32_t, dev, TYPE_MIPS_PIC32);
+    s->board_type = board_type;
+    s->stop_on_reset = 1;               /* halt simulation on soft reset */
 
     /* The whole address space doesn't generate exception when
      * accessing invalid memory. Create an empty slot to
@@ -1323,6 +1329,7 @@ static void pic32_init(MachineState *machine)
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
+    s->cpu = cpu;
     env = &cpu->env;
 
     /* Register RAM */
@@ -1374,7 +1381,6 @@ static void pic32_init(MachineState *machine)
     /* Init internal devices */
     s->irq_raise = irq_raise;
     s->irq_clear = irq_clear;
-    s->stop_on_reset = 1;               /* halt simulation on soft reset */
     qemu_register_reset(main_cpu_reset, cpu);
 
     /* Setup interrupt controller in EIC mode. */
@@ -1423,41 +1429,6 @@ static void pic32_init(MachineState *machine)
     serial_isa_init(isa_bus, 1, serial_hds[1]);
 #endif
 
-    //
-    // Initialize SD card.
-    //
-    int cs0_port, cs0_pin, cs1_port, cs1_pin;
-    const char *board;
-#if defined EXPLORER16
-    board = "Microchip Explorer16";
-    s->sdcard_spi_port = 0;                     // SD card at SPI1,
-    cs0_port = 1; cs0_pin = 1;                  // select0 at B1,
-    cs1_port = 1; cs1_pin = 2;                  // select1 at B2
-#elif defined MAX32
-    board = "chipKIT Max32";
-    s->sdcard_spi_port = 3;                     // SD card at SPI4,
-    cs0_port = 3; cs0_pin = 3;                  // select0 at D3,
-    cs1_port = 3; cs1_pin = 4;                  // select1 at D4
-#elif defined MAXIMITE
-    board = "Maximite Computer";
-    s->sdcard_spi_port = 3;                     // SD card at SPI4,
-    cs0_port = 4; cs0_pin = 0;                  // select0 at E0,
-    cs1_port = -1; cs1_pin = -1;                // select1 not available
-#else
-#error Unknown board type.
-#endif
-    printf("Board: %s\n", board);
-
-    //
-    // Generic reset of all peripherals.
-    //
-    BOOTMEM(DEVCFG0) = 0xffffff7f;      // Generic MX7: assume Max32 board
-    BOOTMEM(DEVCFG1) = 0x5bfd6aff;
-    BOOTMEM(DEVCFG2) = 0xd979f8f9;
-    BOOTMEM(DEVCFG3) = 0xffff0722;
-    VALUE(DEVID)     = 0x04307053;      // DEVID: MX795F512L
-    VALUE(OSCCON)    = 0x01453320;      // external oscillator 8MHz
-
     /* UART interrupt numbers */
     s->uart_irq[0] = PIC32_IRQ_U1E;
     s->uart_irq[1] = PIC32_IRQ_U2E;
@@ -1501,6 +1472,62 @@ static void pic32_init(MachineState *machine)
     s->spi_stat[3] = SPI4STAT;
 
     /*
+     * Initialize board-specific parameters.
+     */
+    int cs0_port, cs0_pin, cs1_port, cs1_pin;
+    switch (board_type) {
+    default:
+    case BOARD_MAX32:
+        printf("Board: chipKIT Max32\n");
+        BOOTMEM(DEVCFG0) = 0xffffff7f;      // Max32 board
+        BOOTMEM(DEVCFG1) = 0x5bfd6aff;
+        BOOTMEM(DEVCFG2) = 0xd979f8f9;
+        BOOTMEM(DEVCFG3) = 0xffff0722;
+        VALUE(DEVID)     = 0x04307053;      // MX795F512L
+        VALUE(OSCCON)    = 0x01453320;      // external oscillator 8MHz
+        s->sdcard_spi_port = 3;             // SD card at SPI4,
+        cs0_port = 3;  cs0_pin = 3;         // select0 at D3,
+        cs1_port = 3;  cs1_pin = 4;         // select1 at D4
+#if 0
+        vtty_create (0, "uart1", 0);        // console on UART1
+        vtty_init();
+#endif
+        break;
+    case BOARD_MAXIMITE:
+        printf("Board: Geoff's Maximite Computer\n");
+        BOOTMEM(DEVCFG0) = 0xffffff7f;      // TODO: get real data from Maximite board
+        BOOTMEM(DEVCFG1) = 0x5bfd6aff;
+        BOOTMEM(DEVCFG2) = 0xd979f8f9;
+        BOOTMEM(DEVCFG3) = 0xffff0722;
+        VALUE(DEVID)     = 0x04307053;      // MX795F512L
+        VALUE(OSCCON)    = 0x01453320;      // external oscillator 8MHz
+        s->sdcard_spi_port = 3;             // SD card at SPI4,
+        cs0_port = 4;  cs0_pin = 0;         // select0 at E0,
+        cs1_port = -1; cs1_pin = -1;        // select1 not available
+#if 0
+        vtty_create (0, "uart1", 0);        // console on UART1
+        vtty_init();
+#endif
+        break;
+    case BOARD_EXPLORER16:
+        printf("Board: Microchip Explorer16\n");
+        BOOTMEM(DEVCFG0) = 0xffffff7f;      // TODO: get real data from Explorer16 board
+        BOOTMEM(DEVCFG1) = 0x5bfd6aff;
+        BOOTMEM(DEVCFG2) = 0xd979f8f9;
+        BOOTMEM(DEVCFG3) = 0xffff0722;
+        VALUE(DEVID)     = 0x04307053;      // MX795F512L
+        VALUE(OSCCON)    = 0x01453320;      // external oscillator 8MHz
+        s->sdcard_spi_port = 0;             // SD card at SPI1,
+        cs0_port = 1;  cs0_pin = 1;         // select0 at B1,
+        cs1_port = 1;  cs1_pin = 2;         // select1 at B2
+#if 0
+        vtty_create (1, "uart2", 0);        // console on UART2
+        vtty_init();
+#endif
+        break;
+    }
+
+    /*
      * Load SD card images.
      * Use options:
      *      -sd filename
@@ -1529,20 +1556,23 @@ static void pic32_init(MachineState *machine)
     pic32_sdcard_init (s, 0, "sd0", sd0_file, cs0_port, cs0_pin);
     pic32_sdcard_init (s, 1, "sd1", sd1_file, cs1_port, cs1_pin);
 
-#if 0
-    //
-    // Create console port.
-    //
-#if defined EXPLORER16
-    vtty_create (1, "uart2", 0);                // console on UART2
-#else
-    vtty_create (0, "uart1", 0);                // console on UART1
-#endif
-    vtty_init();
-#endif
-
     io_reset(s);
     pic32_sdcard_reset(s);
+}
+
+static void pic32_init_max32(MachineState *machine)
+{
+    pic32_init(machine, BOARD_MAX32);
+}
+
+static void pic32_init_maximite(MachineState *machine)
+{
+    pic32_init(machine, BOARD_MAXIMITE);
+}
+
+static void pic32_init_explorer16(MachineState *machine)
+{
+    pic32_init(machine, BOARD_EXPLORER16);
 }
 
 static int pic32_sysbus_device_init(SysBusDevice *sysbusdev)
@@ -1564,21 +1594,37 @@ static const TypeInfo pic32_device = {
     .class_init    = pic32_class_init,
 };
 
-static QEMUMachine pic32_machine = {
-    .name           = "pic32mx7",
-    .desc           = "Microchip PIC32MX7 microcontroller",
-    .init           = pic32_init,
-    .max_cpus       = 1,
-};
-
 static void pic32_register_types(void)
 {
     type_register_static(&pic32_device);
 }
 
+static QEMUMachine pic32_board[3] = {
+    {
+        .name       = "pic32mx7-max32",
+        .desc       = "PIC32MX7 microcontroller on chipKIT Max32 board",
+        .init       = pic32_init_max32,
+        .max_cpus   = 1,
+    },
+    {
+        .name       = "pic32mx7-maximite",
+        .desc       = "PIC32MX7 microcontroller on Geoff's Maximite board",
+        .init       = pic32_init_maximite,
+        .max_cpus   = 1,
+    },
+    {
+        .name       = "pic32mx7-explorer16",
+        .desc       = "PIC32MX7 microcontroller on Microchip Explorer-16 board",
+        .init       = pic32_init_explorer16,
+        .max_cpus   = 1,
+    },
+};
+
 static void pic32_machine_init(void)
 {
-    qemu_register_machine(&pic32_machine);
+    qemu_register_machine(&pic32_board[0]);
+    qemu_register_machine(&pic32_board[1]);
+    qemu_register_machine(&pic32_board[2]);
 }
 
 type_init(pic32_register_types)

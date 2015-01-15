@@ -22,9 +22,6 @@
  * THE SOFTWARE.
  */
 
-//TODO: add option to select board type at runtime.
-#define WIFIRE
-
 /* Only 32-bit little endian mode supported. */
 #if !defined TARGET_MIPS64 && !defined TARGET_WORDS_BIGENDIAN
 
@@ -50,6 +47,13 @@
 #define DATA_MEM_SIZE       (512*1024)          // 512 kbytes
 
 #define TYPE_MIPS_PIC32     "mips-pic32mz"
+
+/* Board variants. */
+enum {
+    BOARD_WIFIRE,           /* chipKIT WiFire board */
+    BOARD_MEBII,            /* Microchip MEB-II board */
+    BOARD_EXPLORER16,       /* Microchip Explorer-16 board */
+};
 
 /*
  * Pointers to Flash memory contents.
@@ -241,9 +245,8 @@ static void io_reset(pic32_t *s)
     VALUE(TRISC) = 0xFFFF;              // Port C: mask of inputs
     VALUE(PORTC) = 0xFFFF;              // Port C: read inputs, write outputs
     VALUE(LATC)  = 0xFFFF;              // Port C: read/write outputs
-#ifdef WIFIRE
-    VALUE(LATC) ^= 0x1000;              // Disable latc[15] for the cipKIT bootloader
-#endif
+    if (s->board_type == BOARD_WIFIRE)
+        VALUE(LATC) ^= 0x1000;          // Disable latc[15] for the chipKIT bootloader
     VALUE(ODCC)  = 0;                   // Port C: open drain configuration
     VALUE(CNPUC) = 0;                   // Input pin pull-up
     VALUE(CNPDC) = 0;                   // Input pin pull-down
@@ -1643,7 +1646,7 @@ static void store_byte (unsigned address, unsigned char byte)
     }
 }
 
-static void pic32_init(MachineState *machine)
+static void pic32_init(MachineState *machine, int board_type)
 {
     const char *cpu_model = machine->cpu_model;
     unsigned ram_size = DATA_MEM_SIZE;
@@ -1652,13 +1655,14 @@ static void pic32_init(MachineState *machine)
     MemoryRegion *prog_mem = g_new(MemoryRegion, 1);
     MemoryRegion *boot_mem = g_new(MemoryRegion, 1);
     MemoryRegion *io_mem = g_new(MemoryRegion, 1);
-    //MemoryRegion io_mem;
     MIPSCPU *cpu;
     CPUMIPSState *env;
     int i;
 
     DeviceState *dev = qdev_create(NULL, TYPE_MIPS_PIC32);
     pic32_t *s = OBJECT_CHECK(pic32_t, dev, TYPE_MIPS_PIC32);
+    s->board_type = board_type;
+    s->stop_on_reset = 1;               /* halt simulation on soft reset */
 
     /* The whole address space doesn't generate exception when
      * accessing invalid memory. Create an empty slot to
@@ -1731,7 +1735,6 @@ static void pic32_init(MachineState *machine)
     /* Init internal devices */
     s->irq_raise = irq_raise;
     s->irq_clear = irq_clear;
-    s->stop_on_reset = 1;               /* halt simulation on soft reset */
     qemu_register_reset(main_cpu_reset, cpu);
 
     /* Setup interrupt controller in EIC mode. */
@@ -1778,58 +1781,6 @@ static void pic32_init(MachineState *machine)
 
     serial_isa_init(isa_bus, 0, serial_hds[0]);
     serial_isa_init(isa_bus, 1, serial_hds[1]);
-#endif
-
-    //
-    // Initialize SD card.
-    //
-    int cs0_port, cs0_pin, cs1_port, cs1_pin;
-    const char *board;
-#if defined EXPLORER16
-    board = "Microchip Explorer16";
-    s->sdcard_spi_port = 0;                     // SD card at SPI1,
-    cs0_port = 1; cs0_pin = 1;                  // select0 at B1,
-    cs1_port = 1; cs1_pin = 2;                  // select1 at B2
-#elif defined WIFIRE
-    board = "chipKIT WiFire";
-    s->sdcard_spi_port = 2;                     // SD card at SPI3,
-    cs0_port = 2; cs0_pin = 3;                  // select0 at C3,
-    cs1_port = -1; cs1_pin = -1;                // select1 not available
-#elif defined MEBII
-    board = "Microchip MEB-II";
-    s->sdcard_spi_port = 1;                     // SD card at SPI2,
-    cs0_port = 1; cs0_pin = 14;                 // select0 at B14,
-    cs1_port = -1; cs1_pin = -1;                // select1 not available
-#else
-#error Unknown board type.
-#endif
-    printf("Board: %s\n", board);
-
-    /*
-     * Generic reset of all peripherals.
-     */
-#if defined WIFIRE
-    BOOTMEM(DEVCFG0) = 0xfffffff7;      // WiFire board
-    BOOTMEM(DEVCFG1) = 0x7f743cb9;
-    BOOTMEM(DEVCFG2) = 0xfff9b11a;
-    BOOTMEM(DEVCFG3) = 0xbeffffff;
-    VALUE(DEVID)     = 0x4510e053;      // MZ2048ECG100 rev A4
-    VALUE(OSCCON)    = 0x00001120;      // external oscillator 24MHz
-
-#elif defined MEBII
-    BOOTMEM(DEVCFG0) = 0x7fffffdb;      // MEB-II board
-    BOOTMEM(DEVCFG1) = 0x0000fc81;
-    BOOTMEM(DEVCFG2) = 0x3ff8b11a;
-    BOOTMEM(DEVCFG3) = 0x86ffffff;
-    VALUE(DEVID)     = 0x45127053;      // MZ2048ECH144 rev A4
-    VALUE(OSCCON)    = 0x00001120;      // external oscillator 24MHz
-#else
-    BOOTMEM(DEVCFG0) = 0x7fffffdb;      // Generic MZ: assume Explorer16 board
-    BOOTMEM(DEVCFG1) = 0x0000fc81;
-    BOOTMEM(DEVCFG2) = 0x3ff8b11a;
-    BOOTMEM(DEVCFG3) = 0x86ffffff;
-    VALUE(DEVID)     = 0x35113053;      // MZ2048ECH100 rev A3
-    VALUE(OSCCON)    = 0x00001120;      // external oscillator 24MHz
 #endif
 
     /* UART interrupt numbers */
@@ -1881,6 +1832,62 @@ static void pic32_init(MachineState *machine)
     s->spi_stat[5] = SPI6STAT;
 
     /*
+     * Initialize board-specific parameters.
+     */
+    int cs0_port, cs0_pin, cs1_port, cs1_pin;
+    switch (board_type) {
+    default:
+    case BOARD_WIFIRE:
+        printf("Board: chipKIT WiFire\n");
+        BOOTMEM(DEVCFG0) = 0xfffffff7;
+        BOOTMEM(DEVCFG1) = 0x7f743cb9;
+        BOOTMEM(DEVCFG2) = 0xfff9b11a;
+        BOOTMEM(DEVCFG3) = 0xbeffffff;
+        VALUE(DEVID)     = 0x4510e053;      // MZ2048ECG100 rev A4
+        VALUE(OSCCON)    = 0x00001120;      // external oscillator 24MHz
+        s->sdcard_spi_port = 2;             // SD card at SPI3,
+        cs0_port = 2;  cs0_pin = 3;         // select0 at C3,
+        cs1_port = -1; cs1_pin = -1;        // select1 not available
+#if 0
+        vtty_create (3, "uart4", 0);        // console on UART4
+        vtty_init();
+#endif
+        break;
+    case BOARD_MEBII:
+        printf("Board: Microchip MEB-II\n");
+        BOOTMEM(DEVCFG0) = 0x7fffffdb;
+        BOOTMEM(DEVCFG1) = 0x0000fc81;
+        BOOTMEM(DEVCFG2) = 0x3ff8b11a;
+        BOOTMEM(DEVCFG3) = 0x86ffffff;
+        VALUE(DEVID)     = 0x45127053;      // MZ2048ECH144 rev A4
+        VALUE(OSCCON)    = 0x00001120;      // external oscillator 24MHz
+        s->sdcard_spi_port = 1;             // SD card at SPI2,
+        cs0_port = 1;  cs0_pin = 14;        // select0 at B14,
+        cs1_port = -1; cs1_pin = -1;        // select1 not available
+#if 0
+        vtty_create (0, "uart1", 0);        // console on UART1
+        vtty_init();
+#endif
+        break;
+    case BOARD_EXPLORER16:
+        printf("Board: Microchip Explorer16\n");
+        BOOTMEM(DEVCFG0) = 0x7fffffdb;
+        BOOTMEM(DEVCFG1) = 0x0000fc81;
+        BOOTMEM(DEVCFG2) = 0x3ff8b11a;
+        BOOTMEM(DEVCFG3) = 0x86ffffff;
+        VALUE(DEVID)     = 0x35113053;      // MZ2048ECH100 rev A3
+        VALUE(OSCCON)    = 0x00001120;      // external oscillator 24MHz
+        s->sdcard_spi_port = 0;             // SD card at SPI1,
+        cs0_port = 1;  cs0_pin = 1;         // select0 at B1,
+        cs1_port = 1;  cs1_pin = 2;         // select1 at B2
+#if 0
+        vtty_create (0, "uart1", 0);        // console on UART1
+        vtty_init();
+#endif
+        break;
+    }
+
+    /*
      * Load SD card images.
      * Use options:
      *      -sd filename
@@ -1909,20 +1916,23 @@ static void pic32_init(MachineState *machine)
     pic32_sdcard_init (s, 0, "sd0", sd0_file, cs0_port, cs0_pin);
     pic32_sdcard_init (s, 1, "sd1", sd1_file, cs1_port, cs1_pin);
 
-#if 0
-    //
-    // Create console port.
-    //
-#if defined WIFIRE
-    vtty_create (3, "uart4", 0);                // console on UART4
-#else
-    vtty_create (0, "uart1", 0);                // console on UART1
-#endif
-    vtty_init();
-#endif
-
     io_reset(s);
     pic32_sdcard_reset(s);
+}
+
+static void pic32_init_wifire(MachineState *machine)
+{
+    pic32_init(machine, BOARD_WIFIRE);
+}
+
+static void pic32_init_meb2(MachineState *machine)
+{
+    pic32_init(machine, BOARD_MEBII);
+}
+
+static void pic32_init_explorer16(MachineState *machine)
+{
+    pic32_init(machine, BOARD_EXPLORER16);
 }
 
 static int pic32_sysbus_device_init(SysBusDevice *sysbusdev)
@@ -1944,21 +1954,37 @@ static const TypeInfo pic32_device = {
     .class_init    = pic32_class_init,
 };
 
-static QEMUMachine pic32_machine = {
-    .name           = "pic32mz",
-    .desc           = "Microchip PIC32MZ microcontroller",
-    .init           = pic32_init,
-    .max_cpus       = 1,
-};
-
 static void pic32_register_types(void)
 {
     type_register_static(&pic32_device);
 }
 
+static QEMUMachine pic32_board[3] = {
+    {
+        .name       = "pic32mz-wifire",
+        .desc       = "PIC32MZ microcontroller on chipKIT WiFire board",
+        .init       = pic32_init_wifire,
+        .max_cpus   = 1,
+    },
+    {
+        .name       = "pic32mz-meb2",
+        .desc       = "PIC32MZ microcontroller on Microchip MEB-II board",
+        .init       = pic32_init_meb2,
+        .max_cpus   = 1,
+    },
+    {
+        .name       = "pic32mz-explorer16",
+        .desc       = "PIC32MZ microcontroller on Microchip Explorer-16 board",
+        .init       = pic32_init_explorer16,
+        .max_cpus   = 1,
+    },
+};
+
 static void pic32_machine_init(void)
 {
-    qemu_register_machine(&pic32_machine);
+    qemu_register_machine(&pic32_board[0]);
+    qemu_register_machine(&pic32_board[1]);
+    qemu_register_machine(&pic32_board[2]);
 }
 
 type_init(pic32_register_types)
