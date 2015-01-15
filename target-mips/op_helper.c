@@ -22,6 +22,7 @@
 #include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
 #include "sysemu/kvm.h"
+#include "disas/bfd.h"
 
 #ifndef CONFIG_USER_ONLY
 static inline void cpu_mips_tlb_flush (CPUMIPSState *env, int flush_global);
@@ -2363,18 +2364,6 @@ void mips_cpu_unassigned_access(CPUState *cs, hwaddr addr,
 }
 #endif /* !CONFIG_USER_ONLY */
 
-#include "disas/bfd.h"
-
-/*
- * Processor state after the last instruction.
- */
-static target_ulong last_gpr[32];
-static target_ulong last_HI[MIPS_DSP_ACC];
-static target_ulong last_LO[MIPS_DSP_ACC];
-static target_ulong last_DSPControl;
-static target_ulong last_cop0[32*8];
-static const char *last_mode;
-
 /*
  * Print changed kernel/user/debug mode.
  */
@@ -2409,8 +2398,8 @@ static void dump_changed_mode(CPUMIPSState *env)
         }
     }
 
-    if (mode != last_mode) {
-        last_mode = mode;
+    if (mode != env->last_mode) {
+        env->last_mode = mode;
         fprintf(qemu_logfile, "--- %s\n", mode);
     }
 }
@@ -2424,26 +2413,26 @@ static void dump_changed_regs(CPUMIPSState *env)
     int i;
 
     for (i=1; i<32; i++) {
-        if (cur->gpr[i] != last_gpr[i]) {
-            last_gpr[i] = cur->gpr[i];
+        if (cur->gpr[i] != env->last_gpr[i]) {
+            env->last_gpr[i] = cur->gpr[i];
             fprintf(qemu_logfile, "    Write GPR[%u] = %08x\n",
                 i, (unsigned) cur->gpr[i]);
         }
     }
     for (i=0; i<MIPS_DSP_ACC; i++) {
-        if (cur->LO[i] != last_LO[i]) {
-            last_LO[i] = cur->LO[i];
+        if (cur->LO[i] != env->last_LO[i]) {
+            env->last_LO[i] = cur->LO[i];
             fprintf(qemu_logfile, "    Write Lo[%u] = %08x\n",
                 i, (unsigned) cur->LO[i]);
         }
-        if (cur->HI[i] != last_HI[i]) {
-            last_HI[i] = cur->HI[i];
+        if (cur->HI[i] != env->last_HI[i]) {
+            env->last_HI[i] = cur->HI[i];
             fprintf(qemu_logfile, "    Write Hi[%u] = %08x\n",
                 i, (unsigned) cur->HI[i]);
         }
     }
-    if (cur->DSPControl != last_DSPControl) {
-        last_DSPControl = cur->DSPControl;
+    if (cur->DSPControl != env->last_DSPControl) {
+        env->last_DSPControl = cur->DSPControl;
         fprintf(qemu_logfile, "    Write DSPControl = %08x\n",
             (unsigned) cur->DSPControl);
     }
@@ -2524,8 +2513,8 @@ static const char *cop0_name[32*8] = {
  */
 static void dump_changed_cop0_reg(CPUMIPSState *env, int idx, target_ulong value)
 {
-    if (value != last_cop0[idx]) {
-        last_cop0[idx] = value;
+    if (value != env->last_cop0[idx]) {
+        env->last_cop0[idx] = value;
         fprintf(qemu_logfile, "    Write %s = %08x\n",
             cop0_name[idx], (unsigned) value);
     }
