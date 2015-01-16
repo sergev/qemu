@@ -25,154 +25,6 @@
 #define _IO_PIC32MZ_H
 
 /*--------------------------------------
- * Coprocessor 0 registers.
- */
-#define C0_INDEX            0   /* Index into the TLB array */
-#define C0_RANDOM           1   /* Randomly generated index into the TLB array */
-#define C0_ENTRYLO0         2   /* Low-order portion of the TLB entry for
-                                 * even-numbered virtual pages */
-#define C0_ENTRYLO1         3   /* Low-order portion of the TLB entry for
-                                 * odd-numbered virtual pages */
-#define C0_CONTEXT          4   /* Pointer to the page table entry in memory */
-#define C0_USERLOCAL        4   /* (1) User information that can be written by
-                                 * privileged software and read via the RDHWR instruction */
-#define C0_PAGEMASK         5   /* Variable page sizes in TLB entries */
-#define C0_PAGEGRAIN        5   /* (1) Support of 1 KB pages in the TLB */
-#define C0_WIRED            6   /* Controls the number of fixed TLB entries */
-#define C0_HWRENA           7   /* Enables access via the RDHWR instruction
-                                 * to selected hardware registers in Non-privileged mode */
-#define C0_BADVADDR         8   /* Reports the address for the most recent
-                                 * address-related exception */
-#define C0_COUNT            9   /* Processor cycle count */
-#define C0_ENTRYHI          10  /* High-order portion of the TLB entry */
-#define C0_COMPARE          11  /* Core timer interrupt control */
-#define C0_STATUS           12  /* Processor status and control */
-#define C0_INTCTL           12  /* (1) Interrupt control of vector spacing */
-#define C0_SRSCTL           12  /* (2) Shadow register set control */
-#define C0_SRSMAP           12  /* (3) Shadow register mapping control */
-#define C0_VIEW_IPL         12  /* (4) Allows the Priority Level to be read/written
-                                 * without extracting or inserting that bit from/to the Status register */
-#define C0_SRSMAP2          12  /* (5) Contains two 4-bit fields that provide
-                                 * the mapping from a vector number to
-                                 * the shadow set number to use when servicing such an interrupt */
-#define C0_CAUSE            13  /* Describes the cause of the last exception */
-#define C0_NESTEDEXC        13  /* (1) Contains the error and exception level
-                                 * status bit values that existed prior to the current exception */
-#define C0_VIEW_RIPL        13  /* (2) Enables read access to the RIPL bit that
-                                 * is available in the Cause register */
-#define C0_EPC              14  /* Program counter at last exception */
-#define C0_NESTEDEPC        14  /* (1) Contains the exception program counter
-                                 * that existed prior to the current exception */
-#define C0_PRID             15  /* Processor identification and revision */
-#define C0_EBASE            15  /* (1) Exception base address of exception vectors */
-#define C0_CDMMBASE         15  /* (2) Common device memory map base */
-#define C0_CONFIG           16  /* Configuration register */
-#define C0_CONFIG1          16  /* (1) Configuration register 1 */
-#define C0_CONFIG2          16  /* (2) Configuration register 2 */
-#define C0_CONFIG3          16  /* (3) Configuration register 3 */
-#define C0_CONFIG4          16  /* (4) Configuration register 4 */
-#define C0_CONFIG5          16  /* (5) Configuration register 5 */
-#define C0_CONFIG7          16  /* (7) Configuration register 7 */
-#define C0_LLADDR           17  /* Load link address */
-#define C0_WATCHLO          18  /* Low-order watchpoint address */
-#define C0_WATCHHI          19  /* High-order watchpoint address */
-#define C0_DEBUG            23  /* EJTAG debug register */
-#define C0_TRACECONTROL     23  /* (1) EJTAG trace control */
-#define C0_TRACECONTROL2    23  /* (2) EJTAG trace control 2 */
-#define C0_USERTRACEDATA1   23  /* (3) EJTAG user trace data 1 register */
-#define C0_TRACEBPC         23  /* (4) EJTAG trace breakpoint register */
-#define C0_DEBUG2           23  /* (5) Debug control/exception status 1 */
-#define C0_DEPC             24  /* Program counter at last debug exception */
-#define C0_USERTRACEDATA2   24  /* (1) EJTAG user trace data 2 register */
-#define C0_PERFCTL0         25  /* Performance counter 0 control */
-#define C0_PERFCNT0         25  /* (1) Performance counter 0 */
-#define C0_PERFCTL1         25  /* (2) Performance counter 1 control */
-#define C0_PERFCNT1         25  /* (3) Performance counter 1 */
-#define C0_ERRCTL           26  /* Software test enable of way-select and data
-                                 * RAM arrays for I-Cache and D-Cache */
-#define C0_TAGLO            28  /* Low-order portion of cache tag interface */
-#define C0_DATALO           28  /* (1) Low-order portion of cache tag interface */
-#define C0_ERROREPC         30  /* Program counter at last error exception */
-#define C0_DESAVE           31  /* Debug exception save */
-
-/*
- * Status register.
- */
-#define ST_CU0          0x10000000      /* Access to coprocessor 0 allowed (in user mode) */
-#define ST_RP           0x08000000      /* Enable reduced power mode */
-#define ST_RE           0x02000000      /* Reverse endianness (in user mode) */
-#define ST_BEV          0x00400000      /* Exception vectors: bootstrap */
-#define ST_SR           0x00100000      /* Soft reset */
-#define ST_NMI          0x00080000      /* NMI reset */
-#define ST_IPL(x)       ((x) << 10)     /* Current interrupt priority level */
-#define ST_UM           0x00000010      /* User mode */
-#define ST_ERL          0x00000004      /* Error level */
-#define ST_EXL          0x00000002      /* Exception level */
-#define ST_IE           0x00000001      /* Interrupt enable */
-
-/*
- * Сause register.
- */
-#define CA_BD           0x80000000      /* Exception occured in delay slot */
-#define CA_TI           0x40000000      /* Timer interrupt is pending */
-#define CA_CE           0x30000000      /* Coprocessor exception */
-#define CA_DC           0x08000000      /* Disable COUNT register */
-#define CA_IV           0x00800000      /* Use special interrupt vector 0x200 */
-#define CA_RIPL(r)      ((r)>>10 & 63)  /* Requested interrupt priority level */
-#define CA_IP1          0x00020000      /* Request software interrupt 1 */
-#define CA_IP0          0x00010000      /* Request software interrupt 0 */
-#define CA_EXC_CODE     0x0000007c      /* Exception code */
-
-#define CA_Int          0               /* Interrupt */
-#define CA_AdEL         (4 << 2)        /* Address error, load or instruction fetch */
-#define CA_AdES         (5 << 2)        /* Address error, store */
-#define CA_IBE          (6 << 2)        /* Bus error, instruction fetch */
-#define CA_DBE          (7 << 2)        /* Bus error, load or store */
-#define CA_Sys          (8 << 2)        /* Syscall */
-#define CA_Bp           (9 << 2)        /* Breakpoint */
-#define CA_RI           (10 << 2)       /* Reserved instruction */
-#define CA_CPU          (11 << 2)       /* Coprocessor unusable */
-#define CA_Ov           (12 << 2)       /* Arithmetic overflow */
-#define CA_Tr           (13 << 2)       /* Trap */
-
-#define DB_DBD          (1 << 31)       /* Debug exception in a branch delay slot */
-#define DB_DM           (1 << 30)       /* Debug mode */
-#define DB_NODCR        (1 << 29)       /* No dseg present */
-#define DB_LSNM         (1 << 28)       /* Load/stores in dseg go to main memory */
-#define DB_DOZE         (1 << 27)       /* Processor was in low-power mode */
-#define DB_HALT         (1 << 26)       /* Internal system bus clock was running */
-#define DB_COUNTDM      (1 << 25)       /* Count register is running in Debug mode */
-#define DB_IBUSEP       (1 << 24)       /* Instruction fetch bus error exception */
-#define DB_DBUSEP       (1 << 21)       /* Data access bus error exception */
-#define DB_IEXI         (1 << 20)       /* Imprecise error exception */
-#define DB_VER          (7 << 15)       /* EJTAG version number */
-#define DB_DEXCCODE     (0x1f << 10)    /* Cause of exception in Debug mode */
-#define DB_SST          (1 << 8)        /* Single step exception enabled */
-#define DB_DIBImpr      (1 << 6)        /* Imprecise debug instruction break */
-#define DB_DINT         (1 << 5)        /* Debug interrupt exception */
-#define DB_DIB          (1 << 4)        /* Debug instruction break exception */
-#define DB_DDBS         (1 << 3)        /* Debug data break exception on store */
-#define DB_DDBL         (1 << 2)        /* Debug data break exception on load */
-#define DB_DBP          (1 << 1)        /* Debug software breakpoint exception */
-#define DB_DSS          (1 << 0)        /* Debug single-step exception */
-
-/*
- * Read C0 coprocessor register.
- */
-#define mfc0(reg, sel) ({ int __value;                          \
-        asm volatile (                                          \
-        "mfc0   %0, $%1, %2"                                    \
-        : "=r" (__value) : "K" (reg), "K" (sel));               \
-        __value; })
-
-/*
- * Write coprocessor 0 register.
- */
-#define mtc0(reg, sel, value) asm volatile (                    \
-        "mtc0   %z0, $%1, %2"                                   \
-        : : "r" ((unsigned) (value)), "K" (reg), "K" (sel))
-
-/*--------------------------------------
  * Configuration registers.
  */
 #define DEVCFG0         0x9fc0fffc
@@ -1397,6 +1249,220 @@
 #define PIC32_SPISTAT_SPIBUSY   0x00000800      /* SPI is busy */
 
 /*--------------------------------------
+ * Ethernet registers.
+ */
+#define ETHCON1         PIC32_R (0x82000)   /* Control 1 */
+#define ETHCON1CLR      PIC32_R (0x82004)
+#define ETHCON1SET      PIC32_R (0x82008)
+#define ETHCON1INV      PIC32_R (0x8200c)
+#define ETHCON2         PIC32_R (0x82010)   /* Control 2: RX data buffer size */
+#define ETHTXST         PIC32_R (0x82020)   /* Tx descriptor start address */
+#define ETHRXST         PIC32_R (0x82030)   /* Rx descriptor start address */
+#define ETHHT0          PIC32_R (0x82040)   /* Hash tasble 0 */
+#define ETHHT1          PIC32_R (0x82050)   /* Hash tasble 1 */
+#define ETHPMM0         PIC32_R (0x82060)   /* Pattern match mask 0 */
+#define ETHPMM1         PIC32_R (0x82070)   /* Pattern match mask 1 */
+#define ETHPMCS         PIC32_R (0x82080)   /* Pattern match checksum */
+#define ETHPMO          PIC32_R (0x82090)   /* Pattern match offset */
+#define ETHRXFC         PIC32_R (0x820a0)   /* Receive filter configuration */
+#define ETHRXWM         PIC32_R (0x820b0)   /* Receive watermarks */
+#define ETHIEN          PIC32_R (0x820c0)   /* Interrupt enable */
+#define ETHIENCLR       PIC32_R (0x820c4)
+#define ETHIENSET       PIC32_R (0x820c8)
+#define ETHIENINV       PIC32_R (0x820cc)
+#define ETHIRQ          PIC32_R (0x820d0)   /* Interrupt request */
+#define ETHIRQCLR       PIC32_R (0x820d4)
+#define ETHIRQSET       PIC32_R (0x820d8)
+#define ETHIRQINV       PIC32_R (0x820dc)
+#define ETHSTAT         PIC32_R (0x820e0)   /* Status */
+#define ETHRXOVFLOW     PIC32_R (0x82100)   /* Receive overflow statistics */
+#define ETHFRMTXOK      PIC32_R (0x82110)   /* Frames transmitted OK statistics */
+#define ETHSCOLFRM      PIC32_R (0x82120)   /* Single collision frames statistics */
+#define ETHMCOLFRM      PIC32_R (0x82130)   /* Multiple collision frames statistics */
+#define ETHFRMRXOK      PIC32_R (0x82140)   /* Frames received OK statistics */
+#define ETHFCSERR       PIC32_R (0x82150)   /* Frame check sequence error statistics */
+#define ETHALGNERR      PIC32_R (0x82160)   /* Alignment errors statistics */
+#define EMAC1CFG1       PIC32_R (0x82200)   /* MAC configuration 1 */
+#define EMAC1CFG2       PIC32_R (0x82210)   /* MAC configuration 2 */
+#define EMAC1CFG2CLR    PIC32_R (0x82214)
+#define EMAC1CFG2SET    PIC32_R (0x82218)
+#define EMAC1CFG2INV    PIC32_R (0x8221c)
+#define EMAC1IPGT       PIC32_R (0x82220)   /* MAC back-to-back interpacket gap */
+#define EMAC1IPGR       PIC32_R (0x82230)   /* MAC non-back-to-back interpacket gap */
+#define EMAC1CLRT       PIC32_R (0x82240)   /* MAC collision window/retry limit */
+#define EMAC1MAXF       PIC32_R (0x82250)   /* MAC maximum frame length */
+#define EMAC1SUPP       PIC32_R (0x82260)   /* MAC PHY support */
+#define EMAC1SUPPCLR    PIC32_R (0x82264)
+#define EMAC1SUPPSET    PIC32_R (0x82268)
+#define EMAC1SUPPINV    PIC32_R (0x8226c)
+#define EMAC1TEST       PIC32_R (0x82270)   /* MAC test */
+#define EMAC1MCFG       PIC32_R (0x82280)   /* MII configuration */
+#define EMAC1MCMD       PIC32_R (0x82290)   /* MII command */
+#define EMAC1MCMDCLR    PIC32_R (0x82294)
+#define EMAC1MCMDSET    PIC32_R (0x82298)
+#define EMAC1MCMDINV    PIC32_R (0x8229c)
+#define EMAC1MADR       PIC32_R (0x822a0)   /* MII address */
+#define EMAC1MWTD       PIC32_R (0x822b0)   /* MII write data */
+#define EMAC1MRDD       PIC32_R (0x822c0)   /* MII read data */
+#define EMAC1MIND       PIC32_R (0x822d0)   /* MII indicators */
+#define EMAC1SA0        PIC32_R (0x82300)   /* MAC station address 0 */
+#define EMAC1SA1        PIC32_R (0x82310)   /* MAC station address 1 */
+#define EMAC1SA2        PIC32_R (0x82320)   /* MAC station address 2 */
+
+/*
+ * Ethernet Control register 1.
+ */
+#define PIC32_ETHCON1_PTV(n)    ((n)<<16)   /* Pause timer value */
+#define PIC32_ETHCON1_ON            0x8000  /* Ethernet module enabled */
+#define PIC32_ETHCON1_SIDL          0x2000  /* Stop in idle mode */
+#define PIC32_ETHCON1_TXRTS         0x0200  /* Transmit request to send */
+#define PIC32_ETHCON1_RXEN          0x0100  /* Receive enable */
+#define PIC32_ETHCON1_AUTOFC        0x0080  /* Automatic flow control */
+#define PIC32_ETHCON1_MANFC         0x0010  /* Manual flow control */
+#define PIC32_ETHCON1_BUFCDEC       0x0001  /* Descriptor buffer count decrement */
+
+/*
+ * Ethernet Receive Filter Configuration register.
+ */
+#define PIC32_ETHRXFC_HTEN          0x8000  /* Enable hash table filtering */
+#define PIC32_ETHRXFC_MPEN          0x4000  /* Enable Magic Packet filtering */
+#define PIC32_ETHRXFC_NOTPM         0x1000  /* Pattern match inversion */
+#define PIC32_ETHRXFC_PMMODE_MAGIC  0x0900  /* Packet = magic */
+#define PIC32_ETHRXFC_PMMODE_HT     0x0800  /* Hash table filter match */
+#define PIC32_ETHRXFC_PMMODE_BCAST  0x0600  /* Destination = broadcast address */
+#define PIC32_ETHRXFC_PMMODE_UCAST  0x0400  /* Destination = unicast address */
+#define PIC32_ETHRXFC_PMMODE_STN    0x0200  /* Destination = station address */
+#define PIC32_ETHRXFC_PMMODE_CSUM   0x0100  /* Successful if checksum matches */
+#define PIC32_ETHRXFC_CRCERREN      0x0080  /* CRC error collection enable */
+#define PIC32_ETHRXFC_CRCOKEN       0x0040  /* CRC OK enable */
+#define PIC32_ETHRXFC_RUNTERREN     0x0020  /* Runt error collection enable */
+#define PIC32_ETHRXFC_RUNTEN        0x0010  /* Runt filter enable */
+#define PIC32_ETHRXFC_UCEN          0x0008  /* Unicast filter enable */
+#define PIC32_ETHRXFC_NOTMEEN       0x0004  /* Not Me unicast enable */
+#define PIC32_ETHRXFC_MCEN          0x0002  /* Multicast filter enable */
+#define PIC32_ETHRXFC_BCEN          0x0001  /* Broadcast filter enable */
+
+/*
+ * Ethernet Receive Watermarks register.
+ */
+#define PIC32_ETHRXWM_FWM(n)    ((n)<<16)   /* Receive Full Watermark */
+#define PIC32_ETHRXWM_EWM(n)    (n)         /* Receive Empty Watermark */
+
+/*
+ * Ethernet Interrupt Request register.
+ */
+#define PIC32_ETHIRQ_TXBUSE         0x4000  /* Transmit Bus Error */
+#define PIC32_ETHIRQ_RXBUSE         0x2000  /* Receive Bus Error */
+#define PIC32_ETHIRQ_EWMARK         0x0200  /* Empty Watermark */
+#define PIC32_ETHIRQ_FWMARK         0x0100  /* Full Watermark */
+#define PIC32_ETHIRQ_RXDONE         0x0080  /* Receive Done */
+#define PIC32_ETHIRQ_PKTPEND        0x0040  /* Packet Pending */
+#define PIC32_ETHIRQ_RXACT          0x0020  /* Receive Activity */
+#define PIC32_ETHIRQ_TXDONE         0x0008  /* Transmit Done */
+#define PIC32_ETHIRQ_TXABORT        0x0004  /* Transmitter Abort */
+#define PIC32_ETHIRQ_RXBUFNA        0x0002  /* Receive Buffer Not Available */
+#define PIC32_ETHIRQ_RXOVFLW        0x0001  /* Receive FIFO Overflow */
+
+/*
+ * Ethernet Status register.
+ */
+#define PIC32_ETHSTAT_BUFCNT    0x00ff0000  /* Packet buffer count */
+#define PIC32_ETHSTAT_ETHBUSY       0x0080  /* Ethernet logic is busy */
+#define PIC32_ETHSTAT_TXBUSY        0x0040  /* TX logic is receiving data */
+#define PIC32_ETHSTAT_RXBUSY        0x0020  /* RX logic is receiving data */
+
+/*
+ * Ethernet MAC configuration register 1.
+ */
+#define PIC32_EMAC1CFG1_SOFTRESET   0x8000  /* Soft reset */
+#define PIC32_EMAC1CFG1_SIMRESET    0x4000  /* Reset TX random number generator */
+#define PIC32_EMAC1CFG1_RESETRMCS   0x0800  /* Reset MCS/RX logic */
+#define PIC32_EMAC1CFG1_RESETRFUN   0x0400  /* Reset RX function */
+#define PIC32_EMAC1CFG1_RESETTMCS   0x0200  /* Reset MCS/TX logic */
+#define PIC32_EMAC1CFG1_RESETTFUN   0x0100  /* Reset TX function */
+#define PIC32_EMAC1CFG1_LOOPBACK    0x0010  /* MAC Loopback mode */
+#define PIC32_EMAC1CFG1_TXPAUSE     0x0008  /* MAC TX flow control */
+#define PIC32_EMAC1CFG1_RXPAUSE     0x0004  /* MAC RX flow control */
+#define PIC32_EMAC1CFG1_PASSALL     0x0002  /* MAC accept control frames as well */
+#define PIC32_EMAC1CFG1_RXENABLE    0x0001  /* MAC Receive Enable */
+
+/*
+ * Ethernet MAC configuration register 2.
+ */
+#define PIC32_EMAC1CFG2_EXCESSDFR   0x4000  /* Defer to carrier indefinitely */
+#define PIC32_EMAC1CFG2_BPNOBKOFF   0x2000  /* Backpressure/No Backoff */
+#define PIC32_EMAC1CFG2_NOBKOFF     0x1000  /* No Backoff */
+#define PIC32_EMAC1CFG2_LONGPRE     0x0200  /* Long preamble enforcement */
+#define PIC32_EMAC1CFG2_PUREPRE     0x0100  /* Pure preamble enforcement */
+#define PIC32_EMAC1CFG2_AUTOPAD     0x0080  /* Automatic detect pad enable */
+#define PIC32_EMAC1CFG2_VLANPAD     0x0040  /* VLAN pad enable */
+#define PIC32_EMAC1CFG2_PADENABLE   0x0020  /* Pad/CRC enable */
+#define PIC32_EMAC1CFG2_CRCENABLE   0x0010  /* CRC enable */
+#define PIC32_EMAC1CFG2_DELAYCRC    0x0008  /* Delayed CRC */
+#define PIC32_EMAC1CFG2_HUGEFRM     0x0004  /* Huge frame enable */
+#define PIC32_EMAC1CFG2_LENGTHCK    0x0002  /* Frame length checking */
+#define PIC32_EMAC1CFG2_FULLDPLX    0x0001  /* Full-duplex operation */
+
+/*
+ * Ethernet MAC non-back-to-back interpacket gap register.
+ */
+#define PIC32_EMAC1IPGR(p1, p2)     ((p1)<<8 | (p2))
+
+/*
+ * Ethernet MAC collision window/retry limit register.
+ */
+#define PIC32_EMAC1CLRT(w, r)       ((w)<<8 | (r))
+
+/*
+ * Ethernet PHY support register.
+ */
+#define PIC32_EMAC1SUPP_RESETRMII   0x0800  /* Reset the RMII module */
+#define PIC32_EMAC1SUPP_SPEEDRMII   0x0100  /* RMII speed: 1=100Mbps, 0=10Mbps */
+
+/*
+ * Ethernet MAC test register.
+ */
+#define PIC32_EMAC1TEST_TESTBP      0x0004  /* Test backpressure */
+#define PIC32_EMAC1TEST_TESTPAUSE   0x0002  /* Test pause */
+#define PIC32_EMAC1TEST_SHRTQNTA    0x0001  /* Shortcut pause quanta */
+
+/*
+ * Ethernet MII configuration register.
+ */
+#define PIC32_EMAC1MCFG_RESETMGMT   0x8000  /* Reset the MII module */
+#define PIC32_EMAC1MCFG_CLKSEL_4    0x0000  /* Clock divide by 4 */
+#define PIC32_EMAC1MCFG_CLKSEL_6    0x0008  /* Clock divide by 6 */
+#define PIC32_EMAC1MCFG_CLKSEL_8    0x000c  /* Clock divide by 8 */
+#define PIC32_EMAC1MCFG_CLKSEL_10   0x0010  /* Clock divide by 10 */
+#define PIC32_EMAC1MCFG_CLKSEL_14   0x0014  /* Clock divide by 14 */
+#define PIC32_EMAC1MCFG_CLKSEL_20   0x0018  /* Clock divide by 20 */
+#define PIC32_EMAC1MCFG_CLKSEL_28   0x001c  /* Clock divide by 28 */
+#define PIC32_EMAC1MCFG_CLKSEL_40   0x0020  /* Clock divide by 40 */
+#define PIC32_EMAC1MCFG_CLKSEL_48   0x0024  /* Clock divide by 48 */
+#define PIC32_EMAC1MCFG_CLKSEL_50   0x0028  /* Clock divide by 50 */
+#define PIC32_EMAC1MCFG_NOPRE       0x0002  /* Suppress preamble */
+#define PIC32_EMAC1MCFG_SCANINC     0x0001  /* Scan increment */
+
+/*
+ * Ethernet MII command register.
+ */
+#define PIC32_EMAC1MCMD_SCAN        0x0002  /* Continuous scan mode */
+#define PIC32_EMAC1MCMD_READ        0x0001  /* Single read cycle */
+
+/*
+ * Ethernet MII address register.
+ */
+#define PIC32_EMAC1MADR(p, r)       ((p)<<8 | (r))
+
+/*
+ * Ethernet MII indicators register.
+ */
+#define PIC32_EMAC1MIND_LINKFAIL    0x0008  /* Link fail */
+#define PIC32_EMAC1MIND_NOTVALID    0x0004  /* Read data not valid */
+#define PIC32_EMAC1MIND_SCAN        0x0002  /* Scanning in progress */
+#define PIC32_EMAC1MIND_MIIMBUSY    0x0001  /* Read/write cycle in progress */
+
+/*--------------------------------------
  * Interrupt controller registers.
  */
 #define INTCON          PIC32_R (0x10000)       /* Interrupt Control */
@@ -1502,21 +1568,15 @@
 /*
  * Interrupt Status register.
  */
-#define PIC32_INTSTAT_VEC(s)    ((s) & 0x3f)    /* Interrupt vector */
+#define PIC32_INTSTAT_VEC(s)    ((s) & 0xff)    /* Interrupt vector */
 #define PIC32_INTSTAT_SRIPL(s)  ((s) >> 8 & 7)  /* Requested priority level */
 #define PIC32_INTSTAT_SRIPL_MASK 0x0700
 
 /*
  * Interrupt Prority Control register.
  */
-#define PIC32_IPC_IS0(x)        (x)             /* Interrupt 0 subpriority */
-#define PIC32_IPC_IP0(x)        ((x)<<2)        /* Interrupt 0 priority */
-#define PIC32_IPC_IS1(x)        ((x)<<8)        /* Interrupt 1 subpriority */
-#define PIC32_IPC_IP1(x)        ((x)<<10)       /* Interrupt 1 priority */
-#define PIC32_IPC_IS2(x)        ((x)<<16)       /* Interrupt 2 subpriority */
-#define PIC32_IPC_IP2(x)        ((x)<<18)       /* Interrupt 2 priority */
-#define PIC32_IPC_IS3(x)        ((x)<<24)       /* Interrupt 3 subpriority */
-#define PIC32_IPC_IP3(x)        ((x)<<26)       /* Interrupt 3 priority */
+#define PIC32_IPC_IP(a,b,c,d)   ((a)<<2 | (b)<<10 | (c)<<18 | (d)<<26)  /* Priority */
+#define PIC32_IPC_IS(a,b,c,d)   ((a) | (b)<<8 | (c)<<16 | (d)<<24)      /* Subpriority */
 
 /*
  * IRQ numbers for PIC32MZ
