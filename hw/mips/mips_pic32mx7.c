@@ -1300,7 +1300,6 @@ static void pic32_init(MachineState *machine, int board_type)
     MemoryRegion *io_mem = g_new(MemoryRegion, 1);
     MIPSCPU *cpu;
     CPUMIPSState *env;
-    int i;
 
     DeviceState *dev = qdev_create(NULL, TYPE_MIPS_PIC32);
     pic32_t *s = OBJECT_CHECK(pic32_t, dev, TYPE_MIPS_PIC32);
@@ -1308,15 +1307,6 @@ static void pic32_init(MachineState *machine, int board_type)
     s->stop_on_reset = 1;               /* halt simulation on soft reset */
 
     qdev_init_nofail(dev);
-
-    /* Make sure the first 3 serial ports are associated with a device. */
-    for(i = 0; i < 3; i++) {
-        if (!serial_hds[i]) {
-            char label[32];
-            snprintf(label, sizeof(label), "serial%d", i);
-            serial_hds[i] = qemu_chr_new(label, "null", NULL);
-        }
-    }
 
     /* Init CPU. */
     if (! cpu_model) {
