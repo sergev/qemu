@@ -1430,28 +1430,28 @@ static void pic32_init(MachineState *machine, int board_type)
 #endif
 
     /* UART interrupt numbers */
-    s->uart_irq[0] = PIC32_IRQ_U1E;
-    s->uart_irq[1] = PIC32_IRQ_U2E;
-    s->uart_irq[2] = PIC32_IRQ_U3E;
-    s->uart_irq[3] = PIC32_IRQ_U4E;
-    s->uart_irq[4] = PIC32_IRQ_U5E;
-    s->uart_irq[5] = PIC32_IRQ_U6E;
+    s->uart[0].irq = PIC32_IRQ_U1E;
+    s->uart[1].irq = PIC32_IRQ_U2E;
+    s->uart[2].irq = PIC32_IRQ_U3E;
+    s->uart[3].irq = PIC32_IRQ_U4E;
+    s->uart[4].irq = PIC32_IRQ_U5E;
+    s->uart[5].irq = PIC32_IRQ_U6E;
 
     /* UxSTA address */
-    s->uart_sta[0] = U1STA;
-    s->uart_sta[1] = U2STA;
-    s->uart_sta[2] = U3STA;
-    s->uart_sta[3] = U4STA;
-    s->uart_sta[4] = U5STA;
-    s->uart_sta[5] = U6STA;
+    s->uart[0].sta = U1STA;
+    s->uart[1].sta = U2STA;
+    s->uart[2].sta = U3STA;
+    s->uart[3].sta = U4STA;
+    s->uart[4].sta = U5STA;
+    s->uart[5].sta = U6STA;
 
     /* UxMODE address */
-    s->uart_mode[0] = U1MODE;
-    s->uart_mode[1] = U2MODE;
-    s->uart_mode[2] = U3MODE;
-    s->uart_mode[3] = U4MODE;
-    s->uart_mode[4] = U5MODE;
-    s->uart_mode[5] = U6MODE;
+    s->uart[0].mode = U1MODE;
+    s->uart[1].mode = U2MODE;
+    s->uart[2].mode = U3MODE;
+    s->uart[3].mode = U4MODE;
+    s->uart[4].mode = U5MODE;
+    s->uart[5].mode = U6MODE;
 
     /* SPI interrupt numbers */
     s->spi_irq[0] = PIC32_IRQ_SPI1E;

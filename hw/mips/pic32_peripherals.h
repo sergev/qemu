@@ -21,62 +21,72 @@
  * arising out of or in connection with the use or performance of
  * this software.
  */
-#include "hw/sysbus.h"             /* SysBusDevice */
+#include "hw/sysbus.h"                  /* SysBusDevice */
 
 #define IO_MEM_SIZE     (1024*1024)     /* 1 Mbyte */
 
-/* SD card private data */
-struct sdcard {
-    const char *name;                   /* Device name */
-    unsigned gpio_port;                 /* GPIO port number of CS0 signal */
-    unsigned gpio_cs;                   /* GPIO pin mask of CS0 signal */
-    unsigned kbytes;                    /* Disk size */
-    int unit;                           /* Index (sd0 or sd1) */
-    int fd;                             /* Image file */
-    int select;                         /* Selected */
-    int read_multiple;                  /* Read-multiple mode */
-    unsigned blen;                      /* Block length */
-    unsigned wbecnt;                    /* Write block erase count */
-    unsigned offset;                    /* Read/write offset */
-    unsigned count;                     /* Byte count */
-    unsigned limit;                     /* Reply length */
-    unsigned char buf [1024 + 16];
+typedef struct _sdcard_t sdcard_t;
+typedef struct _uart_t uart_t;
+typedef struct _pic32_t pic32_t;
+
+/*
+ * SD card private data.
+ */
+struct _sdcard_t {
+    const char  *name;                  /* Device name */
+    unsigned    gpio_port;              /* GPIO port number of CS0 signal */
+    unsigned    gpio_cs;                /* GPIO pin mask of CS0 signal */
+    unsigned    kbytes;                 /* Disk size */
+    int         unit;                   /* Index (sd0 or sd1) */
+    int         fd;                     /* Image file */
+    int         select;                 /* Selected */
+    int         read_multiple;          /* Read-multiple mode */
+    unsigned    blen;                   /* Block length */
+    unsigned    wbecnt;                 /* Write block erase count */
+    unsigned    offset;                 /* Read/write offset */
+    unsigned    count;                  /* Byte count */
+    unsigned    limit;                  /* Reply length */
+    unsigned    char buf [1024 + 16];
 };
-typedef struct sdcard sdcard_t;
+
+/*
+ * UART private data.
+ */
+struct _uart_t {
+    unsigned    irq;                    /* interrupt number */
+    int         oactive;                /* output active */
+    int         odelay;                 /* output delay count */
+    unsigned    sta;                    /* UxSTA address */
+    unsigned    mode;                   /* UxMODE address */
+    CharDriverState *chr;               /* pointer to serial_hds[i] */
+};
 
 /*
  * PIC32 data structure.
  */
-typedef struct _pic32_t pic32_t;
-
 struct _pic32_t {
-    SysBusDevice    parent_obj;
-    MIPSCPU         *cpu;                   /* back pointer to cpu object */
+    SysBusDevice parent_obj;
+    MIPSCPU     *cpu;                   /* back pointer to cpu object */
 
-    int             board_type;             /* board variant */
-    int             stop_on_reset;          /* halt simulation on soft reset */
-    unsigned        syskey_unlock;          /* syskey state */
+    int         board_type;             /* board variant */
+    int         stop_on_reset;          /* halt simulation on soft reset */
+    unsigned    syskey_unlock;          /* syskey state */
 
-#define NUM_UART    6                       /* number of UART ports */
-    unsigned        uart_irq [NUM_UART];    /* interrupt numbers */
-    int             uart_oactive[NUM_UART]; /* output active */
-    int             uart_odelay [NUM_UART]; /* output delay count */
-    unsigned        uart_sta [NUM_UART];    /* UxSTA address */
-    unsigned        uart_mode [NUM_UART];   /* UxMODE address */
-    //CharDriverState *uart_drv [NUM_UART];   /* pointer to serial_hds[i] */
+#define NUM_UART 6                      /* number of UART ports */
+    uart_t      uart [NUM_UART];        /* UART data */
 
-#define NUM_SPI     6                       /* max number of SPI ports */
-    unsigned        spi_buf [NUM_SPI][4];   /* transmit and receive buffer */
-    unsigned        spi_rfifo [NUM_SPI];    /* read fifo counter */
-    unsigned        spi_wfifo [NUM_SPI];    /* write fifo counter */
-    unsigned        spi_irq [NUM_SPI];      /* interrupt numbers */
-    unsigned        spi_con [NUM_SPI];      /* SPIxCON address */
-    unsigned        spi_stat [NUM_SPI];     /* SPIxSTAT address */
+#define NUM_SPI 6                       /* max number of SPI ports */
+    unsigned    spi_buf [NUM_SPI][4];   /* transmit and receive buffer */
+    unsigned    spi_rfifo [NUM_SPI];    /* read fifo counter */
+    unsigned    spi_wfifo [NUM_SPI];    /* write fifo counter */
+    unsigned    spi_irq [NUM_SPI];      /* interrupt numbers */
+    unsigned    spi_con [NUM_SPI];      /* SPIxCON address */
+    unsigned    spi_stat [NUM_SPI];     /* SPIxSTAT address */
 
-    unsigned        sdcard_spi_port;        /* SPI port number of SD card */
-    sdcard_t        sdcard [2];             /* SD card data */
+    unsigned    sdcard_spi_port;        /* SPI port number of SD card */
+    sdcard_t    sdcard [2];             /* SD card data */
 
-    uint32_t        iomem [IO_MEM_SIZE/4];  /* backing storage for I/O area */
+    uint32_t    iomem [IO_MEM_SIZE/4];  /* backing storage for I/O area */
 
     void (*irq_raise) (pic32_t *s, int irq); /* set interrupt request */
     void (*irq_clear) (pic32_t *s, int irq); /* clear interrupt request */

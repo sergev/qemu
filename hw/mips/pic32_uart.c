@@ -42,17 +42,18 @@ static int vtty_is_char_avail (unsigned unit) {return 0;}
  */
 unsigned pic32_uart_get_char (pic32_t *s, int unit)
 {
+    uart_t *u = &s->uart[unit];
     unsigned value;
 
     // Read a byte from input queue
     value = vtty_get_char (unit);
-    VALUE(s->uart_sta[unit]) &= ~PIC32_USTA_URXDA;
+    VALUE(u->sta) &= ~PIC32_USTA_URXDA;
 
     if (vtty_is_char_avail (unit)) {
         // One more byte available
-        VALUE(s->uart_sta[unit]) |= PIC32_USTA_URXDA;
+        VALUE(u->sta) |= PIC32_USTA_URXDA;
     } else {
-        s->irq_clear (s, s->uart_irq[unit] + UART_IRQ_RX);
+        s->irq_clear (s, u->irq + UART_IRQ_RX);
     }
     return value;
 }
@@ -62,14 +63,16 @@ unsigned pic32_uart_get_char (pic32_t *s, int unit)
  */
 void pic32_uart_poll_status (pic32_t *s, int unit)
 {
+    uart_t *u = &s->uart[unit];
+
     // Keep receiver idle, transmit shift register always empty
-    VALUE(s->uart_sta[unit]) |= PIC32_USTA_RIDLE | PIC32_USTA_TRMT;
+    VALUE(u->sta) |= PIC32_USTA_RIDLE | PIC32_USTA_TRMT;
 
     if (vtty_is_char_avail (unit)) {
         // Receive data available
-        VALUE(s->uart_sta[unit]) |= PIC32_USTA_URXDA;
+        VALUE(u->sta) |= PIC32_USTA_URXDA;
     }
-    //printf ("<%x>", VALUE(s->uart_sta[unit])); fflush (stdout);
+    //printf ("<%x>", VALUE(u->sta)); fflush (stdout);
 }
 
 /*
@@ -77,14 +80,16 @@ void pic32_uart_poll_status (pic32_t *s, int unit)
  */
 void pic32_uart_put_char (pic32_t *s, int unit, unsigned data)
 {
+    uart_t *u = &s->uart[unit];
+
     vtty_put_char (unit, data);
-    if ((VALUE(s->uart_mode[unit]) & PIC32_UMODE_ON) &&
-        (VALUE(s->uart_sta[unit]) & PIC32_USTA_UTXEN) &&
-        ! s->uart_oactive[unit])
+    if ((VALUE(u->mode) & PIC32_UMODE_ON) &&
+        (VALUE(u->sta) & PIC32_USTA_UTXEN) &&
+        ! u->oactive)
     {
-        s->uart_oactive[unit] = 1;
-        s->uart_odelay[unit] = 0;
-        VALUE(s->uart_sta[unit]) |= PIC32_USTA_UTXBF;
+        u->oactive = 1;
+        u->odelay = 0;
+        VALUE(u->sta) |= PIC32_USTA_UTXBF;
     }
 }
 
@@ -93,12 +98,14 @@ void pic32_uart_put_char (pic32_t *s, int unit, unsigned data)
  */
 void pic32_uart_update_mode (pic32_t *s, int unit)
 {
-    if (! (VALUE(s->uart_mode[unit]) & PIC32_UMODE_ON)) {
-        s->irq_clear (s, s->uart_irq[unit] + UART_IRQ_RX);
-        s->irq_clear (s, s->uart_irq[unit] + UART_IRQ_TX);
-        VALUE(s->uart_sta[unit]) &= ~(PIC32_USTA_URXDA | PIC32_USTA_FERR |
+    uart_t *u = &s->uart[unit];
+
+    if (! (VALUE(u->mode) & PIC32_UMODE_ON)) {
+        s->irq_clear (s, u->irq + UART_IRQ_RX);
+        s->irq_clear (s, u->irq + UART_IRQ_TX);
+        VALUE(u->sta) &= ~(PIC32_USTA_URXDA | PIC32_USTA_FERR |
                                    PIC32_USTA_PERR | PIC32_USTA_UTXBF);
-        VALUE(s->uart_sta[unit]) |= PIC32_USTA_RIDLE | PIC32_USTA_TRMT;
+        VALUE(u->sta) |= PIC32_USTA_RIDLE | PIC32_USTA_TRMT;
     }
 }
 
@@ -107,15 +114,17 @@ void pic32_uart_update_mode (pic32_t *s, int unit)
  */
 void pic32_uart_update_status (pic32_t *s, int unit)
 {
-    if (! (VALUE(s->uart_sta[unit]) & PIC32_USTA_URXEN)) {
-        s->irq_clear (s, s->uart_irq[unit] + UART_IRQ_RX);
-        VALUE(s->uart_sta[unit]) &= ~(PIC32_USTA_URXDA | PIC32_USTA_FERR |
+    uart_t *u = &s->uart[unit];
+
+    if (! (VALUE(u->sta) & PIC32_USTA_URXEN)) {
+        s->irq_clear (s, u->irq + UART_IRQ_RX);
+        VALUE(u->sta) &= ~(PIC32_USTA_URXDA | PIC32_USTA_FERR |
                                    PIC32_USTA_PERR);
     }
-    if (! (VALUE(s->uart_sta[unit]) & PIC32_USTA_UTXEN)) {
-        s->irq_clear (s, s->uart_irq[unit] + UART_IRQ_TX);
-        VALUE(s->uart_sta[unit]) &= ~PIC32_USTA_UTXBF;
-        VALUE(s->uart_sta[unit]) |= PIC32_USTA_TRMT;
+    if (! (VALUE(u->sta) & PIC32_USTA_UTXEN)) {
+        s->irq_clear (s, u->irq + UART_IRQ_TX);
+        VALUE(u->sta) &= ~PIC32_USTA_UTXBF;
+        VALUE(u->sta) |= PIC32_USTA_TRMT;
     }
 }
 
@@ -124,35 +133,37 @@ void pic32_uart_poll(pic32_t *s)
     int unit;
 
     for (unit=0; unit<NUM_UART; unit++) {
-        if (! (VALUE(s->uart_mode[unit]) & PIC32_UMODE_ON)) {
+        uart_t *u = &s->uart[unit];
+
+        if (! (VALUE(u->mode) & PIC32_UMODE_ON)) {
             /* UART disabled. */
-            s->uart_oactive[unit] = 0;
-            VALUE(s->uart_sta[unit]) &= ~PIC32_USTA_UTXBF;
+            u->oactive = 0;
+            VALUE(u->sta) &= ~PIC32_USTA_UTXBF;
             continue;
         }
 
         /* UART enabled. */
-        if ((VALUE(s->uart_sta[unit]) & PIC32_USTA_URXEN) && vtty_is_char_avail (unit)) {
+        if ((VALUE(u->sta) & PIC32_USTA_URXEN) && vtty_is_char_avail (unit)) {
             /* Receive data available. */
-            VALUE(s->uart_sta[unit]) |= PIC32_USTA_URXDA;
+            VALUE(u->sta) |= PIC32_USTA_URXDA;
 
             /* Activate receive interrupt. */
-            s->irq_raise (s, s->uart_irq[unit] + UART_IRQ_RX);
+            s->irq_raise (s, u->irq + UART_IRQ_RX);
             continue;
         }
 
-        if (! (VALUE(s->uart_sta[unit]) & PIC32_USTA_UTXEN)) {
+        if (! (VALUE(u->sta) & PIC32_USTA_UTXEN)) {
             /* Transmitter disabled. */
-            s->uart_oactive[unit] = 0;
+            u->oactive = 0;
             continue;
         }
-        if (s->uart_oactive[unit]) {
+        if (u->oactive) {
             /* Activate transmit interrupt. */
-            if (++s->uart_odelay[unit] > OUTPUT_DELAY) {
-//printf("uart%u: raise tx irq %u\n", unit, s->uart_irq[unit] + UART_IRQ_TX);
-                s->irq_raise (s, s->uart_irq[unit] + UART_IRQ_TX);
-                VALUE(s->uart_sta[unit]) &= ~PIC32_USTA_UTXBF;
-                s->uart_oactive[unit] = 0;
+            if (++u->odelay > OUTPUT_DELAY) {
+//printf("uart%u: raise tx irq %u\n", unit, u->irq + UART_IRQ_TX);
+                s->irq_raise (s, u->irq + UART_IRQ_TX);
+                VALUE(u->sta) &= ~PIC32_USTA_UTXBF;
+                u->oactive = 0;
             }
         }
     }
@@ -167,7 +178,9 @@ int pic32_uart_active(pic32_t *s)
     int unit;
 
     for (unit=0; unit<NUM_UART; unit++) {
-        if (s->uart_oactive[unit])
+        uart_t *u = &s->uart[unit];
+
+        if (u->oactive)
             return 1;
         if (vtty_is_char_avail (unit))
             return 1;
