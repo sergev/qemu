@@ -1663,11 +1663,6 @@ static void pic32_init(MachineState *machine, int board_type)
     s->board_type = board_type;
     s->stop_on_reset = 1;               /* halt simulation on soft reset */
 
-    /* The whole address space doesn't generate exception when
-     * accessing invalid memory. Create an empty slot to
-     * emulate this feature. */
-    //empty_slot_init(0, 0x20000000);
-
     qdev_init_nofail(dev);
 
     /* Init CPU. */
@@ -1730,67 +1725,13 @@ static void pic32_init(MachineState *machine, int board_type)
     env->eic_soft_irq = pic32_soft_irq;
     env->eic_context = s;
 
-#if 0
-    /*
-     * We have a circular dependency problem: pci_bus depends on isa_irq,
-     * isa_irq is provided by i8259, i8259 depends on ISA, ISA depends
-     * on piix4, and piix4 depends on pci_bus.  To stop the cycle we have
-     * qemu_irq_proxy() adds an extra bit of indirection, allowing us
-     * to resolve the isa_irq -> i8259 dependency after i8259 is initialized.
-     */
-    int piix4_devfn;
-    qemu_irq *cpu_exit_irq;
-    PCIBus *pci_bus;
-    ISABus *isa_bus;
-    qemu_irq *isa_irq;
-
-    isa_irq = qemu_irq_proxy(&s->i8259, 16);
-
-    /* Northbridge */
-    pci_bus = gt64120_register(isa_irq);
-
-    /* Southbridge */
-    //ide_drive_get(hd, ARRAY_SIZE(hd));
-
-    piix4_devfn = piix4_init(pci_bus, &isa_bus, 80);
-
-    /* Interrupt controller */
-    /* The 8259 is attached to the MIPS CPU INT0 pin, ie interrupt 2 */
-    s->i8259 = i8259_init(isa_bus, env->irq[2]);
-    isa_bus_irqs(isa_bus, s->i8259);
-
-    //pci_piix4_ide_init(pci_bus, hd, piix4_devfn + 1);
-    pci_create_simple(pci_bus, piix4_devfn + 2, "piix4-usb-uhci");
-    cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
-    DMA_init(0, cpu_exit_irq);
-
-    serial_isa_init(isa_bus, 0, serial_hds[0]);
-    serial_isa_init(isa_bus, 1, serial_hds[1]);
-#endif
-
-    /* UART interrupt numbers */
-    s->uart[0].irq = PIC32_IRQ_U1E;
-    s->uart[1].irq = PIC32_IRQ_U2E;
-    s->uart[2].irq = PIC32_IRQ_U3E;
-    s->uart[3].irq = PIC32_IRQ_U4E;
-    s->uart[4].irq = PIC32_IRQ_U5E;
-    s->uart[5].irq = PIC32_IRQ_U6E;
-
-    /* UxSTA addresses */
-    s->uart[0].sta = U1STA;
-    s->uart[1].sta = U2STA;
-    s->uart[2].sta = U3STA;
-    s->uart[3].sta = U4STA;
-    s->uart[4].sta = U5STA;
-    s->uart[5].sta = U6STA;
-
-    /* UxMODE addresses */
-    s->uart[0].mode = U1MODE;
-    s->uart[1].mode = U2MODE;
-    s->uart[2].mode = U3MODE;
-    s->uart[3].mode = U4MODE;
-    s->uart[4].mode = U5MODE;
-    s->uart[5].mode = U6MODE;
+    /* UARTs */
+    pic32_uart_init(s, 0, PIC32_IRQ_U1E, U1STA, U1MODE);
+    pic32_uart_init(s, 1, PIC32_IRQ_U2E, U2STA, U2MODE);
+    pic32_uart_init(s, 2, PIC32_IRQ_U3E, U3STA, U3MODE);
+    pic32_uart_init(s, 3, PIC32_IRQ_U4E, U4STA, U4MODE);
+    pic32_uart_init(s, 4, PIC32_IRQ_U5E, U5STA, U5MODE);
+    pic32_uart_init(s, 5, PIC32_IRQ_U6E, U6STA, U6MODE);
 
     /* SPI interrupt numbers */
     s->spi_irq[0] = PIC32_IRQ_SPI1E;
@@ -1822,7 +1763,7 @@ static void pic32_init(MachineState *machine, int board_type)
     int cs0_port, cs0_pin, cs1_port, cs1_pin;
     switch (board_type) {
     default:
-    case BOARD_WIFIRE:
+    case BOARD_WIFIRE:                      // console on UART4
         printf("Board: chipKIT WiFire\n");
         BOOTMEM(DEVCFG0) = 0xfffffff7;
         BOOTMEM(DEVCFG1) = 0x7f743cb9;
@@ -1833,10 +1774,8 @@ static void pic32_init(MachineState *machine, int board_type)
         s->sdcard_spi_port = 2;             // SD card at SPI3,
         cs0_port = 2;  cs0_pin = 3;         // select0 at C3,
         cs1_port = -1; cs1_pin = -1;        // select1 not available
-        if (! serial_hds[3])                // console on UART4
-            serial_hds[3] = qemu_chr_new("serial3", "null", NULL);
         break;
-    case BOARD_MEBII:
+    case BOARD_MEBII:                       // console on UART1
         printf("Board: Microchip MEB-II\n");
         BOOTMEM(DEVCFG0) = 0x7fffffdb;
         BOOTMEM(DEVCFG1) = 0x0000fc81;
@@ -1847,8 +1786,6 @@ static void pic32_init(MachineState *machine, int board_type)
         s->sdcard_spi_port = 1;             // SD card at SPI2,
         cs0_port = 1;  cs0_pin = 14;        // select0 at B14,
         cs1_port = -1; cs1_pin = -1;        // select1 not available
-        if (! serial_hds[0])                // console on UART1
-            serial_hds[0] = qemu_chr_new("serial0", "null", NULL);
         break;
     case BOARD_EXPLORER16:                  // console on UART1
         printf("Board: Microchip Explorer16\n");
@@ -1861,19 +1798,8 @@ static void pic32_init(MachineState *machine, int board_type)
         s->sdcard_spi_port = 0;             // SD card at SPI1,
         cs0_port = 1;  cs0_pin = 1;         // select0 at B1,
         cs1_port = 1;  cs1_pin = 2;         // select1 at B2
-        if (! serial_hds[0])                // console on UART1
-            serial_hds[0] = qemu_chr_new("serial0", "null", NULL);
         break;
     }
-#if 0
-    /* The CBUS UART is attached to the CPU INT2 pin, ie interrupt 4 */
-    s->uart[unit].drv = serial_hds[unit];
-
-    qemu_chr_add_handlers(s->uart[unit].drv, uart_can_receive, uart_receive, NULL, s);
-
-    /* Common timeout timer for all UARTs. */
-    s->uart_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, (QEMUTimerCB*) uart_timeout, s);
-#endif
 
     /*
      * Load SD card images.

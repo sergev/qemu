@@ -53,6 +53,7 @@ struct _sdcard_t {
  * UART private data.
  */
 struct _uart_t {
+    pic32_t     *mcu;                   /* back pointer to pic32 object */
     unsigned    irq;                    /* interrupt number */
     int         oactive;                /* output active */
     int         odelay;                 /* output delay count */
@@ -74,6 +75,7 @@ struct _pic32_t {
 
 #define NUM_UART 6                      /* number of UART ports */
     uart_t      uart [NUM_UART];        /* UART data */
+    QEMUTimer   *uart_timer;            /* timer for transmit timeouts */
 
 #define NUM_SPI 6                       /* max number of SPI ports */
     unsigned    spi_buf [NUM_SPI][4];   /* transmit and receive buffer */
@@ -95,6 +97,7 @@ struct _pic32_t {
 /*
  * UART routines.
  */
+void pic32_uart_init (pic32_t *s, int unit, int irq, int sta, int mode);
 unsigned pic32_uart_get_char (pic32_t *s, int unit);
 void pic32_uart_poll_status (pic32_t *s, int unit);
 void pic32_uart_put_char (pic32_t *s, int unit, unsigned data);

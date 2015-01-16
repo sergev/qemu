@@ -22,6 +22,8 @@
  * this software.
  */
 #include "hw/hw.h"
+#include "hw/char/serial.h"
+#include "sysemu/char.h"
 #include "pic32_peripherals.h"
 
 #include "pic32mz.h"
@@ -186,4 +188,61 @@ int pic32_uart_active(pic32_t *s)
             return 1;
     }
     return 0;
+}
+
+static int uart_can_receive(void *opaque)
+{
+    uart_t *u = opaque;
+
+    //TODO:
+    printf("--- %s(%p) called\n", __func__, u);
+    return 1;
+}
+
+static void uart_receive(void *opaque, const uint8_t *buf, int size)
+{
+    uart_t *u = opaque;
+
+    //TODO:
+    printf("--- %s(%p) called\n", __func__, u);
+}
+
+static void uart_timeout(void *opaque)
+{
+    pic32_t *s = opaque;
+
+    //TODO:
+    printf("--- %s(%p) called\n", __func__, s);
+}
+
+/*
+ * Initialize the UART data structure.
+ */
+void pic32_uart_init(pic32_t *s, int unit, int irq, int sta, int mode)
+{
+    uart_t *u = &s->uart[unit];
+
+    u->mcu = s;
+    u->irq = irq;
+    u->sta = sta;
+    u->mode = mode;
+
+    if (unit >= MAX_SERIAL_PORTS) {
+        /* Cannot instantiate so many serial ports. */
+        u->chr = 0;
+        return;
+    }
+    if (! serial_hds[unit]) {
+        char buf [16];
+        sprintf(buf, "serial%d", unit);
+        serial_hds[unit] = qemu_chr_new(buf, "null", NULL);
+    }
+    u->chr = serial_hds[unit];
+
+    /* Setup callback functions. */
+    qemu_chr_add_handlers(u->chr, uart_can_receive, uart_receive, NULL, u);
+
+    /* Common timeout timer for all UARTs. */
+    if (! s->uart_timer)
+        s->uart_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, uart_timeout, s);
 }
