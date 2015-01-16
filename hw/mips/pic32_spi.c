@@ -32,33 +32,36 @@
 
 unsigned pic32_spi_readbuf (pic32_t *s, int unit)
 {
-    unsigned result = s->spi_buf[unit][s->spi_rfifo[unit]];
+    spi_t *p = &s->spi[unit];
+    unsigned result = p->buf[p->rfifo];
 
-    if (VALUE(s->spi_con[unit]) & PIC32_SPICON_ENHBUF) {
-        s->spi_rfifo[unit]++;
-        s->spi_rfifo[unit] &= 3;
+    if (VALUE(p->con) & PIC32_SPICON_ENHBUF) {
+        p->rfifo++;
+        p->rfifo &= 3;
     }
-    if (VALUE(s->spi_stat[unit]) & PIC32_SPISTAT_SPIRBF) {
-        VALUE(s->spi_stat[unit]) &= ~PIC32_SPISTAT_SPIRBF;
-        //s->irq_clear (s, s->spi_irq[unit] + SPI_IRQ_RX);
+    if (VALUE(p->stat) & PIC32_SPISTAT_SPIRBF) {
+        VALUE(p->stat) &= ~PIC32_SPISTAT_SPIRBF;
+        //s->irq_clear (s, p->irq + SPI_IRQ_RX);
     }
     return result;
 }
 
 void pic32_spi_writebuf (pic32_t *s, int unit, unsigned val)
 {
+    spi_t *p = &s->spi[unit];
+
     /* Perform SD card i/o on configured SPI port. */
     if (unit == s->sdcard_spi_port) {
         unsigned result = 0;
 
-        if (VALUE(s->spi_con[unit]) & PIC32_SPICON_MODE32) {
+        if (VALUE(p->con) & PIC32_SPICON_MODE32) {
             /* 32-bit data width */
             result  = (unsigned char) pic32_sdcard_io (s, val >> 24) << 24;
             result |= (unsigned char) pic32_sdcard_io (s, val >> 16) << 16;
             result |= (unsigned char) pic32_sdcard_io (s, val >> 8) << 8;
             result |= (unsigned char) pic32_sdcard_io (s, val);
 
-        } else if (VALUE(s->spi_con[unit]) & PIC32_SPICON_MODE16) {
+        } else if (VALUE(p->con) & PIC32_SPICON_MODE16) {
             /* 16-bit data width */
             result = (unsigned char) pic32_sdcard_io (s, val >> 8) << 8;
             result |= (unsigned char) pic32_sdcard_io (s, val);
@@ -67,36 +70,52 @@ void pic32_spi_writebuf (pic32_t *s, int unit, unsigned val)
             /* 8-bit data width */
             result = (unsigned char) pic32_sdcard_io (s, val);
         }
-        s->spi_buf[unit][s->spi_wfifo[unit]] = result;
+        p->buf[p->wfifo] = result;
     } else {
         /* No device */
-        s->spi_buf[unit][s->spi_wfifo[unit]] = ~0;
+        p->buf[p->wfifo] = ~0;
     }
-    if (VALUE(s->spi_stat[unit]) & PIC32_SPISTAT_SPIRBF) {
-        VALUE(s->spi_stat[unit]) |= PIC32_SPISTAT_SPIROV;
-        //s->irq_raise (s, s->spi_irq[unit] + SPI_IRQ_FAULT);
-    } else if (VALUE(s->spi_con[unit]) & PIC32_SPICON_ENHBUF) {
-        s->spi_wfifo[unit]++;
-        s->spi_wfifo[unit] &= 3;
-        if (s->spi_wfifo[unit] == s->spi_rfifo[unit]) {
-            VALUE(s->spi_stat[unit]) |= PIC32_SPISTAT_SPIRBF;
-            //s->irq_raise (s, s->spi_irq[unit] + SPI_IRQ_RX);
+    if (VALUE(p->stat) & PIC32_SPISTAT_SPIRBF) {
+        VALUE(p->stat) |= PIC32_SPISTAT_SPIROV;
+        //s->irq_raise (s, p->irq + SPI_IRQ_FAULT);
+    } else if (VALUE(p->con) & PIC32_SPICON_ENHBUF) {
+        p->wfifo++;
+        p->wfifo &= 3;
+        if (p->wfifo == p->rfifo) {
+            VALUE(p->stat) |= PIC32_SPISTAT_SPIRBF;
+            //s->irq_raise (s, p->irq + SPI_IRQ_RX);
         }
     } else {
-        VALUE(s->spi_stat[unit]) |= PIC32_SPISTAT_SPIRBF;
-        //s->irq_raise (s, s->spi_irq[unit] + SPI_IRQ_RX);
+        VALUE(p->stat) |= PIC32_SPISTAT_SPIRBF;
+        //s->irq_raise (s, p->irq + SPI_IRQ_RX);
     }
 }
 
 void pic32_spi_control (pic32_t *s, int unit)
 {
-    if (! (VALUE(s->spi_con[unit]) & PIC32_SPICON_ON)) {
-        s->irq_clear (s, s->spi_irq[unit] + SPI_IRQ_FAULT);
-        s->irq_clear (s, s->spi_irq[unit] + SPI_IRQ_RX);
-        s->irq_clear (s, s->spi_irq[unit] + SPI_IRQ_TX);
-        VALUE(s->spi_stat[unit]) = PIC32_SPISTAT_SPITBE;
-    } else if (! (VALUE(s->spi_con[unit]) & PIC32_SPICON_ENHBUF)) {
-        s->spi_rfifo[unit] = 0;
-        s->spi_wfifo[unit] = 0;
+    spi_t *p = &s->spi[unit];
+
+    if (! (VALUE(p->con) & PIC32_SPICON_ON)) {
+        s->irq_clear (s, p->irq + SPI_IRQ_FAULT);
+        s->irq_clear (s, p->irq + SPI_IRQ_RX);
+        s->irq_clear (s, p->irq + SPI_IRQ_TX);
+        VALUE(p->stat) = PIC32_SPISTAT_SPITBE;
+    } else if (! (VALUE(p->con) & PIC32_SPICON_ENHBUF)) {
+        p->rfifo = 0;
+        p->wfifo = 0;
     }
+}
+
+/*
+ * Initialize the SPI data structure.
+ */
+void pic32_spi_init(pic32_t *s, int unit, int irq, int con, int stat)
+{
+    spi_t *p = &s->spi[unit];
+
+    p->irq = irq;
+    p->con = con;
+    p->stat = stat;
+    p->rfifo = 0;
+    p->wfifo = 0;
 }

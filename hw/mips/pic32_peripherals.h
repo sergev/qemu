@@ -27,6 +27,7 @@
 
 typedef struct _sdcard_t sdcard_t;
 typedef struct _uart_t uart_t;
+typedef struct _spi_t spi_t;
 typedef struct _pic32_t pic32_t;
 
 /*
@@ -63,6 +64,18 @@ struct _uart_t {
 };
 
 /*
+ * SPI private data.
+ */
+struct _spi_t {
+    unsigned    buf[4];                 /* transmit and receive buffer */
+    unsigned    rfifo;                  /* read fifo counter */
+    unsigned    wfifo;                  /* write fifo counter */
+    unsigned    irq;                    /* interrupt numbers */
+    unsigned    con;                    /* SPIxCON address */
+    unsigned    stat;                   /* SPIxSTAT address */
+};
+
+/*
  * PIC32 data structure.
  */
 struct _pic32_t {
@@ -78,12 +91,7 @@ struct _pic32_t {
     QEMUTimer   *uart_timer;            /* timer for transmit timeouts */
 
 #define NUM_SPI 6                       /* max number of SPI ports */
-    unsigned    spi_buf [NUM_SPI][4];   /* transmit and receive buffer */
-    unsigned    spi_rfifo [NUM_SPI];    /* read fifo counter */
-    unsigned    spi_wfifo [NUM_SPI];    /* write fifo counter */
-    unsigned    spi_irq [NUM_SPI];      /* interrupt numbers */
-    unsigned    spi_con [NUM_SPI];      /* SPIxCON address */
-    unsigned    spi_stat [NUM_SPI];     /* SPIxSTAT address */
+    spi_t       spi [NUM_SPI];          /* SPI data */
 
     unsigned    sdcard_spi_port;        /* SPI port number of SD card */
     sdcard_t    sdcard [2];             /* SD card data */
@@ -109,6 +117,7 @@ int pic32_uart_active (pic32_t *s);
 /*
  * SPI routines.
  */
+void pic32_spi_init(pic32_t *s, int unit, int irq, int con, int stat);
 void pic32_spi_control (pic32_t *s, int unit);
 unsigned pic32_spi_readbuf (pic32_t *s, int unit);
 void pic32_spi_writebuf (pic32_t *s, int unit, unsigned val);

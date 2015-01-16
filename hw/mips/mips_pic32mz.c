@@ -191,6 +191,8 @@ static inline unsigned write_op (int a, int b, int op)
 
 static void io_reset(pic32_t *s)
 {
+    int i;
+
     /*
      * Prefetch controller.
      */
@@ -366,8 +368,10 @@ static void io_reset(pic32_t *s)
     VALUE(SPI5CON2) = 0;
     VALUE(SPI6CON2) = 0;
 
-    memset(s->spi_rfifo, 0, sizeof(s->spi_rfifo));
-    memset(s->spi_wfifo, 0, sizeof(s->spi_wfifo));
+    for (i=0; i<NUM_SPI; i++) {
+        s->spi[i].rfifo = 0;
+        s->spi[i].wfifo = 0;
+    }
 }
 
 static unsigned io_read32 (pic32_t *s, unsigned offset, const char **namep)
@@ -1725,38 +1729,6 @@ static void pic32_init(MachineState *machine, int board_type)
     env->eic_soft_irq = pic32_soft_irq;
     env->eic_context = s;
 
-    /* UARTs */
-    pic32_uart_init(s, 0, PIC32_IRQ_U1E, U1STA, U1MODE);
-    pic32_uart_init(s, 1, PIC32_IRQ_U2E, U2STA, U2MODE);
-    pic32_uart_init(s, 2, PIC32_IRQ_U3E, U3STA, U3MODE);
-    pic32_uart_init(s, 3, PIC32_IRQ_U4E, U4STA, U4MODE);
-    pic32_uart_init(s, 4, PIC32_IRQ_U5E, U5STA, U5MODE);
-    pic32_uart_init(s, 5, PIC32_IRQ_U6E, U6STA, U6MODE);
-
-    /* SPI interrupt numbers */
-    s->spi_irq[0] = PIC32_IRQ_SPI1E;
-    s->spi_irq[1] = PIC32_IRQ_SPI2E;
-    s->spi_irq[2] = PIC32_IRQ_SPI3E;
-    s->spi_irq[3] = PIC32_IRQ_SPI4E;
-    s->spi_irq[4] = PIC32_IRQ_SPI5E;
-    s->spi_irq[5] = PIC32_IRQ_SPI6E;
-
-    /* SPIxCON addresses */
-    s->spi_con[0] = SPI1CON;
-    s->spi_con[1] = SPI2CON;
-    s->spi_con[2] = SPI3CON;
-    s->spi_con[3] = SPI4CON;
-    s->spi_con[4] = SPI5CON;
-    s->spi_con[5] = SPI6CON;
-
-    /* SPIxSTAT addresses */
-    s->spi_stat[0] = SPI1STAT;
-    s->spi_stat[1] = SPI2STAT;
-    s->spi_stat[2] = SPI3STAT;
-    s->spi_stat[3] = SPI4STAT;
-    s->spi_stat[4] = SPI5STAT;
-    s->spi_stat[5] = SPI6STAT;
-
     /*
      * Initialize board-specific parameters.
      */
@@ -1800,6 +1772,22 @@ static void pic32_init(MachineState *machine, int board_type)
         cs1_port = 1;  cs1_pin = 2;         // select1 at B2
         break;
     }
+
+    /* UARTs */
+    pic32_uart_init(s, 0, PIC32_IRQ_U1E, U1STA, U1MODE);
+    pic32_uart_init(s, 1, PIC32_IRQ_U2E, U2STA, U2MODE);
+    pic32_uart_init(s, 2, PIC32_IRQ_U3E, U3STA, U3MODE);
+    pic32_uart_init(s, 3, PIC32_IRQ_U4E, U4STA, U4MODE);
+    pic32_uart_init(s, 4, PIC32_IRQ_U5E, U5STA, U5MODE);
+    pic32_uart_init(s, 5, PIC32_IRQ_U6E, U6STA, U6MODE);
+
+    /* SPIs */
+    pic32_spi_init(s, 0, PIC32_IRQ_SPI1E, SPI1CON, SPI1STAT);
+    pic32_spi_init(s, 1, PIC32_IRQ_SPI2E, SPI2CON, SPI2STAT);
+    pic32_spi_init(s, 2, PIC32_IRQ_SPI3E, SPI3CON, SPI3STAT);
+    pic32_spi_init(s, 3, PIC32_IRQ_SPI4E, SPI4CON, SPI4STAT);
+    pic32_spi_init(s, 4, PIC32_IRQ_SPI5E, SPI5CON, SPI5STAT);
+    pic32_spi_init(s, 5, PIC32_IRQ_SPI6E, SPI6CON, SPI6STAT);
 
     /*
      * Load SD card images.
