@@ -103,6 +103,11 @@ struct _pic32_t {
 };
 
 /*
+ * GPIO routines.
+ */
+void pic32_gpio_write (pic32_t *s, int unit, unsigned val);
+
+/*
  * UART routines.
  */
 void pic32_uart_init (pic32_t *s, int unit, int irq, int sta, int mode);

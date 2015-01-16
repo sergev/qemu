@@ -163,18 +163,6 @@ static void pic32_soft_irq (CPUMIPSState *env, int num)
     irq_raise (s, num + 1);
 }
 
-static void gpio_write (pic32_t *s, int gpio_port, unsigned lat_value)
-{
-    /* Control SD card 0 */
-    if (gpio_port == s->sdcard[0].gpio_port && s->sdcard[0].gpio_cs) {
-        pic32_sdcard_select (s, 0, ! (lat_value & s->sdcard[0].gpio_cs));
-    }
-    /* Control SD card 1 */
-    if (gpio_port == s->sdcard[1].gpio_port && s->sdcard[0].gpio_cs) {
-        pic32_sdcard_select (s, 1, ! (lat_value & s->sdcard[1].gpio_cs));
-    }
-}
-
 /*
  * Perform an assign/clear/set/invert operation.
  */
@@ -1288,7 +1276,7 @@ irq:    update_irq_status(s);
     WRITEOP (TRISA); return;        // Port A: mask of inputs
     WRITEOPX(PORTA, LATA);          // Port A: write outputs
     WRITEOP (LATA);                 // Port A: write outputs
-        gpio_write (s, 0, VALUE(LATA));
+        pic32_gpio_write (s, 0, VALUE(LATA));
         return;
     WRITEOP (ODCA); return;         // Port A: open drain configuration
     WRITEOP (CNPUA); return;        // Input pin pull-up
@@ -1301,7 +1289,7 @@ irq:    update_irq_status(s);
     WRITEOP (TRISB); return;        // Port B: mask of inputs
     WRITEOPX(PORTB, LATB);          // Port B: write outputs
     WRITEOP (LATB);                 // Port B: write outputs
-        gpio_write (s, 1, VALUE(LATB));
+        pic32_gpio_write (s, 1, VALUE(LATB));
         return;
     WRITEOP (ODCB); return;         // Port B: open drain configuration
     WRITEOP (CNPUB); return;        // Input pin pull-up
@@ -1314,7 +1302,7 @@ irq:    update_irq_status(s);
     WRITEOP (TRISC); return;        // Port C: mask of inputs
     WRITEOPX(PORTC, LATC);          // Port C: write outputs
     WRITEOP (LATC);                 // Port C: write outputs
-        gpio_write (s, 2, VALUE(LATC));
+        pic32_gpio_write (s, 2, VALUE(LATC));
         return;
     WRITEOP (ODCC); return;         // Port C: open drain configuration
     WRITEOP (CNPUC); return;        // Input pin pull-up
@@ -1327,7 +1315,7 @@ irq:    update_irq_status(s);
     WRITEOP (TRISD); return;        // Port D: mask of inputs
     WRITEOPX(PORTD, LATD);          // Port D: write outputs
     WRITEOP (LATD);                 // Port D: write outputs
-        gpio_write (s, 3, VALUE(LATD));
+        pic32_gpio_write (s, 3, VALUE(LATD));
         return;
     WRITEOP (ODCD); return;         // Port D: open drain configuration
     WRITEOP (CNPUD); return;        // Input pin pull-up
@@ -1340,7 +1328,7 @@ irq:    update_irq_status(s);
     WRITEOP (TRISE); return;        // Port E: mask of inputs
     WRITEOPX(PORTE, LATE);          // Port E: write outputs
     WRITEOP (LATE);                 // Port E: write outputs
-        gpio_write (s, 4, VALUE(LATE));
+        pic32_gpio_write (s, 4, VALUE(LATE));
         return;
     WRITEOP (ODCE); return;         // Port E: open drain configuration
     WRITEOP (CNPUE); return;        // Input pin pull-up
@@ -1353,7 +1341,7 @@ irq:    update_irq_status(s);
     WRITEOP (TRISF); return;        // Port F: mask of inputs
     WRITEOPX(PORTF, LATF);          // Port F: write outputs
     WRITEOP (LATF);                 // Port F: write outputs
-        gpio_write (s, 5, VALUE(LATF));
+        pic32_gpio_write (s, 5, VALUE(LATF));
         return;
     WRITEOP (ODCF); return;         // Port F: open drain configuration
     WRITEOP (CNPUF); return;        // Input pin pull-up
@@ -1366,7 +1354,7 @@ irq:    update_irq_status(s);
     WRITEOP (TRISG); return;        // Port G: mask of inputs
     WRITEOPX(PORTG, LATG);          // Port G: write outputs
     WRITEOP (LATG);                 // Port G: write outputs
-        gpio_write (s, 6, VALUE(LATG));
+        pic32_gpio_write (s, 6, VALUE(LATG));
         return;
     WRITEOP (ODCG); return;         // Port G: open drain configuration
     WRITEOP (CNPUG); return;        // Input pin pull-up
@@ -1374,6 +1362,44 @@ irq:    update_irq_status(s);
     WRITEOP (CNCONG); return;       // Interrupt-on-change control
     WRITEOP (CNENG); return;        // Input change interrupt enable
     WRITEOP (CNSTATG); return;      // Input change status
+
+    WRITEOP (ANSELH); return;       // Port H: analog select
+    WRITEOP (TRISH); return;        // Port H: mask of inputs
+    WRITEOPX(PORTH, LATH);          // Port H: write outputs
+    WRITEOP (LATH);                 // Port H: write outputs
+        pic32_gpio_write (s, 7, VALUE(LATH));
+        return;
+    WRITEOP (ODCH); return;         // Port H: open drain configuration
+    WRITEOP (CNPUH); return;        // Input pin pull-up
+    WRITEOP (CNPDH); return;        // Input pin pull-down
+    WRITEOP (CNCONH); return;       // Interrupt-on-change control
+    WRITEOP (CNENH); return;        // Input change interrupt enable
+    WRITEOP (CNSTATH); return;      // Input change status
+
+    WRITEOP (ANSELJ); return;       // Port J: analog select
+    WRITEOP (TRISJ); return;        // Port J: mask of inputs
+    WRITEOPX(PORTJ, LATJ);          // Port J: write outputs
+    WRITEOP (LATJ);                 // Port J: write outputs
+        pic32_gpio_write (s, 8, VALUE(LATJ));
+        return;
+    WRITEOP (ODCJ); return;         // Port J: open drain configuration
+    WRITEOP (CNPUJ); return;        // Input pin pull-up
+    WRITEOP (CNPDJ); return;        // Input pin pull-down
+    WRITEOP (CNCONJ); return;       // Interrupt-on-change control
+    WRITEOP (CNENJ); return;        // Input change interrupt enable
+    WRITEOP (CNSTATJ); return;      // Input change status
+
+    WRITEOP (TRISK); return;        // Port K: mask of inputs
+    WRITEOPX(PORTK, LATK);          // Port K: write outputs
+    WRITEOP (LATK);                 // Port K: write outputs
+        pic32_gpio_write (s, 9, VALUE(LATK));
+        return;
+    WRITEOP (ODCK); return;         // Port K: open drain configuration
+    WRITEOP (CNPUK); return;        // Input pin pull-up
+    WRITEOP (CNPDK); return;        // Input pin pull-down
+    WRITEOP (CNCONK); return;       // Interrupt-on-change control
+    WRITEOP (CNENK); return;        // Input change interrupt enable
+    WRITEOP (CNSTATK); return;      // Input change status
 
     /*-------------------------------------------------------------------------
      * UART 1.

@@ -2,4 +2,4 @@ obj-y += mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o mips_pic32mz.o
 obj-y += addr.o cputimer.o mips_int.o load_hex.o mips_pic32mx7.o
 obj-$(CONFIG_FULONG) += mips_fulong2e.o
 obj-y += gt64xxx_pci.o
-obj-y += pic32_sdcard.o pic32_spi.o pic32_uart.o
+obj-y += pic32_sdcard.o pic32_spi.o pic32_uart.o pic32_gpio.o

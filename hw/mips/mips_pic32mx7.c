@@ -277,18 +277,6 @@ static void pic32_soft_irq (CPUMIPSState *env, int num)
     irq_raise (s, num + 1);
 }
 
-static void gpio_write (pic32_t *s, int gpio_port, unsigned lat_value)
-{
-    /* Control SD card 0 */
-    if (gpio_port == s->sdcard[0].gpio_port && s->sdcard[0].gpio_cs) {
-        pic32_sdcard_select (s, 0, ! (lat_value & s->sdcard[0].gpio_cs));
-    }
-    /* Control SD card 1 */
-    if (gpio_port == s->sdcard[1].gpio_port && s->sdcard[0].gpio_cs) {
-        pic32_sdcard_select (s, 1, ! (lat_value & s->sdcard[1].gpio_cs));
-    }
-}
-
 /*
  * Perform an assign/clear/set/invert operation.
  */
@@ -978,43 +966,43 @@ irq:    update_irq_status(s);
     WRITEOP (TRISA); return;        // Port A: mask of inputs
     WRITEOPX(PORTA, LATA);          // Port A: write outputs
     WRITEOP (LATA);                 // Port A: write outputs
-        gpio_write (s, 0, VALUE(LATA));
+        pic32_gpio_write (s, 0, VALUE(LATA));
         return;
     WRITEOP (ODCA); return;         // Port A: open drain configuration
     WRITEOP (TRISB); return;        // Port B: mask of inputs
     WRITEOPX(PORTB, LATB);          // Port B: write outputs
     WRITEOP (LATB);                 // Port B: write outputs
-        gpio_write (s, 1, VALUE(LATB));
+        pic32_gpio_write (s, 1, VALUE(LATB));
         return;
     WRITEOP (ODCB); return;         // Port B: open drain configuration
     WRITEOP (TRISC); return;        // Port C: mask of inputs
     WRITEOPX(PORTC, LATC);          // Port C: write outputs
     WRITEOP (LATC);                 // Port C: write outputs
-        gpio_write (s, 2, VALUE(LATC));
+        pic32_gpio_write (s, 2, VALUE(LATC));
         return;
     WRITEOP (ODCC); return;         // Port C: open drain configuration
     WRITEOP (TRISD); return;        // Port D: mask of inputs
     WRITEOPX(PORTD, LATD);          // Port D: write outputs
     WRITEOP (LATD);                 // Port D: write outputs
-        gpio_write (s, 3, VALUE(LATD));
+        pic32_gpio_write (s, 3, VALUE(LATD));
         return;
     WRITEOP (ODCD); return;         // Port D: open drain configuration
     WRITEOP (TRISE); return;        // Port E: mask of inputs
     WRITEOPX(PORTE, LATE);          // Port E: write outputs
     WRITEOP (LATE);                 // Port E: write outputs
-        gpio_write (s, 4, VALUE(LATE));
+        pic32_gpio_write (s, 4, VALUE(LATE));
         return;
     WRITEOP (ODCE); return;         // Port E: open drain configuration
     WRITEOP (TRISF); return;        // Port F: mask of inputs
     WRITEOPX(PORTF, LATF);          // Port F: write outputs
     WRITEOP (LATF);                 // Port F: write outputs
-        gpio_write (s, 5, VALUE(LATF));
+        pic32_gpio_write (s, 5, VALUE(LATF));
         return;
     WRITEOP (ODCF); return;         // Port F: open drain configuration
     WRITEOP (TRISG); return;        // Port G: mask of inputs
     WRITEOPX(PORTG, LATG);          // Port G: write outputs
     WRITEOP (LATG);                 // Port G: write outputs
-        gpio_write (s, 6, VALUE(LATG));
+        pic32_gpio_write (s, 6, VALUE(LATG));
         return;
     WRITEOP (ODCG); return;         // Port G: open drain configuration
     WRITEOP (CNCON); return;        // Interrupt-on-change control
