@@ -28,6 +28,8 @@
 /* SD card private data */
 struct sdcard {
     const char *name;                   /* Device name */
+    unsigned gpio_port;                 /* GPIO port number of CS0 signal */
+    unsigned gpio_cs;                   /* GPIO pin mask of CS0 signal */
     unsigned kbytes;                    /* Disk size */
     int unit;                           /* Index (sd0 or sd1) */
     int fd;                             /* Image file */
@@ -50,7 +52,6 @@ typedef struct _pic32_t pic32_t;
 struct _pic32_t {
     SysBusDevice    parent_obj;
     MIPSCPU         *cpu;                   /* back pointer to cpu object */
-    //SerialState     *uart;
 
     int             board_type;             /* board variant */
     int             stop_on_reset;          /* halt simulation on soft reset */
@@ -62,6 +63,7 @@ struct _pic32_t {
     int             uart_odelay [NUM_UART]; /* output delay count */
     unsigned        uart_sta [NUM_UART];    /* UxSTA address */
     unsigned        uart_mode [NUM_UART];   /* UxMODE address */
+    //CharDriverState *uart_drv [NUM_UART];   /* pointer to serial_hds[i] */
 
 #define NUM_SPI     6                       /* max number of SPI ports */
     unsigned        spi_buf [NUM_SPI][4];   /* transmit and receive buffer */
@@ -72,10 +74,6 @@ struct _pic32_t {
     unsigned        spi_stat [NUM_SPI];     /* SPIxSTAT address */
 
     unsigned        sdcard_spi_port;        /* SPI port number of SD card */
-    unsigned        sdcard_gpio_port0;      /* GPIO port number of CS0 signal */
-    unsigned        sdcard_gpio_port1;      /* GPIO port number of CS1 signal */
-    unsigned        sdcard_gpio_cs0;        /* GPIO pin mask of CS0 signal */
-    unsigned        sdcard_gpio_cs1;        /* GPIO pin mask of CS1 signal */
     sdcard_t        sdcard [2];             /* SD card data */
 
     uint32_t        iomem [IO_MEM_SIZE/4];  /* backing storage for I/O area */

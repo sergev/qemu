@@ -280,12 +280,12 @@ static void pic32_soft_irq (CPUMIPSState *env, int num)
 static void gpio_write (pic32_t *s, int gpio_port, unsigned lat_value)
 {
     /* Control SD card 0 */
-    if (gpio_port == s->sdcard_gpio_port0 && s->sdcard_gpio_cs0) {
-        pic32_sdcard_select (s, 0, ! (lat_value & s->sdcard_gpio_cs0));
+    if (gpio_port == s->sdcard[0].gpio_port && s->sdcard[0].gpio_cs) {
+        pic32_sdcard_select (s, 0, ! (lat_value & s->sdcard[0].gpio_cs));
     }
     /* Control SD card 1 */
-    if (gpio_port == s->sdcard_gpio_port1 && s->sdcard_gpio_cs1) {
-        pic32_sdcard_select (s, 1, ! (lat_value & s->sdcard_gpio_cs1));
+    if (gpio_port == s->sdcard[1].gpio_port && s->sdcard[0].gpio_cs) {
+        pic32_sdcard_select (s, 1, ! (lat_value & s->sdcard[1].gpio_cs));
     }
 }
 

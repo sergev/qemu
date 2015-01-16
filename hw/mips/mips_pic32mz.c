@@ -166,12 +166,12 @@ static void pic32_soft_irq (CPUMIPSState *env, int num)
 static void gpio_write (pic32_t *s, int gpio_port, unsigned lat_value)
 {
     /* Control SD card 0 */
-    if (gpio_port == s->sdcard_gpio_port0 && s->sdcard_gpio_cs0) {
-        pic32_sdcard_select (s, 0, ! (lat_value & s->sdcard_gpio_cs0));
+    if (gpio_port == s->sdcard[0].gpio_port && s->sdcard[0].gpio_cs) {
+        pic32_sdcard_select (s, 0, ! (lat_value & s->sdcard[0].gpio_cs));
     }
     /* Control SD card 1 */
-    if (gpio_port == s->sdcard_gpio_port1 && s->sdcard_gpio_cs1) {
-        pic32_sdcard_select (s, 1, ! (lat_value & s->sdcard_gpio_cs1));
+    if (gpio_port == s->sdcard[1].gpio_port && s->sdcard[0].gpio_cs) {
+        pic32_sdcard_select (s, 1, ! (lat_value & s->sdcard[1].gpio_cs));
     }
 }
 
@@ -1657,7 +1657,6 @@ static void pic32_init(MachineState *machine, int board_type)
     MemoryRegion *io_mem = g_new(MemoryRegion, 1);
     MIPSCPU *cpu;
     CPUMIPSState *env;
-    int i;
 
     DeviceState *dev = qdev_create(NULL, TYPE_MIPS_PIC32);
     pic32_t *s = OBJECT_CHECK(pic32_t, dev, TYPE_MIPS_PIC32);
@@ -1670,15 +1669,6 @@ static void pic32_init(MachineState *machine, int board_type)
     //empty_slot_init(0, 0x20000000);
 
     qdev_init_nofail(dev);
-
-    /* Make sure the first 3 serial ports are associated with a device. */
-    for(i = 0; i < 3; i++) {
-        if (!serial_hds[i]) {
-            char label[32];
-            snprintf(label, sizeof(label), "serial%d", i);
-            serial_hds[i] = qemu_chr_new(label, "null", NULL);
-        }
-    }
 
     /* Init CPU. */
     if (! cpu_model) {
@@ -1704,11 +1694,6 @@ static void pic32_init(MachineState *machine, int board_type)
     memory_region_init_io(io_mem, NULL, &pic32_io_ops, s,
                           "io", IO_MEM_SIZE);
     memory_region_add_subregion(system_memory, IO_MEM_START, io_mem);
-#if 0
-    /* The CBUS UART is attached to the CPU INT2 pin, ie interrupt 4 */
-    s->uart = serial_mm_init(system_memory, IO_MEM_START + 0x900, 3, env->irq[4],
-                             230400, serial_hds[2], DEVICE_NATIVE_ENDIAN);
-#endif
 
     /*
      * Map the flash memory.
@@ -1848,10 +1833,8 @@ static void pic32_init(MachineState *machine, int board_type)
         s->sdcard_spi_port = 2;             // SD card at SPI3,
         cs0_port = 2;  cs0_pin = 3;         // select0 at C3,
         cs1_port = -1; cs1_pin = -1;        // select1 not available
-#if 0
-        vtty_create (3, "uart4", 0);        // console on UART4
-        vtty_init();
-#endif
+        if (! serial_hds[3])                // console on UART4
+            serial_hds[3] = qemu_chr_new("serial3", "null", NULL);
         break;
     case BOARD_MEBII:
         printf("Board: Microchip MEB-II\n");
@@ -1864,12 +1847,10 @@ static void pic32_init(MachineState *machine, int board_type)
         s->sdcard_spi_port = 1;             // SD card at SPI2,
         cs0_port = 1;  cs0_pin = 14;        // select0 at B14,
         cs1_port = -1; cs1_pin = -1;        // select1 not available
-#if 0
-        vtty_create (0, "uart1", 0);        // console on UART1
-        vtty_init();
-#endif
+        if (! serial_hds[0])                // console on UART1
+            serial_hds[0] = qemu_chr_new("serial0", "null", NULL);
         break;
-    case BOARD_EXPLORER16:
+    case BOARD_EXPLORER16:                  // console on UART1
         printf("Board: Microchip Explorer16\n");
         BOOTMEM(DEVCFG0) = 0x7fffffdb;
         BOOTMEM(DEVCFG1) = 0x0000fc81;
@@ -1880,12 +1861,19 @@ static void pic32_init(MachineState *machine, int board_type)
         s->sdcard_spi_port = 0;             // SD card at SPI1,
         cs0_port = 1;  cs0_pin = 1;         // select0 at B1,
         cs1_port = 1;  cs1_pin = 2;         // select1 at B2
-#if 0
-        vtty_create (0, "uart1", 0);        // console on UART1
-        vtty_init();
-#endif
+        if (! serial_hds[0])                // console on UART1
+            serial_hds[0] = qemu_chr_new("serial0", "null", NULL);
         break;
     }
+#if 0
+    /* The CBUS UART is attached to the CPU INT2 pin, ie interrupt 4 */
+    s->uart_drv[unit] = serial_hds[unit];
+
+    qemu_chr_add_handlers(s->uart_drv[unit], uart_can_receive, uart_receive, NULL, s);
+
+    /* Common timeout timer for all UARTs. */
+    s->uart_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, (QEMUTimerCB*) uart_timeout, s);
+#endif
 
     /*
      * Load SD card images.

@@ -111,13 +111,8 @@ void pic32_sdcard_init (pic32_t *s, int unit, const char *name,
         /* No SD card installed. */
         return;
     }
-    if (unit == 0) {
-        s->sdcard_gpio_port0 = cs_port;
-        s->sdcard_gpio_cs0 = (cs_pin >= 0) ? (1 << cs_pin) : 0;
-    } else {
-        s->sdcard_gpio_port1 = cs_port;
-        s->sdcard_gpio_cs1 = (cs_pin >= 0) ? (1 << cs_pin) : 0;
-    }
+    d->gpio_port = cs_port;
+    d->gpio_cs = (cs_pin >= 0) ? (1 << cs_pin) : 0;
 
     d->fd = open (filename, O_RDWR);
     if (d->fd < 0) {
