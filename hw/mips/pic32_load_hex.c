@@ -3,9 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 
-int load_hex_file(const char *filename,
-    void (*store_byte) (unsigned address, unsigned char byte));
-
+#include "pic32_peripherals.h"
 
 /* Macros for converting between hex and binary. */
 #define NIBBLE(x)       (isdigit(x) ? (x)-'0' : tolower(x)+10-'a')
@@ -215,7 +213,7 @@ static int load_hex (const char *filename,
     return output_len;
 }
 
-int load_hex_file(const char *filename,
+int pic32_load_hex_file(const char *filename,
     void (*store_byte) (unsigned address, unsigned char byte))
 {
     int memory_len = load_srec (filename, store_byte);

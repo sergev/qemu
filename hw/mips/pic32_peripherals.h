@@ -135,6 +135,12 @@ void pic32_sdcard_select (pic32_t *s, int unit, int on);
 unsigned pic32_sdcard_io (pic32_t *s, unsigned data);
 
 /*
+ * Load a binary file in hex or srec format.
+ */
+int pic32_load_hex_file(const char *filename,
+    void (*store_byte) (unsigned address, unsigned char byte));
+
+/*
  * Helper defines for i/o switch.
  */
 #define VALUE(name)     s->iomem[(name & 0xfffff) >> 2]

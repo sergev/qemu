@@ -63,9 +63,6 @@ enum {
 static char *prog_ptr;
 static char *boot_ptr;
 
-extern int load_hex_file(const char *filename,
-    void (*store_byte) (unsigned address, unsigned char byte));
-
 #define BOOTMEM(addr) ((uint32_t*) boot_ptr) [(addr & 0xffff) >> 2]
 
 /*
@@ -1342,8 +1339,8 @@ static void pic32_init(MachineState *machine, int board_type)
     prog_ptr = memory_region_get_ram_ptr(prog_mem);
     boot_ptr = memory_region_get_ram_ptr(boot_mem);
     if (bios_name)
-        load_hex_file(bios_name, store_byte);
-    load_hex_file(machine->kernel_filename, store_byte);
+        pic32_load_hex_file(bios_name, store_byte);
+    pic32_load_hex_file(machine->kernel_filename, store_byte);
 
     memory_region_set_readonly(boot_mem, true);
     memory_region_set_readonly(prog_mem, true);
