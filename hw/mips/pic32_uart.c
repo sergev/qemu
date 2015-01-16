@@ -32,13 +32,6 @@
 #define UART_IRQ_RX     1               // receiver irq offset
 #define UART_IRQ_TX     2               // transmitter irq offset
 
-#define OUTPUT_DELAY    3
-
-//TODO
-static int vtty_get_char (unsigned unit) {return 0;}
-static void vtty_put_char (unsigned unit, char ch) { putchar(ch); fflush(stdout); }
-static int vtty_is_char_avail (unsigned unit) {return 0;}
-
 /*
  * Read of UxRXREG register.
  */
@@ -47,17 +40,45 @@ unsigned pic32_uart_get_char (pic32_t *s, int unit)
     uart_t *u = &s->uart[unit];
     unsigned value;
 
-    // Read a byte from input queue
-    value = vtty_get_char (unit);
+    /* Read a byte from input queue. */
+    value = u->rxbyte;
     VALUE(u->sta) &= ~PIC32_USTA_URXDA;
 
-    if (vtty_is_char_avail (unit)) {
-        // One more byte available
-        VALUE(u->sta) |= PIC32_USTA_URXDA;
-    } else {
-        s->irq_clear (s, u->irq + UART_IRQ_RX);
-    }
+    s->irq_clear (s, u->irq + UART_IRQ_RX);
     return value;
+}
+
+/*
+ * Write to UxTXREG register.
+ */
+void pic32_uart_put_char (pic32_t *s, int unit, unsigned char byte)
+{
+    uart_t *u = &s->uart[unit];
+
+    if (! u->chr) {
+        printf("--- %s(unit = %u) serial port not configured\n",
+            __func__, unit);
+        return;
+    }
+
+    /* Send the byte. */
+    if (qemu_chr_fe_write(u->chr, &byte, 1) != 1) {
+        //TODO: suspend simulation until serial port ready
+        printf("--- %s(unit = %u) failed\n", __func__, unit);
+        return;
+    }
+
+    if ((VALUE(u->mode) & PIC32_UMODE_ON) &&
+        (VALUE(u->sta) & PIC32_USTA_UTXEN) &&
+        ! u->oactive)
+    {
+        VALUE(u->sta) |= PIC32_USTA_UTXBF;
+
+        /* Generate TX interrupt with some delay. */
+        timer_mod(u->transmit_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+            get_ticks_per_sec() / 1000);
+        u->oactive = 1;
+    }
 }
 
 /*
@@ -70,29 +91,7 @@ void pic32_uart_poll_status (pic32_t *s, int unit)
     // Keep receiver idle, transmit shift register always empty
     VALUE(u->sta) |= PIC32_USTA_RIDLE | PIC32_USTA_TRMT;
 
-    if (vtty_is_char_avail (unit)) {
-        // Receive data available
-        VALUE(u->sta) |= PIC32_USTA_URXDA;
-    }
     //printf ("<%x>", VALUE(u->sta)); fflush (stdout);
-}
-
-/*
- * Write to UxTXREG register.
- */
-void pic32_uart_put_char (pic32_t *s, int unit, unsigned data)
-{
-    uart_t *u = &s->uart[unit];
-
-    vtty_put_char (unit, data);
-    if ((VALUE(u->mode) & PIC32_UMODE_ON) &&
-        (VALUE(u->sta) & PIC32_USTA_UTXEN) &&
-        ! u->oactive)
-    {
-        u->oactive = 1;
-        u->odelay = 0;
-        VALUE(u->sta) |= PIC32_USTA_UTXBF;
-    }
 }
 
 /*
@@ -125,94 +124,92 @@ void pic32_uart_update_status (pic32_t *s, int unit)
     }
     if (! (VALUE(u->sta) & PIC32_USTA_UTXEN)) {
         s->irq_clear (s, u->irq + UART_IRQ_TX);
+        timer_del(u->transmit_timer);
         VALUE(u->sta) &= ~PIC32_USTA_UTXBF;
         VALUE(u->sta) |= PIC32_USTA_TRMT;
     }
 }
 
-void pic32_uart_poll(pic32_t *s)
-{
-    int unit;
-
-    for (unit=0; unit<NUM_UART; unit++) {
-        uart_t *u = &s->uart[unit];
-
-        if (! (VALUE(u->mode) & PIC32_UMODE_ON)) {
-            /* UART disabled. */
-            u->oactive = 0;
-            VALUE(u->sta) &= ~PIC32_USTA_UTXBF;
-            continue;
-        }
-
-        /* UART enabled. */
-        if ((VALUE(u->sta) & PIC32_USTA_URXEN) && vtty_is_char_avail (unit)) {
-            /* Receive data available. */
-            VALUE(u->sta) |= PIC32_USTA_URXDA;
-
-            /* Activate receive interrupt. */
-            s->irq_raise (s, u->irq + UART_IRQ_RX);
-            continue;
-        }
-
-        if (! (VALUE(u->sta) & PIC32_USTA_UTXEN)) {
-            /* Transmitter disabled. */
-            u->oactive = 0;
-            continue;
-        }
-        if (u->oactive) {
-            /* Activate transmit interrupt. */
-            if (++u->odelay > OUTPUT_DELAY) {
-//printf("uart%u: raise tx irq %u\n", unit, u->irq + UART_IRQ_TX);
-                s->irq_raise (s, u->irq + UART_IRQ_TX);
-                VALUE(u->sta) &= ~PIC32_USTA_UTXBF;
-                u->oactive = 0;
-            }
-        }
-    }
-}
-
 /*
- * Return true when any I/O is active.
- * Check uart output and pending input.
+ * Return a number of free bytes in the receive FIFO.
  */
-int pic32_uart_active(pic32_t *s)
-{
-    int unit;
-
-    for (unit=0; unit<NUM_UART; unit++) {
-        uart_t *u = &s->uart[unit];
-
-        if (u->oactive)
-            return 1;
-        if (vtty_is_char_avail (unit))
-            return 1;
-    }
-    return 0;
-}
-
 static int uart_can_receive(void *opaque)
 {
     uart_t *u = opaque;
+    pic32_t *s = u->mcu;        /* used in VALUE() */
 
-    //TODO:
-    printf("--- %s(%p) called\n", __func__, u);
+//printf("--- %s(%p) called\n", __func__, u);
+
+    if (! (VALUE(u->mode) & PIC32_UMODE_ON) ||
+        ! (VALUE(u->sta) & PIC32_USTA_URXEN)) {
+        /* UART disabled. */
+        return 0;
+    }
+
+    if (VALUE(u->sta) & PIC32_USTA_URXDA) {
+        /* Receive buffer full. */
+        return 0;
+    }
     return 1;
 }
 
+/*
+ * Process the received data.
+ */
 static void uart_receive(void *opaque, const uint8_t *buf, int size)
 {
     uart_t *u = opaque;
+    pic32_t *s = u->mcu;        /* used in VALUE() */
 
-    //TODO:
-    printf("--- %s(%p) called\n", __func__, u);
+//printf("--- %s(%p) called\n", __func__, u);
+    if (! (VALUE(u->mode) & PIC32_UMODE_ON) ||
+        ! (VALUE(u->sta) & PIC32_USTA_URXEN)) {
+        /* UART disabled. */
+        return;
+    }
+
+    if (VALUE(u->sta) & PIC32_USTA_URXDA) {
+        /* Receive buffer full. */
+        return;
+    }
+
+    u->rxbyte = buf[0];
+    VALUE(u->sta) |= PIC32_USTA_URXDA;
+
+    /* Activate receive interrupt. */
+    s->irq_raise (s, u->irq + UART_IRQ_RX);
 }
 
+/*
+ * Activate the transmit interrupt.
+ */
 static void uart_timeout(void *opaque)
 {
-    pic32_t *s = opaque;
+    uart_t *u = opaque;
+    pic32_t *s = u->mcu;        /* used in VALUE() */
 
-    //TODO:
-    printf("--- %s(%p) called\n", __func__, s);
+//printf("--- %s() called\n", __func__);
+    if (! (VALUE(u->mode) & PIC32_UMODE_ON)) {
+        /* UART disabled. */
+        u->oactive = 0;
+        VALUE(u->sta) &= ~PIC32_USTA_UTXBF;
+        return;
+    }
+
+    /* UART enabled. */
+    if (! (VALUE(u->sta) & PIC32_USTA_UTXEN)) {
+        /* Transmitter disabled. */
+        u->oactive = 0;
+        return;
+    }
+
+    if (u->oactive) {
+        /* Activate transmit interrupt. */
+//printf("uart%u: raise tx irq %u\n", unit, u->irq + UART_IRQ_TX);
+        s->irq_raise (s, u->irq + UART_IRQ_TX);
+        VALUE(u->sta) &= ~PIC32_USTA_UTXBF;
+        u->oactive = 0;
+    }
 }
 
 /*
@@ -226,23 +223,16 @@ void pic32_uart_init(pic32_t *s, int unit, int irq, int sta, int mode)
     u->irq = irq;
     u->sta = sta;
     u->mode = mode;
+    u->transmit_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, uart_timeout, u);
 
     if (unit >= MAX_SERIAL_PORTS) {
         /* Cannot instantiate so many serial ports. */
         u->chr = 0;
         return;
     }
-    if (! serial_hds[unit]) {
-        char buf [16];
-        sprintf(buf, "serial%d", unit);
-        serial_hds[unit] = qemu_chr_new(buf, "null", NULL);
-    }
     u->chr = serial_hds[unit];
 
     /* Setup callback functions. */
-    qemu_chr_add_handlers(u->chr, uart_can_receive, uart_receive, NULL, u);
-
-    /* Common timeout timer for all UARTs. */
-    if (! s->uart_timer)
-        s->uart_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, uart_timeout, s);
+    if (u->chr)
+        qemu_chr_add_handlers(u->chr, uart_can_receive, uart_receive, NULL, u);
 }

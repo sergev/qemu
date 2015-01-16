@@ -25,10 +25,36 @@
 
 #define IO_MEM_SIZE     (1024*1024)     /* 1 Mbyte */
 
-typedef struct _sdcard_t sdcard_t;
 typedef struct _uart_t uart_t;
 typedef struct _spi_t spi_t;
+typedef struct _sdcard_t sdcard_t;
 typedef struct _pic32_t pic32_t;
+
+/*
+ * UART private data.
+ */
+struct _uart_t {
+    pic32_t     *mcu;                   /* back pointer to pic32 object */
+    unsigned    irq;                    /* interrupt number */
+    int         oactive;                /* output active */
+    unsigned    sta;                    /* UxSTA address */
+    unsigned    mode;                   /* UxMODE address */
+    unsigned    rxbyte;                 /* received byte */
+    CharDriverState *chr;               /* pointer to serial_hds[i] */
+    QEMUTimer   *transmit_timer;        /* needed to delay TX interrupt */
+};
+
+/*
+ * SPI private data.
+ */
+struct _spi_t {
+    unsigned    buf[4];                 /* transmit and receive buffer */
+    unsigned    rfifo;                  /* read fifo counter */
+    unsigned    wfifo;                  /* write fifo counter */
+    unsigned    irq;                    /* interrupt numbers */
+    unsigned    con;                    /* SPIxCON address */
+    unsigned    stat;                   /* SPIxSTAT address */
+};
 
 /*
  * SD card private data.
@@ -51,31 +77,6 @@ struct _sdcard_t {
 };
 
 /*
- * UART private data.
- */
-struct _uart_t {
-    pic32_t     *mcu;                   /* back pointer to pic32 object */
-    unsigned    irq;                    /* interrupt number */
-    int         oactive;                /* output active */
-    int         odelay;                 /* output delay count */
-    unsigned    sta;                    /* UxSTA address */
-    unsigned    mode;                   /* UxMODE address */
-    CharDriverState *chr;               /* pointer to serial_hds[i] */
-};
-
-/*
- * SPI private data.
- */
-struct _spi_t {
-    unsigned    buf[4];                 /* transmit and receive buffer */
-    unsigned    rfifo;                  /* read fifo counter */
-    unsigned    wfifo;                  /* write fifo counter */
-    unsigned    irq;                    /* interrupt numbers */
-    unsigned    con;                    /* SPIxCON address */
-    unsigned    stat;                   /* SPIxSTAT address */
-};
-
-/*
  * PIC32 data structure.
  */
 struct _pic32_t {
@@ -88,7 +89,6 @@ struct _pic32_t {
 
 #define NUM_UART 6                      /* number of UART ports */
     uart_t      uart [NUM_UART];        /* UART data */
-    QEMUTimer   *uart_timer;            /* timer for transmit timeouts */
 
 #define NUM_SPI 6                       /* max number of SPI ports */
     spi_t       spi [NUM_SPI];          /* SPI data */
@@ -96,10 +96,10 @@ struct _pic32_t {
     unsigned    sdcard_spi_port;        /* SPI port number of SD card */
     sdcard_t    sdcard [2];             /* SD card data */
 
-    uint32_t    iomem [IO_MEM_SIZE/4];  /* backing storage for I/O area */
-
     void (*irq_raise) (pic32_t *s, int irq); /* set interrupt request */
     void (*irq_clear) (pic32_t *s, int irq); /* clear interrupt request */
+
+    uint32_t    iomem [IO_MEM_SIZE/4];  /* backing storage for I/O area */
 };
 
 /*
@@ -107,12 +107,10 @@ struct _pic32_t {
  */
 void pic32_uart_init (pic32_t *s, int unit, int irq, int sta, int mode);
 unsigned pic32_uart_get_char (pic32_t *s, int unit);
+void pic32_uart_put_char (pic32_t *s, int unit, unsigned char data);
 void pic32_uart_poll_status (pic32_t *s, int unit);
-void pic32_uart_put_char (pic32_t *s, int unit, unsigned data);
 void pic32_uart_update_mode (pic32_t *s, int unit);
 void pic32_uart_update_status (pic32_t *s, int unit);
-void pic32_uart_poll (pic32_t *s);
-int pic32_uart_active (pic32_t *s);
 
 /*
  * SPI routines.
