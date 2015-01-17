@@ -50,11 +50,19 @@
 
 #define TYPE_MIPS_PIC32     "mips-pic32mx7"
 
-/* Board variants. */
+/*
+ * Board variants.
+ */
 enum {
     BOARD_MAX32,            /* chipKIT Max32 board */
     BOARD_MAXIMITE,         /* Geoff's Maximite board */
     BOARD_EXPLORER16,       /* Microchip Explorer-16 board */
+};
+
+static const char *board_name[] = {
+    "chipKIT Max32",
+    "Geoff's Maximite Computer",
+    "Microchip Explorer16",
 };
 
 /*
@@ -254,14 +262,20 @@ static void irq_clear (pic32_t *s, int irq)
 /*
  * Timer interrupt.
  */
-static void pic32_timer_irq (CPUMIPSState *env)
+static void pic32_timer_irq (CPUMIPSState *env, int raise)
 {
     pic32_t *s = env->eic_context;
 
-    if (qemu_loglevel_mask(CPU_LOG_INSTR))
-        fprintf (qemu_logfile, "--- %08x: Timer interrupt\n",
-            env->active_tc.PC);
-    irq_raise (s, 0);
+    if (raise) {
+        if (qemu_loglevel_mask(CPU_LOG_INSTR))
+            fprintf (qemu_logfile, "--- %08x: Timer interrupt\n",
+                env->active_tc.PC);
+        irq_raise (s, 0);
+    } else {
+        if (qemu_loglevel_mask(CPU_LOG_INSTR))
+            fprintf (qemu_logfile, "--- Clear timer interrupt\n");
+        irq_clear (s, 0);
+    }
 }
 
 /*
@@ -489,6 +503,13 @@ static unsigned io_read32 (pic32_t *s, unsigned offset, const char **namep)
             exit(0);
         }
         break;
+
+    /*-------------------------------------------------------------------------
+     * DMA controller.
+     */
+    STORAGE (DMACON); break;    // DMA Control
+    STORAGE (DMASTAT); break;   // DMA Status
+    STORAGE (DMAADDR); break;   // DMA Address
 
     /*-------------------------------------------------------------------------
      * Analog to digital converter.
@@ -889,6 +910,13 @@ irq:    update_irq_status(s);
         break;
 
     /*-------------------------------------------------------------------------
+     * DMA controller.
+     */
+    WRITEOP (DMACON); return;   // DMA Control
+    STORAGE (DMASTAT); break;   // DMA Status
+    STORAGE (DMAADDR); break;   // DMA Address
+
+    /*-------------------------------------------------------------------------
      * Analog to digital converter.
      */
     WRITEOP (AD1CON1); return;  // Control register 1
@@ -1158,7 +1186,6 @@ irq:    update_irq_status(s);
             fprintf (qemu_logfile, "--- Write %08x to 1f8%05x: peripheral register not supported\n",
                 data, offset);
         exit (1);
-
 readonly:
         printf ("--- Write %08x to %s: readonly register\n",
             data, *namep);
@@ -1178,22 +1205,24 @@ static uint64_t pic32_io_read(void *opaque, hwaddr addr, unsigned bytes)
     const char *name = "???";
     uint32_t data = 0;
 
-    data = io_read32 (s, offset, &name);
+    data = io_read32 (s, offset & ~3, &name);
     switch (bytes) {
     case 1:
         if ((offset &= 3) != 0) {
             // Unaligned read.
             data >>= offset * 8;
         }
+        data = (uint8_t) data;
         if (qemu_loglevel_mask(CPU_LOG_INSTR)) {
             fprintf(qemu_logfile, "--- I/O Read  %02x from %s\n", data, name);
         }
         break;
     case 2:
-        if (offset & 1) {
+        if (offset & 2) {
             // Unaligned read.
             data >>= 16;
         }
+        data = (uint16_t) data;
         if (qemu_loglevel_mask(CPU_LOG_INSTR)) {
             fprintf(qemu_logfile, "--- I/O Read  %04x from %s\n", data, name);
         }
@@ -1224,8 +1253,7 @@ static void pic32_io_write(void *opaque, hwaddr addr, uint64_t data, unsigned by
         data <<= (offset & 2) * 8;
         break;
     }
-    offset &= ~3;
-    io_write32 (s, offset, data, &name);
+    io_write32 (s, offset & ~3, data, &name);
 
     if (qemu_loglevel_mask(CPU_LOG_INSTR) && name != 0) {
         fprintf(qemu_logfile, "--- I/O Write %08x to %s\n",
@@ -1293,6 +1321,7 @@ static void pic32_init(MachineState *machine, int board_type)
     pic32_t *s = OBJECT_CHECK(pic32_t, dev, TYPE_MIPS_PIC32);
     s->board_type = board_type;
     s->stop_on_reset = 1;               /* halt simulation on soft reset */
+    s->iomem = g_malloc0(IO_MEM_SIZE);  /* backing storage for I/O area */
 
     qdev_init_nofail(dev);
 
@@ -1300,7 +1329,14 @@ static void pic32_init(MachineState *machine, int board_type)
     if (! cpu_model) {
         cpu_model = "M4K";
     }
+    printf("Board: %s\n", board_name[board_type]);
+    if (qemu_logfile)
+        fprintf(qemu_logfile, "Board: %s\n", board_name[board_type]);
+
     printf("Processor: %s\n", cpu_model);
+    if (qemu_logfile)
+        fprintf(qemu_logfile, "Processor: %s\n", cpu_model);
+
     cpu = cpu_mips_init(cpu_model);
     if (! cpu) {
         fprintf(stderr, "Unable to find CPU definition\n");
@@ -1311,6 +1347,9 @@ static void pic32_init(MachineState *machine, int board_type)
 
     /* Register RAM */
     printf("RAM size: %u kbytes\n", ram_size / 1024);
+    if (qemu_logfile)
+        fprintf(qemu_logfile, "RAM size: %u kbytes\n", ram_size / 1024);
+
     memory_region_init_ram(ram_main, NULL, "kernel.ram",
         ram_size, &error_abort);
     vmstate_register_ram_global(ram_main);
@@ -1370,7 +1409,6 @@ static void pic32_init(MachineState *machine, int board_type)
     switch (board_type) {
     default:
     case BOARD_MAX32:
-        printf("Board: chipKIT Max32\n");
         BOOTMEM(DEVCFG0) = 0xffffff7f;      // Max32 board
         BOOTMEM(DEVCFG1) = 0x5bfd6aff;      // console on UART1
         BOOTMEM(DEVCFG2) = 0xd979f8f9;
@@ -1382,7 +1420,6 @@ static void pic32_init(MachineState *machine, int board_type)
         cs1_port = 3;  cs1_pin = 4;         // select1 at D4
         break;
     case BOARD_MAXIMITE:
-        printf("Board: Geoff's Maximite Computer\n");
         BOOTMEM(DEVCFG0) = 0xffffff7f;      // TODO: get real data from Maximite board
         BOOTMEM(DEVCFG1) = 0x5bfd6aff;      // console on UART1
         BOOTMEM(DEVCFG2) = 0xd979f8f9;
@@ -1394,7 +1431,6 @@ static void pic32_init(MachineState *machine, int board_type)
         cs1_port = -1; cs1_pin = -1;        // select1 not available
         break;
     case BOARD_EXPLORER16:
-        printf("Board: Microchip Explorer16\n");
         BOOTMEM(DEVCFG0) = 0xffffff7f;      // TODO: get real data from Explorer16 board
         BOOTMEM(DEVCFG1) = 0x5bfd6aff;      // console on UART2
         BOOTMEM(DEVCFG2) = 0xd979f8f9;

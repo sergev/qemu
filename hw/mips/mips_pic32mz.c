@@ -48,11 +48,19 @@
 
 #define TYPE_MIPS_PIC32     "mips-pic32mz"
 
-/* Board variants. */
+/*
+ * Board variants.
+ */
 enum {
     BOARD_WIFIRE,           /* chipKIT WiFire board */
     BOARD_MEBII,            /* Microchip MEB-II board */
     BOARD_EXPLORER16,       /* Microchip Explorer-16 board */
+};
+
+static const char *board_name[] = {
+    "chipKIT WiFire",
+    "Microchip MEB-II",
+    "Microchip Explorer16",
 };
 
 /*
@@ -140,14 +148,20 @@ static void irq_clear (pic32_t *s, int irq)
 /*
  * Timer interrupt.
  */
-static void pic32_timer_irq (CPUMIPSState *env)
+static void pic32_timer_irq (CPUMIPSState *env, int raise)
 {
     pic32_t *s = env->eic_context;
 
-    if (qemu_loglevel_mask(CPU_LOG_INSTR))
-        fprintf (qemu_logfile, "--- %08x: Timer interrupt\n",
-            env->active_tc.PC);
-    irq_raise (s, 0);
+    if (raise) {
+        if (qemu_loglevel_mask(CPU_LOG_INSTR))
+            fprintf (qemu_logfile, "--- %08x: Timer interrupt\n",
+                env->active_tc.PC);
+        irq_raise (s, 0);
+    } else {
+        if (qemu_loglevel_mask(CPU_LOG_INSTR))
+            fprintf (qemu_logfile, "--- Clear timer interrupt\n");
+        irq_clear (s, 0);
+    }
 }
 
 /*
@@ -1576,22 +1590,24 @@ static uint64_t pic32_io_read(void *opaque, hwaddr addr, unsigned bytes)
     const char *name = "???";
     uint32_t data = 0;
 
-    data = io_read32 (s, offset, &name);
+    data = io_read32 (s, offset & ~3, &name);
     switch (bytes) {
     case 1:
         if ((offset &= 3) != 0) {
             // Unaligned read.
             data >>= offset * 8;
         }
+        data = (uint8_t) data;
         if (qemu_loglevel_mask(CPU_LOG_INSTR)) {
             fprintf(qemu_logfile, "--- I/O Read  %02x from %s\n", data, name);
         }
         break;
     case 2:
-        if (offset & 1) {
+        if (offset & 2) {
             // Unaligned read.
             data >>= 16;
         }
+        data = (uint16_t) data;
         if (qemu_loglevel_mask(CPU_LOG_INSTR)) {
             fprintf(qemu_logfile, "--- I/O Read  %04x from %s\n", data, name);
         }
@@ -1622,8 +1638,7 @@ static void pic32_io_write(void *opaque, hwaddr addr, uint64_t data, unsigned by
         data <<= (offset & 2) * 8;
         break;
     }
-    offset &= ~3;
-    io_write32 (s, offset, data, &name);
+    io_write32 (s, offset & ~3, data, &name);
 
     if (qemu_loglevel_mask(CPU_LOG_INSTR) && name != 0) {
         fprintf(qemu_logfile, "--- I/O Write %08x to %s\n",
@@ -1692,6 +1707,7 @@ static void pic32_init(MachineState *machine, int board_type)
     pic32_t *s = OBJECT_CHECK(pic32_t, dev, TYPE_MIPS_PIC32);
     s->board_type = board_type;
     s->stop_on_reset = 1;               /* halt simulation on soft reset */
+    s->iomem = g_malloc0(IO_MEM_SIZE);  /* backing storage for I/O area */
 
     qdev_init_nofail(dev);
 
@@ -1699,7 +1715,14 @@ static void pic32_init(MachineState *machine, int board_type)
     if (! cpu_model) {
         cpu_model = "microAptivP";
     }
+    printf("Board: %s\n", board_name[board_type]);
+    if (qemu_logfile)
+        fprintf(qemu_logfile, "Board: %s\n", board_name[board_type]);
+
     printf("Processor: %s\n", cpu_model);
+    if (qemu_logfile)
+        fprintf(qemu_logfile, "Processor: %s\n", cpu_model);
+
     cpu = cpu_mips_init(cpu_model);
     if (! cpu) {
         fprintf(stderr, "Unable to find CPU definition\n");
@@ -1710,6 +1733,9 @@ static void pic32_init(MachineState *machine, int board_type)
 
     /* Register RAM */
     printf("RAM size: %u kbytes\n", ram_size / 1024);
+    if (qemu_logfile)
+        fprintf(qemu_logfile, "RAM size: %u kbytes\n", ram_size / 1024);
+
     memory_region_init_ram(ram_main, NULL, "kernel.ram",
         ram_size, &error_abort);
     vmstate_register_ram_global(ram_main);
@@ -1762,7 +1788,6 @@ static void pic32_init(MachineState *machine, int board_type)
     switch (board_type) {
     default:
     case BOARD_WIFIRE:                      // console on UART4
-        printf("Board: chipKIT WiFire\n");
         BOOTMEM(DEVCFG0) = 0xfffffff7;
         BOOTMEM(DEVCFG1) = 0x7f743cb9;
         BOOTMEM(DEVCFG2) = 0xfff9b11a;
@@ -1774,7 +1799,6 @@ static void pic32_init(MachineState *machine, int board_type)
         cs1_port = -1; cs1_pin = -1;        // select1 not available
         break;
     case BOARD_MEBII:                       // console on UART1
-        printf("Board: Microchip MEB-II\n");
         BOOTMEM(DEVCFG0) = 0x7fffffdb;
         BOOTMEM(DEVCFG1) = 0x0000fc81;
         BOOTMEM(DEVCFG2) = 0x3ff8b11a;
@@ -1786,7 +1810,6 @@ static void pic32_init(MachineState *machine, int board_type)
         cs1_port = -1; cs1_pin = -1;        // select1 not available
         break;
     case BOARD_EXPLORER16:                  // console on UART1
-        printf("Board: Microchip Explorer16\n");
         BOOTMEM(DEVCFG0) = 0x7fffffdb;
         BOOTMEM(DEVCFG1) = 0x0000fc81;
         BOOTMEM(DEVCFG2) = 0x3ff8b11a;

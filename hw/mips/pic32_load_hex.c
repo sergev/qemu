@@ -224,5 +224,7 @@ int pic32_load_hex_file(const char *filename,
         }
     }
     printf("Load file: '%s', %d bytes\n", filename, memory_len);
+    if (qemu_logfile)
+        fprintf(qemu_logfile, "Load file: '%s', %d bytes\n", filename, memory_len);
     return 1;
 }

@@ -64,7 +64,7 @@ static void cpu_mips_timer_expire(CPUMIPSState *env)
     }
     if (env->CP0_Config3 & (1 << CP0C3_VEIC)) {
         /* External interrupt controller mode. */
-        env->eic_timer_irq(env);
+        env->eic_timer_irq(env, 1);
     } else {
         /* Legacy or vectored interrupt mode. */
         qemu_irq_raise(env->irq[(env->CP0_IntCtl >> CP0IntCtl_IPTI) & 0x7]);
@@ -119,6 +119,7 @@ void cpu_mips_store_compare (CPUMIPSState *env, uint32_t value)
 
     if (env->CP0_Config3 & (1 << CP0C3_VEIC)) {
         /* External interrupt controller mode: nothing to do. */
+        env->eic_timer_irq(env, 0);
     } else {
         /* Legacy or vectored interrupt mode. */
         qemu_irq_lower(env->irq[(env->CP0_IntCtl >> CP0IntCtl_IPTI) & 0x7]);

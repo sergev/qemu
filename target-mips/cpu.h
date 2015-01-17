@@ -596,7 +596,7 @@ struct CPUMIPSState {
 
     /* Fields for external interrupt controller. */
     void *eic_context;
-    void (*eic_timer_irq)(CPUMIPSState *env);
+    void (*eic_timer_irq)(CPUMIPSState *env, int raise);
     void (*eic_soft_irq)(CPUMIPSState *env, int num);
 };
 

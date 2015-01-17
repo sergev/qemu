@@ -82,6 +82,7 @@ struct _sdcard_t {
 struct _pic32_t {
     SysBusDevice parent_obj;
     MIPSCPU     *cpu;                   /* back pointer to cpu object */
+    uint32_t    *iomem;                 /* backing storage for I/O area */
 
     int         board_type;             /* board variant */
     int         stop_on_reset;          /* halt simulation on soft reset */
@@ -98,8 +99,6 @@ struct _pic32_t {
 
     void (*irq_raise) (pic32_t *s, int irq); /* set interrupt request */
     void (*irq_clear) (pic32_t *s, int irq); /* clear interrupt request */
-
-    uint32_t    iomem [IO_MEM_SIZE/4];  /* backing storage for I/O area */
 };
 
 /*

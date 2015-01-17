@@ -123,6 +123,9 @@ void pic32_sdcard_init (pic32_t *s, int unit, const char *name,
     fstat (d->fd, &st);
     d->kbytes = st.st_size / 1024;
     printf("Card%u image '%s', %d kbytes\n", unit, filename, d->kbytes);
+    if (qemu_logfile)
+        fprintf(qemu_logfile, "Card%u image '%s', %d kbytes\n",
+            unit, filename, d->kbytes);
 }
 
 void pic32_sdcard_select (pic32_t *s, int unit, int on)
@@ -130,11 +133,11 @@ void pic32_sdcard_select (pic32_t *s, int unit, int on)
     sdcard_t *d = &s->sdcard[unit];
 
     if (on) {
-        TRACE ("sdcard%d: +++\n", unit);
+        //TRACE ("sdcard%d: +++\n", unit);
         d->select = 1;
         d->count = 0;
     } else {
-        TRACE ("sdcard%d: ---\n", unit);
+        //TRACE ("sdcard%d: ---\n", unit);
         d->select = 0;
     }
 }
