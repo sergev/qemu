@@ -101,7 +101,8 @@ static void update_irq_status(pic32_t *s)
 //else printf ("-- no irq pending\n");
 
     if (qemu_loglevel_mask(CPU_LOG_INSTR))
-        fprintf (qemu_logfile, "--- RIPL = %u\n", cause_ripl);
+        fprintf (qemu_logfile, "--- Priority level Cause.RIPL = %u\n",
+            cause_ripl);
 
     /*
      * Modify Cause.RIPL field and take EIC interrupt.
@@ -144,7 +145,8 @@ static void pic32_timer_irq (CPUMIPSState *env)
     pic32_t *s = env->eic_context;
 
     if (qemu_loglevel_mask(CPU_LOG_INSTR))
-        fprintf (qemu_logfile, "--- timer interrupt\n");
+        fprintf (qemu_logfile, "--- %08x: Timer interrupt\n",
+            env->active_tc.PC);
     irq_raise (s, 0);
 }
 
@@ -156,7 +158,8 @@ static void pic32_soft_irq (CPUMIPSState *env, int num)
     pic32_t *s = env->eic_context;
 
     if (qemu_loglevel_mask(CPU_LOG_INSTR))
-        fprintf (qemu_logfile, "--- soft interrupt %u\n", num);
+        fprintf (qemu_logfile, "--- %08x: Soft interrupt %u\n",
+            env->active_tc.PC, num);
     irq_raise (s, num + 1);
 }
 
