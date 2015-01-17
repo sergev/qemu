@@ -1912,6 +1912,8 @@ static inline void gen_r6_cmp_ ## fmt(DisasContext * ctx, int n,        \
     case FMT_D:                                                         \
         check_cp1_registers(ctx, fs | ft | fd);                         \
         break;                                                          \
+    default:                                                            \
+        break;                                                          \
     }                                                                   \
     gen_ldcmp_fpr ## bits(ctx, fp0, fs);                                \
     gen_ldcmp_fpr ## bits(ctx, fp1, ft);                                \
