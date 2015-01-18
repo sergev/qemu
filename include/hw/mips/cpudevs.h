@@ -12,6 +12,6 @@ uint64_t cpu_mips_kvm_um_phys_to_kseg0(void *opaque, uint64_t addr);
 void cpu_mips_irq_init_cpu(CPUMIPSState *env);
 
 /* mips_timer.c */
-void cpu_mips_clock_init(CPUMIPSState *);
+void cpu_mips_clock_init(CPUMIPSState *, unsigned count_freq);
 
 #endif

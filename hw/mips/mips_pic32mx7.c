@@ -190,6 +190,9 @@ static void update_irq_status(pic32_t *s)
     /* Assume no interrupts pending. */
     int cause_ripl = 0;
     int vector = 0;
+    CPUMIPSState *env = &s->cpu->env;
+    int current_ripl = (env->CP0_Cause >> (CP0Ca_IP + 2)) & 0x3f;
+
     VALUE(INTSTAT) = 0;
 
     if ((VALUE(IFS0) & VALUE(IEC0)) ||
@@ -222,6 +225,9 @@ static void update_irq_status(pic32_t *s)
     }
 //else printf ("-- no irq pending\n");
 
+    if (cause_ripl == current_ripl)
+        return;
+
     if (qemu_loglevel_mask(CPU_LOG_INSTR))
         fprintf (qemu_logfile, "--- Priority level Cause.RIPL = %u\n",
             cause_ripl);
@@ -229,7 +235,6 @@ static void update_irq_status(pic32_t *s)
     /*
      * Modify Cause.RIPL field and take EIC interrupt.
      */
-    CPUMIPSState *env = &s->cpu->env;
     env->CP0_Cause &= ~(0x3f << (CP0Ca_IP + 2));
     env->CP0_Cause |= cause_ripl << (CP0Ca_IP + 2);
     cpu_interrupt(CPU(s->cpu), CPU_INTERRUPT_HARD);
@@ -1397,10 +1402,13 @@ static void pic32_init(MachineState *machine, int board_type)
     /* Setup interrupt controller in EIC mode. */
     env->CP0_Config3 |= 1 << CP0C3_VEIC;
     cpu_mips_irq_init_cpu(env);
-    cpu_mips_clock_init(env);
     env->eic_timer_irq = pic32_timer_irq;
     env->eic_soft_irq = pic32_soft_irq;
     env->eic_context = s;
+
+    /* CPU runs at 80MHz.
+     * Count register increases at half this rate. */
+    cpu_mips_clock_init(env, 40*1000*1000);
 
     /*
      * Initialize board-specific parameters.
