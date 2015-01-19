@@ -25,19 +25,13 @@
 #include "qemu/timer.h"
 #include "sysemu/kvm.h"
 
-/* XXX: do not use a global */
+/* Generate a random TLB index.
+ * Skip wired entries. */
 uint32_t cpu_mips_get_random (CPUMIPSState *env)
 {
-    static uint32_t lfsr = 1;
-    static uint32_t prev_idx = 0;
-    uint32_t idx;
-    /* Don't return same value twice, so get another value */
-    do {
-        lfsr = (lfsr >> 1) ^ (-(lfsr & 1u) & 0xd0000001u);
-        idx = lfsr % (env->tlb->nb_tlb - env->CP0_Wired) + env->CP0_Wired;
-    } while (idx == prev_idx);
-    prev_idx = idx;
-    return idx;
+    env->CP0_Random = env->CP0_Wired +
+        random() % (env->tlb->nb_tlb - env->CP0_Wired);
+    return env->CP0_Random;
 }
 
 /* MIPS R4K timer */
@@ -165,5 +159,12 @@ void cpu_mips_clock_init (CPUMIPSState *env, unsigned count_freq)
     if (!kvm_enabled()) {
         env->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &mips_timer_cb, env);
         env->count_freq = count_freq;
+
+        if (qemu_loglevel_mask(CPU_LOG_INSTR)) {
+            /* When instruction tracing enabled,
+             * we need to slow down the timer to adapt
+             * to the decreased simulation speed. */
+            env->count_freq /= 10;
+        }
     }
 }
