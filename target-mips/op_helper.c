@@ -2410,24 +2410,30 @@ static void dump_changed_mode(CPUMIPSState *env)
 static void dump_changed_regs(CPUMIPSState *env)
 {
     TCState *cur = &env->active_tc;
+    static const char * const gpr_name[] = {
+        "r0", "at", "v0", "v1", "a0", "a1", "a2", "a3",
+        "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7",
+        "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
+        "t8", "t9", "k0", "k1", "gp", "sp", "s8", "ra",
+    };
     int i;
 
     for (i=1; i<32; i++) {
         if (cur->gpr[i] != env->last_gpr[i]) {
             env->last_gpr[i] = cur->gpr[i];
-            fprintf(qemu_logfile, "    Write GPR[%u] = %08x\n",
-                i, (unsigned) cur->gpr[i]);
+            fprintf(qemu_logfile, "    Write %s = %08x\n",
+                gpr_name[i], (unsigned) cur->gpr[i]);
         }
     }
     for (i=0; i<MIPS_DSP_ACC; i++) {
         if (cur->LO[i] != env->last_LO[i]) {
             env->last_LO[i] = cur->LO[i];
-            fprintf(qemu_logfile, "    Write Lo[%u] = %08x\n",
+            fprintf(qemu_logfile, "    Write Lo%u = %08x\n",
                 i, (unsigned) cur->LO[i]);
         }
         if (cur->HI[i] != env->last_HI[i]) {
             env->last_HI[i] = cur->HI[i];
-            fprintf(qemu_logfile, "    Write Hi[%u] = %08x\n",
+            fprintf(qemu_logfile, "    Write Hi%u = %08x\n",
                 i, (unsigned) cur->HI[i]);
         }
     }
@@ -2667,6 +2673,7 @@ static void dump_print_target_address(bfd_vma addr, struct disassemble_info *inf
 void helper_dump_pc(CPUMIPSState *env, int pc, int isa)
 {
     struct disassemble_info info;
+    char disasm_options[] = "cp0-names=mips32r2";
     int (*print_insn)(bfd_vma pc, disassemble_info *info);
     int opcode, nbytes;
 
@@ -2724,6 +2731,7 @@ void helper_dump_pc(CPUMIPSState *env, int pc, int isa)
     info.buffer_vma = pc;
     info.buffer_length = nbytes;
     info.buffer = (void*) &opcode;
+    info.disassembler_options = disasm_options;
 #ifdef TARGET_WORDS_BIGENDIAN
     info.endian = BFD_ENDIAN_BIG;
     print_insn = print_insn_big_mips;
