@@ -32,6 +32,7 @@
 #include "hw/loader.h"
 #include "qemu/error-report.h"
 #include "hw/empty_slot.h"
+#include <termios.h>
 
 #define PIC32MX7
 #include "pic32mx.h"
@@ -1310,6 +1311,18 @@ static void store_byte (unsigned address, unsigned char byte)
     }
 }
 
+/*
+ * Ignore ^C and ^\ signals and pass these characters to the target.
+ */
+static void pic32_pass_signal_chars(void)
+{
+    struct termios tty;
+
+    tcgetattr(0, &tty);
+    tty.c_lflag &= ~ISIG;
+    tcsetattr (0, TCSANOW, &tty);
+}
+
 static void pic32_init(MachineState *machine, int board_type)
 {
     const char *cpu_model = machine->cpu_model;
@@ -1496,6 +1509,7 @@ static void pic32_init(MachineState *machine, int board_type)
 
     io_reset(s);
     pic32_sdcard_reset(s);
+    pic32_pass_signal_chars();
 }
 
 static void pic32_init_max32(MachineState *machine)
