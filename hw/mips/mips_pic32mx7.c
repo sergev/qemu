@@ -23,6 +23,7 @@
  */
 
 /* Only 32-bit little endian mode supported. */
+#include "config.h"
 #if !defined TARGET_MIPS64 && !defined TARGET_WORDS_BIGENDIAN
 
 #include "hw/i386/pc.h"
@@ -1281,7 +1282,7 @@ static void main_cpu_reset(void *opaque)
 
     cpu_reset(CPU(cpu));
 
-    /* Adjust the initial configuration for microAptivP core. */
+    /* Adjust the initial configuration for M4K core. */
     env->CP0_IntCtl = 0;
     env->CP0_Debug = (1 << CP0DB_CNT) | (3 << CP0DB_VER);
     for (i=0; i<7; i++)

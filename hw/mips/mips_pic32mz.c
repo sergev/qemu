@@ -23,6 +23,7 @@
  */
 
 /* Only 32-bit little endian mode supported. */
+#include "config.h"
 #if !defined TARGET_MIPS64 && !defined TARGET_WORDS_BIGENDIAN
 
 #include "hw/i386/pc.h"
