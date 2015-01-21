@@ -75,7 +75,7 @@ void pic32_uart_put_char (pic32_t *s, int unit, unsigned char byte)
 
         /* Generate TX interrupt with some delay. */
         timer_mod(u->transmit_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-            get_ticks_per_sec() / 5000);
+            get_ticks_per_sec() / 5000 + 10);
         u->oactive = 1;
     }
 }
