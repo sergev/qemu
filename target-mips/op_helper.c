@@ -23,6 +23,7 @@
 #include "exec/cpu_ldst.h"
 #include "sysemu/kvm.h"
 #include "disas/bfd.h"
+#include "sysemu/sysemu.h"
 
 #ifndef CONFIG_USER_ONLY
 static inline void cpu_mips_tlb_flush (CPUMIPSState *env, int flush_global);
@@ -2294,6 +2295,10 @@ void helper_wait(CPUMIPSState *env)
 {
     CPUState *cs = CPU(mips_env_get_cpu(env));
 
+    if (! (env->CP0_Status & (1 << CP0St_IE))) {
+        /* WAIT instruction with interrupts disabled - halt the simulation. */
+        qemu_system_shutdown_request();
+    }
     cs->halted = 1;
     cpu_reset_interrupt(cs, CPU_INTERRUPT_WAKE);
     helper_raise_exception(env, EXCP_HLT);
