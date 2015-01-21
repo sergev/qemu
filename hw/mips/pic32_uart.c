@@ -72,10 +72,11 @@ void pic32_uart_put_char (pic32_t *s, int unit, unsigned char byte)
         (VALUE(u->sta) & PIC32_USTA_UTXEN))
     {
         VALUE(u->sta) |= PIC32_USTA_UTXBF;
+        VALUE(u->sta) &= ~PIC32_USTA_TRMT;
 
         /* Generate TX interrupt with some delay. */
         timer_mod(u->transmit_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-            get_ticks_per_sec() / 5000 + 10);
+            get_ticks_per_sec() / 5000);
         u->oactive = 1;
     }
 }
@@ -88,7 +89,7 @@ void pic32_uart_poll_status (pic32_t *s, int unit)
     uart_t *u = &s->uart[unit];
 
     // Keep receiver idle, transmit shift register always empty
-    VALUE(u->sta) |= PIC32_USTA_RIDLE | PIC32_USTA_TRMT;
+    VALUE(u->sta) |= PIC32_USTA_RIDLE;
 
     //printf ("<%x>", VALUE(u->sta)); fflush (stdout);
 }
@@ -194,6 +195,7 @@ static void uart_timeout(void *opaque)
             (VALUE(u->sta) & PIC32_USTA_UTXEN))
             s->irq_raise (s, u->irq + UART_IRQ_TX);
         VALUE(u->sta) &= ~PIC32_USTA_UTXBF;
+        VALUE(u->sta) |= PIC32_USTA_TRMT;
         u->oactive = 0;
     }
 }
