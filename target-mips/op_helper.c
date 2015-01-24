@@ -23,6 +23,7 @@
 #include "exec/cpu_ldst.h"
 #include "sysemu/kvm.h"
 #include "disas/bfd.h"
+#include "sysemu/sysemu.h"
 
 #ifndef CONFIG_USER_ONLY
 static inline void cpu_mips_tlb_flush (CPUMIPSState *env, int flush_global);
@@ -2294,6 +2295,12 @@ void helper_wait(CPUMIPSState *env)
 {
     CPUState *cs = CPU(mips_env_get_cpu(env));
 
+#ifndef CONFIG_USER_ONLY
+    if (! (env->CP0_Status & (1 << CP0St_IE))) {
+        /* WAIT instruction with interrupts disabled - halt the simulation. */
+        qemu_system_shutdown_request();
+    }
+#endif
     cs->halted = 1;
     cpu_reset_interrupt(cs, CPU_INTERRUPT_WAKE);
     helper_raise_exception(env, EXCP_HLT);
@@ -2362,7 +2369,6 @@ void mips_cpu_unassigned_access(CPUState *cs, hwaddr addr,
         helper_raise_exception(env, EXCP_DBE);
     }
 }
-#endif /* !CONFIG_USER_ONLY */
 
 /*
  * Print changed kernel/user/debug mode.
@@ -2401,46 +2407,6 @@ static void dump_changed_mode(CPUMIPSState *env)
     if (mode != env->last_mode) {
         env->last_mode = mode;
         fprintf(qemu_logfile, "--- %s\n", mode);
-    }
-}
-
-/*
- * Print changed values of GPR, HI/LO and DSPControl registers.
- */
-static void dump_changed_regs(CPUMIPSState *env)
-{
-    TCState *cur = &env->active_tc;
-    static const char * const gpr_name[] = {
-        "r0", "at", "v0", "v1", "a0", "a1", "a2", "a3",
-        "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7",
-        "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
-        "t8", "t9", "k0", "k1", "gp", "sp", "s8", "ra",
-    };
-    int i;
-
-    for (i=1; i<32; i++) {
-        if (cur->gpr[i] != env->last_gpr[i]) {
-            env->last_gpr[i] = cur->gpr[i];
-            fprintf(qemu_logfile, "    Write %s = %08x\n",
-                gpr_name[i], (unsigned) cur->gpr[i]);
-        }
-    }
-    for (i=0; i<MIPS_DSP_ACC; i++) {
-        if (cur->LO[i] != env->last_LO[i]) {
-            env->last_LO[i] = cur->LO[i];
-            fprintf(qemu_logfile, "    Write Lo%u = %08x\n",
-                i, (unsigned) cur->LO[i]);
-        }
-        if (cur->HI[i] != env->last_HI[i]) {
-            env->last_HI[i] = cur->HI[i];
-            fprintf(qemu_logfile, "    Write Hi%u = %08x\n",
-                i, (unsigned) cur->HI[i]);
-        }
-    }
-    if (cur->DSPControl != env->last_DSPControl) {
-        env->last_DSPControl = cur->DSPControl;
-        fprintf(qemu_logfile, "    Write DSPControl = %08x\n",
-            (unsigned) cur->DSPControl);
     }
 }
 
@@ -2661,6 +2627,47 @@ static void dump_changed_cop0(CPUMIPSState *env)
     dump_changed_cop0_reg(env, 31*8 + 6, env->CP0_KScratch[4]);
     dump_changed_cop0_reg(env, 31*8 + 7, env->CP0_KScratch[5]);
 }
+#endif /* !CONFIG_USER_ONLY */
+
+/*
+ * Print changed values of GPR, HI/LO and DSPControl registers.
+ */
+static void dump_changed_regs(CPUMIPSState *env)
+{
+    TCState *cur = &env->active_tc;
+    static const char * const gpr_name[] = {
+        "r0", "at", "v0", "v1", "a0", "a1", "a2", "a3",
+        "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7",
+        "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
+        "t8", "t9", "k0", "k1", "gp", "sp", "s8", "ra",
+    };
+    int i;
+
+    for (i=1; i<32; i++) {
+        if (cur->gpr[i] != env->last_gpr[i]) {
+            env->last_gpr[i] = cur->gpr[i];
+            fprintf(qemu_logfile, "    Write %s = %08x\n",
+                gpr_name[i], (unsigned) cur->gpr[i]);
+        }
+    }
+    for (i=0; i<MIPS_DSP_ACC; i++) {
+        if (cur->LO[i] != env->last_LO[i]) {
+            env->last_LO[i] = cur->LO[i];
+            fprintf(qemu_logfile, "    Write Lo%u = %08x\n",
+                i, (unsigned) cur->LO[i]);
+        }
+        if (cur->HI[i] != env->last_HI[i]) {
+            env->last_HI[i] = cur->HI[i];
+            fprintf(qemu_logfile, "    Write Hi%u = %08x\n",
+                i, (unsigned) cur->HI[i]);
+        }
+    }
+    if (cur->DSPControl != env->last_DSPControl) {
+        env->last_DSPControl = cur->DSPControl;
+        fprintf(qemu_logfile, "    Write DSPControl = %08x\n",
+            (unsigned) cur->DSPControl);
+    }
+}
 
 /*
  * Print the changed processor state.
@@ -2801,36 +2808,36 @@ enum {
 /*
  * Print the memory store to log file.
  */
-void helper_dump_store(CPUMIPSState *env, int opc, int addr, int value)
+void helper_dump_store(CPUMIPSState *env, int opc, target_ulong addr, target_ulong value)
 {
     switch (opc) {
 #if defined(TARGET_MIPS64)
     case OPC_SD:
     case OPC_SDL:
     case OPC_SDR:
-        fprintf(qemu_logfile, "    Memory Write [%08x] = %016x\n", addr, value);
+        fprintf(qemu_logfile, "    Memory Write ["TARGET_FMT_lx"] = "TARGET_FMT_lx"\n", addr, value);
         break;
 #endif
     case OPC_SW:
     case OPC_SWL:
     case OPC_SWR:
-        fprintf(qemu_logfile, "    Memory Write [%08x] = %08x\n", addr, (uint32_t) value);
+        fprintf(qemu_logfile, "    Memory Write ["TARGET_FMT_lx"] = %08x\n", addr, (uint32_t) value);
         break;
     case OPC_SH:
-        fprintf(qemu_logfile, "    Memory Write [%08x] = %04x\n", addr, (uint16_t) value);
+        fprintf(qemu_logfile, "    Memory Write ["TARGET_FMT_lx"] = %04x\n", addr, (uint16_t) value);
         break;
     case OPC_SB:
-        fprintf(qemu_logfile, "    Memory Write [%08x] = %02x\n", addr, (uint8_t) value);
+        fprintf(qemu_logfile, "    Memory Write ["TARGET_FMT_lx"] = %02x\n", addr, (uint8_t) value);
         break;
     default:
-        fprintf(qemu_logfile, "    Memory op%u [%08x] = %08x\n", opc, addr, (uint32_t) value);
+        fprintf(qemu_logfile, "    Memory op%u ["TARGET_FMT_lx"] = %08x\n", opc, addr, (uint32_t) value);
     }
 }
 
 /*
  * Print the memory load to log file.
  */
-void helper_dump_load(CPUMIPSState *env, int opc, int addr, int value)
+void helper_dump_load(CPUMIPSState *env, int opc, target_ulong addr, target_ulong value)
 {
     switch (opc) {
 #if defined(TARGET_MIPS64)
@@ -2838,7 +2845,7 @@ void helper_dump_load(CPUMIPSState *env, int opc, int addr, int value)
     case OPC_LDL:
     case OPC_LDR:
     case OPC_LDPC:
-        fprintf(qemu_logfile, "    Memory Read [%08x] = %016x\n", addr, value);
+        fprintf(qemu_logfile, "    Memory Read ["TARGET_FMT_lx"] = "TARGET_FMT_lx"\n", addr, value);
         break;
     case OPC_LWU:
 #endif
@@ -2846,15 +2853,15 @@ void helper_dump_load(CPUMIPSState *env, int opc, int addr, int value)
     case OPC_LWPC:
     case OPC_LWL:
     case OPC_LWR:
-        fprintf(qemu_logfile, "    Memory Read [%08x] = %08x\n", addr, (uint32_t) value);
+        fprintf(qemu_logfile, "    Memory Read ["TARGET_FMT_lx"] = %08x\n", addr, (uint32_t) value);
         break;
     case OPC_LH:
     case OPC_LHU:
-        fprintf(qemu_logfile, "    Memory Read [%08x] = %04x\n", addr, (uint16_t) value);
+        fprintf(qemu_logfile, "    Memory Read ["TARGET_FMT_lx"] = %04x\n", addr, (uint16_t) value);
         break;
     case OPC_LB:
     case OPC_LBU:
-        fprintf(qemu_logfile, "    Memory Read [%08x] = %02x\n", addr, (uint8_t) value);
+        fprintf(qemu_logfile, "    Memory Read ["TARGET_FMT_lx"] = %02x\n", addr, (uint8_t) value);
         break;
     }
 }

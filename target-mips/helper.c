@@ -359,10 +359,11 @@ int mips_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
     } else if (ret < 0)
 #endif
     {
+#if !defined(CONFIG_USER_ONLY)
         qemu_log("%s address=%" VADDR_PRIx " ret %d physical " TARGET_FMT_plx
                  " prot %d\n",
                  __func__, address, ret, physical, prot);
-
+#endif
         raise_mmu_exception(env, address, rw, ret);
         ret = 1;
     }
@@ -759,10 +760,10 @@ void mips_cpu_do_interrupt(CPUState *cs)
     }
     if (qemu_loglevel_mask(CPU_LOG_INSTR)) {
         if (cs->exception_index == EXCP_EXT_INTERRUPT)
-            fprintf (qemu_logfile, "--- Interrupt, vector %08x\n",
+            fprintf (qemu_logfile, "--- Interrupt, vector "TARGET_FMT_lx"\n",
                 env->active_tc.PC);
         else
-            fprintf (qemu_logfile, "--- Exception #%u: %s, vector %08x\n",
+            fprintf (qemu_logfile, "--- Exception #%u: %s, vector "TARGET_FMT_lx"\n",
                 cause, name, env->active_tc.PC);
     } else
     if (qemu_log_enabled() && cs->exception_index != EXCP_EXT_INTERRUPT) {

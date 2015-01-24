@@ -23,6 +23,7 @@
  */
 
 /* Only 32-bit little endian mode supported. */
+#include "config.h"
 #if !defined TARGET_MIPS64 && !defined TARGET_WORDS_BIGENDIAN
 
 #include "hw/i386/pc.h"
@@ -32,6 +33,7 @@
 #include "hw/loader.h"
 #include "qemu/error-report.h"
 #include "hw/empty_slot.h"
+#include <termios.h>
 
 #define PIC32MX7
 #include "pic32mx.h"
@@ -1280,7 +1282,7 @@ static void main_cpu_reset(void *opaque)
 
     cpu_reset(CPU(cpu));
 
-    /* Adjust the initial configuration for microAptivP core. */
+    /* Adjust the initial configuration for M4K core. */
     env->CP0_IntCtl = 0;
     env->CP0_Debug = (1 << CP0DB_CNT) | (3 << CP0DB_VER);
     for (i=0; i<7; i++)
@@ -1308,6 +1310,18 @@ static void store_byte (unsigned address, unsigned char byte)
             BOOT_FLASH_START, BOOT_FLASH_START + BOOT_FLASH_SIZE - 1);
         exit (1);
     }
+}
+
+/*
+ * Ignore ^C and ^\ signals and pass these characters to the target.
+ */
+static void pic32_pass_signal_chars(void)
+{
+    struct termios tty;
+
+    tcgetattr(0, &tty);
+    tty.c_lflag &= ~ISIG;
+    tcsetattr (0, TCSANOW, &tty);
 }
 
 static void pic32_init(MachineState *machine, int board_type)
@@ -1496,6 +1510,7 @@ static void pic32_init(MachineState *machine, int board_type)
 
     io_reset(s);
     pic32_sdcard_reset(s);
+    pic32_pass_signal_chars();
 }
 
 static void pic32_init_max32(MachineState *machine)

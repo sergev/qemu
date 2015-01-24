@@ -69,14 +69,14 @@ void pic32_uart_put_char (pic32_t *s, int unit, unsigned char byte)
     }
 
     if ((VALUE(u->mode) & PIC32_UMODE_ON) &&
-        (VALUE(u->sta) & PIC32_USTA_UTXEN) &&
-        ! u->oactive)
+        (VALUE(u->sta) & PIC32_USTA_UTXEN))
     {
         VALUE(u->sta) |= PIC32_USTA_UTXBF;
+        VALUE(u->sta) &= ~PIC32_USTA_TRMT;
 
         /* Generate TX interrupt with some delay. */
         timer_mod(u->transmit_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-            get_ticks_per_sec() / 1000);
+            get_ticks_per_sec() / 5000);
         u->oactive = 1;
     }
 }
@@ -89,7 +89,7 @@ void pic32_uart_poll_status (pic32_t *s, int unit)
     uart_t *u = &s->uart[unit];
 
     // Keep receiver idle, transmit shift register always empty
-    VALUE(u->sta) |= PIC32_USTA_RIDLE | PIC32_USTA_TRMT;
+    VALUE(u->sta) |= PIC32_USTA_RIDLE;
 
     //printf ("<%x>", VALUE(u->sta)); fflush (stdout);
 }
@@ -105,7 +105,7 @@ void pic32_uart_update_mode (pic32_t *s, int unit)
         s->irq_clear (s, u->irq + UART_IRQ_RX);
         s->irq_clear (s, u->irq + UART_IRQ_TX);
         VALUE(u->sta) &= ~(PIC32_USTA_URXDA | PIC32_USTA_FERR |
-                                   PIC32_USTA_PERR | PIC32_USTA_UTXBF);
+                           PIC32_USTA_PERR | PIC32_USTA_UTXBF);
         VALUE(u->sta) |= PIC32_USTA_RIDLE | PIC32_USTA_TRMT;
     }
 }
@@ -120,11 +120,10 @@ void pic32_uart_update_status (pic32_t *s, int unit)
     if (! (VALUE(u->sta) & PIC32_USTA_URXEN)) {
         s->irq_clear (s, u->irq + UART_IRQ_RX);
         VALUE(u->sta) &= ~(PIC32_USTA_URXDA | PIC32_USTA_FERR |
-                                   PIC32_USTA_PERR);
+                           PIC32_USTA_PERR);
     }
     if (! (VALUE(u->sta) & PIC32_USTA_UTXEN)) {
         s->irq_clear (s, u->irq + UART_IRQ_TX);
-        timer_del(u->transmit_timer);
         VALUE(u->sta) &= ~PIC32_USTA_UTXBF;
         VALUE(u->sta) |= PIC32_USTA_TRMT;
     }
@@ -189,25 +188,14 @@ static void uart_timeout(void *opaque)
     pic32_t *s = u->mcu;        /* used in VALUE() */
 
 //printf("--- %s() called\n", __func__);
-    if (! (VALUE(u->mode) & PIC32_UMODE_ON)) {
-        /* UART disabled. */
-        u->oactive = 0;
-        VALUE(u->sta) &= ~PIC32_USTA_UTXBF;
-        return;
-    }
-
-    /* UART enabled. */
-    if (! (VALUE(u->sta) & PIC32_USTA_UTXEN)) {
-        /* Transmitter disabled. */
-        u->oactive = 0;
-        return;
-    }
-
     if (u->oactive) {
         /* Activate transmit interrupt. */
 //printf("uart%u: raise tx irq %u\n", unit, u->irq + UART_IRQ_TX);
-        s->irq_raise (s, u->irq + UART_IRQ_TX);
+        if ((VALUE(u->mode) & PIC32_UMODE_ON) &&
+            (VALUE(u->sta) & PIC32_USTA_UTXEN))
+            s->irq_raise (s, u->irq + UART_IRQ_TX);
         VALUE(u->sta) &= ~PIC32_USTA_UTXBF;
+        VALUE(u->sta) |= PIC32_USTA_TRMT;
         u->oactive = 0;
     }
 }

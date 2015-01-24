@@ -23,6 +23,7 @@
  */
 
 /* Only 32-bit little endian mode supported. */
+#include "config.h"
 #if !defined TARGET_MIPS64 && !defined TARGET_WORDS_BIGENDIAN
 
 #include "hw/i386/pc.h"
@@ -32,6 +33,7 @@
 #include "hw/loader.h"
 #include "qemu/error-report.h"
 #include "hw/empty_slot.h"
+#include <termios.h>
 
 #include "pic32mz.h"
 #include "pic32_peripherals.h"
@@ -379,6 +381,49 @@ static void io_reset(pic32_t *s)
         s->spi[i].rfifo = 0;
         s->spi[i].wfifo = 0;
     }
+
+    /*
+     * Reset Ethernet.
+     */
+    VALUE(ETHCON1) = 0;         // Control 1
+    VALUE(ETHCON2) = 0;         // Control 2: RX data buffer size
+    VALUE(ETHTXST) = 0;         // Tx descriptor start address
+    VALUE(ETHRXST) = 0;         // Rx descriptor start address
+    VALUE(ETHHT0) = 0;          // Hash tasble 0
+    VALUE(ETHHT1) = 0;          // Hash tasble 1
+    VALUE(ETHPMM0) = 0;         // Pattern match mask 0
+    VALUE(ETHPMM1) = 0;         // Pattern match mask 1
+    VALUE(ETHPMCS) = 0;         // Pattern match checksum
+    VALUE(ETHPMO) = 0;          // Pattern match offset
+    VALUE(ETHRXFC) = 0;         // Receive filter configuration
+    VALUE(ETHRXWM) = 0;         // Receive watermarks
+    VALUE(ETHIEN) = 0;          // Interrupt enable
+    VALUE(ETHIRQ) = 0;          // Interrupt request
+    VALUE(ETHSTAT) = 0;         // Status
+    VALUE(ETHRXOVFLOW) = 0;     // Receive overflow statistics
+    VALUE(ETHFRMTXOK) = 0;      // Frames transmitted OK statistics
+    VALUE(ETHSCOLFRM) = 0;      // Single collision frames statistics
+    VALUE(ETHMCOLFRM) = 0;      // Multiple collision frames statistics
+    VALUE(ETHFRMRXOK) = 0;      // Frames received OK statistics
+    VALUE(ETHFCSERR) = 0;       // Frame check sequence error statistics
+    VALUE(ETHALGNERR) = 0;      // Alignment errors statistics
+    VALUE(EMAC1CFG1) = 0x800d;  // MAC configuration 1
+    VALUE(EMAC1CFG2) = 0x4082;  // MAC configuration 2
+    VALUE(EMAC1IPGT) = 0x0012;  // MAC back-to-back interpacket gap
+    VALUE(EMAC1IPGR) = 0x0c12;  // MAC non-back-to-back interpacket gap
+    VALUE(EMAC1CLRT) = 0x370f;  // MAC collision window/retry limit
+    VALUE(EMAC1MAXF) = 0x05ee;  // MAC maximum frame length
+    VALUE(EMAC1SUPP) = 0x1000;  // MAC PHY support
+    VALUE(EMAC1TEST) = 0;       // MAC test
+    VALUE(EMAC1MCFG) = 0x0020;  // MII configuration
+    VALUE(EMAC1MCMD) = 0;       // MII command
+    VALUE(EMAC1MADR) = 0x0100;  // MII address
+    VALUE(EMAC1MWTD) = 0;       // MII write data
+    VALUE(EMAC1MRDD) = 0;       // MII read data
+    VALUE(EMAC1MIND) = 0;       // MII indicators
+    VALUE(EMAC1SA0) = 0x79c1;   // MAC station address 0
+    VALUE(EMAC1SA1) = 0xcbc0;   // MAC station address 1
+    VALUE(EMAC1SA2) = 0x1e00;   // MAC station address 2
 }
 
 static unsigned io_read32 (pic32_t *s, unsigned offset, const char **namep)
@@ -896,6 +941,49 @@ static unsigned io_read32 (pic32_t *s, unsigned offset, const char **namep)
     STORAGE (SPI4CON2CLR); *bufp = 0; break;
     STORAGE (SPI4CON2SET); *bufp = 0; break;
     STORAGE (SPI4CON2INV); *bufp = 0; break;
+
+    /*-------------------------------------------------------------------------
+     * Ethernet.
+     */
+    STORAGE (ETHCON1); break;           // Control 1
+    STORAGE (ETHCON2); break;           // Control 2: RX data buffer size
+    STORAGE (ETHTXST); break;           // Tx descriptor start address
+    STORAGE (ETHRXST); break;           // Rx descriptor start address
+    STORAGE (ETHHT0); break;            // Hash tasble 0
+    STORAGE (ETHHT1); break;            // Hash tasble 1
+    STORAGE (ETHPMM0); break;           // Pattern match mask 0
+    STORAGE (ETHPMM1); break;           // Pattern match mask 1
+    STORAGE (ETHPMCS); break;           // Pattern match checksum
+    STORAGE (ETHPMO); break;            // Pattern match offset
+    STORAGE (ETHRXFC); break;           // Receive filter configuration
+    STORAGE (ETHRXWM); break;           // Receive watermarks
+    STORAGE (ETHIEN); break;            // Interrupt enable
+    STORAGE (ETHIRQ); break;            // Interrupt request
+    STORAGE (ETHSTAT); break;           // Status
+    STORAGE (ETHRXOVFLOW); break;       // Receive overflow statistics
+    STORAGE (ETHFRMTXOK); break;        // Frames transmitted OK statistics
+    STORAGE (ETHSCOLFRM); break;        // Single collision frames statistics
+    STORAGE (ETHMCOLFRM); break;        // Multiple collision frames statistics
+    STORAGE (ETHFRMRXOK); break;        // Frames received OK statistics
+    STORAGE (ETHFCSERR); break;         // Frame check sequence error statistics
+    STORAGE (ETHALGNERR); break;        // Alignment errors statistics
+    STORAGE (EMAC1CFG1); break;         // MAC configuration 1
+    STORAGE (EMAC1CFG2); break;         // MAC configuration 2
+    STORAGE (EMAC1IPGT); break;         // MAC back-to-back interpacket gap
+    STORAGE (EMAC1IPGR); break;         // MAC non-back-to-back interpacket gap
+    STORAGE (EMAC1CLRT); break;         // MAC collision window/retry limit
+    STORAGE (EMAC1MAXF); break;         // MAC maximum frame length
+    STORAGE (EMAC1SUPP); break;         // MAC PHY support
+    STORAGE (EMAC1TEST); break;         // MAC test
+    STORAGE (EMAC1MCFG); break;         // MII configuration
+    STORAGE (EMAC1MCMD); break;         // MII command
+    STORAGE (EMAC1MADR); break;         // MII address
+    STORAGE (EMAC1MWTD); break;         // MII write data
+    STORAGE (EMAC1MRDD); break;         // MII read data
+    STORAGE (EMAC1MIND); break;         // MII indicators
+    STORAGE (EMAC1SA0); break;          // MAC station address 0
+    STORAGE (EMAC1SA1); break;          // MAC station address 1
+    STORAGE (EMAC1SA2); break;          // MAC station address 2
 
     default:
         printf ("--- Read 1f8%05x: peripheral register not supported\n",
@@ -1569,6 +1657,49 @@ irq:    update_irq_status(s);
     WRITEOP (SPI4BRG); return;                      // Baud rate
     WRITEOP (SPI4CON2); return;                     // Control 2
 
+    /*-------------------------------------------------------------------------
+     * Ethernet.
+     */
+    WRITEOP (ETHCON1); return;          // Control 1
+    WRITEOP (ETHCON2); return;          // Control 2: RX data buffer size
+    WRITEOP (ETHTXST); return;          // Tx descriptor start address
+    WRITEOP (ETHRXST); return;          // Rx descriptor start address
+    WRITEOP (ETHHT0); return;           // Hash tasble 0
+    WRITEOP (ETHHT1); return;           // Hash tasble 1
+    WRITEOP (ETHPMM0); return;          // Pattern match mask 0
+    WRITEOP (ETHPMM1); return;          // Pattern match mask 1
+    WRITEOP (ETHPMCS); return;          // Pattern match checksum
+    WRITEOP (ETHPMO); return;           // Pattern match offset
+    WRITEOP (ETHRXFC); return;          // Receive filter configuration
+    WRITEOP (ETHRXWM); return;          // Receive watermarks
+    WRITEOP (ETHIEN); return;           // Interrupt enable
+    WRITEOP (ETHIRQ); return;           // Interrupt request
+    STORAGE (ETHSTAT); break;           // Status
+    WRITEOP (ETHRXOVFLOW); return;      // Receive overflow statistics
+    WRITEOP (ETHFRMTXOK); return;       // Frames transmitted OK statistics
+    WRITEOP (ETHSCOLFRM); return;       // Single collision frames statistics
+    WRITEOP (ETHMCOLFRM); return;       // Multiple collision frames statistics
+    WRITEOP (ETHFRMRXOK); return;       // Frames received OK statistics
+    WRITEOP (ETHFCSERR); return;        // Frame check sequence error statistics
+    WRITEOP (ETHALGNERR); return;       // Alignment errors statistics
+    WRITEOP (EMAC1CFG1); return;        // MAC configuration 1
+    WRITEOP (EMAC1CFG2); return;        // MAC configuration 2
+    WRITEOP (EMAC1IPGT); return;        // MAC back-to-back interpacket gap
+    WRITEOP (EMAC1IPGR); return;        // MAC non-back-to-back interpacket gap
+    WRITEOP (EMAC1CLRT); return;        // MAC collision window/retry limit
+    WRITEOP (EMAC1MAXF); return;        // MAC maximum frame length
+    WRITEOP (EMAC1SUPP); return;        // MAC PHY support
+    WRITEOP (EMAC1TEST); return;        // MAC test
+    WRITEOP (EMAC1MCFG); return;        // MII configuration
+    WRITEOP (EMAC1MCMD); return;        // MII command
+    WRITEOP (EMAC1MADR); return;        // MII address
+    WRITEOP (EMAC1MWTD); return;        // MII write data
+    WRITEOP (EMAC1MRDD); return;        // MII read data
+    WRITEOP (EMAC1MIND); return;        // MII indicators
+    WRITEOP (EMAC1SA0); return;         // MAC station address 0
+    WRITEOP (EMAC1SA1); return;         // MAC station address 1
+    WRITEOP (EMAC1SA2); return;         // MAC station address 2
+
     default:
         printf ("--- Write %08x to 1f8%05x: peripheral register not supported\n",
             data, offset);
@@ -1694,6 +1825,18 @@ static void store_byte (unsigned address, unsigned char byte)
             BOOT_FLASH_START, BOOT_FLASH_START + BOOT_FLASH_SIZE - 1);
         exit (1);
     }
+}
+
+/*
+ * Ignore ^C and ^\ signals and pass these characters to the target.
+ */
+static void pic32_pass_signal_chars(void)
+{
+    struct termios tty;
+
+    tcgetattr(0, &tty);
+    tty.c_lflag &= ~ISIG;
+    tcsetattr (0, TCSANOW, &tty);
 }
 
 static void pic32_init(MachineState *machine, int board_type)
@@ -1877,6 +2020,7 @@ static void pic32_init(MachineState *machine, int board_type)
 
     io_reset(s);
     pic32_sdcard_reset(s);
+    pic32_pass_signal_chars();
 }
 
 static void pic32_init_wifire(MachineState *machine)
