@@ -232,6 +232,52 @@ static const mips_def_t mips_defs[] =
         .mmu_type = MMU_TYPE_FMT,
     },
     {
+        /* Configuration for Microchip PIC32MX microcontroller. */
+        .name = "M4K",
+        .CP0_PRid = 0x00018765,
+        .CP0_Config0 = MIPS_CONFIG0 | (2 << CP0C0_K23) | (2 << CP0C0_KU) |
+                       (1 << CP0C0_SB) | (1 << CP0C0_BM) |
+                       (1 << CP0C0_AR) | (MMU_TYPE_FMT << CP0C0_MT),
+        .CP0_Config1 = (1U << CP0C1_M) | (1 << CP0C1_CA) | (1 << CP0C1_EP),
+        .CP0_Config2 = MIPS_CONFIG2,
+        .CP0_Config3 = (1 << CP0C3_VEIC) | (1 << CP0C3_VInt),
+        .CP0_LLAddr_rw_bitmask = 0,
+        .CP0_LLAddr_shift = 4,
+        .SYNCI_Step = 32,
+        .CCRes = 2,
+        .CP0_Status_rw_bitmask = 0x1258FF17,
+        .SEGBITS = 32,
+        .PABITS = 32,
+        .insn_flags = CPU_MIPS32R2 | ASE_MIPS16,
+        .mmu_type = MMU_TYPE_FMT,
+    },
+    {
+        /* Configuration for Microchip PIC32MZ microcontroller. */
+        .name = "microAptivP",
+        .CP0_PRid = 0x00019e28,
+        .CP0_Config0 = MIPS_CONFIG0 | (0x1 << CP0C0_AR) |
+                    (MMU_TYPE_R4000 << CP0C0_MT),
+        .CP0_Config1 = MIPS_CONFIG1 | (15 << CP0C1_MMU) | (1 << CP0C1_PC),
+        .CP0_Config2 = MIPS_CONFIG2,
+        .CP0_Config3 = (1 << CP0C3_M) | (1 << CP0C3_IPLW) | (1 << CP0C3_MCU) |
+                    (2 << CP0C3_ISA) | (1 << CP0C3_ULRI) | (1 << CP0C3_RXI) |
+                    (1 << CP0C3_DSP2P) | (1 << CP0C3_DSPP) | (1 << CP0C3_VEIC) |
+                    (1 << CP0C3_VInt),
+        .CP0_Config4 = (1 << CP0C4_M),
+        .CP0_Config5 = (1 << CP0C5_NFExists),
+        .CP0_Config6 = 0,
+        .CP0_Config7 = (1 << CP0C7_WII),
+        .CP0_LLAddr_rw_bitmask = 0,
+        .CP0_LLAddr_shift = 4,
+        .SYNCI_Step = 32,
+        .CCRes = 2,
+        .CP0_Status_rw_bitmask = 0x1278FF17,
+        .SEGBITS = 32,
+        .PABITS = 32,
+        .insn_flags = CPU_MIPS32R2,
+        .mmu_type = MMU_TYPE_R4000,
+    },
+    {
         .name = "24Kc",
         .CP0_PRid = 0x00019300,
         .CP0_Config0 = MIPS_CONFIG0 | (0x1 << CP0C0_AR) |

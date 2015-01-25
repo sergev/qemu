@@ -387,6 +387,7 @@ struct CPUMIPSState {
 #define CP0C0_M    31
 #define CP0C0_K23  28
 #define CP0C0_KU   25
+#define CP0C0_SB   21
 #define CP0C0_MDU  20
 #define CP0C0_MM   17
 #define CP0C0_BM   16
@@ -468,6 +469,7 @@ struct CPUMIPSState {
 #define CP0C5_NFExists   0
     int32_t CP0_Config6;
     int32_t CP0_Config7;
+#define CP0C7_WII        31
     /* XXX: Maybe make LLAddr per-TC? */
     target_ulong lladdr;
     target_ulong llval;
