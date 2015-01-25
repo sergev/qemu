@@ -49,38 +49,38 @@
 #define STOP_TRAN_TOKEN         0xFD    /* stop token for write multiple */
 #define WRITE_MULTIPLE_TOKEN    0xFC    /* start data for write multiple */
 
-static void read_data (int fd, unsigned offset,
+static void read_data(int fd, unsigned offset,
     unsigned char *buf, unsigned blen)
 {
     /* Fill uninitialized blocks by FF: simulate real flash media. */
-    memset (buf, 0xFF, blen);
+    memset(buf, 0xFF, blen);
 
-    if (pread (fd, buf, blen, offset) != blen) {
-        printf ("sdcard: pread failed, offset %#x\n", offset);
+    if (pread(fd, buf, blen, offset) != blen) {
+        printf("sdcard: pread failed, offset %#x\n", offset);
         return;
     }
 #if 0
-    printf ("(%#x)\n", offset);
+    printf("(%#x)\n", offset);
     int i, k;
     for (i=0; i<blen; i+=32) {
         for (k=0; k<32; k++) {
-            printf (" %02x", buf[i+k]);
+            printf(" %02x", buf[i+k]);
         }
-        printf ("\n");
+        printf("\n");
     }
 #endif
 }
 
-static void write_data (int fd, unsigned offset,
+static void write_data(int fd, unsigned offset,
     unsigned char *buf, unsigned blen)
 {
-    if (pwrite (fd, buf, blen, offset) != blen) {
-        printf ("sdcard: pwrite failed, offset %#x\n", offset);
+    if (pwrite(fd, buf, blen, offset) != blen) {
+        printf("sdcard: pwrite failed, offset %#x\n", offset);
         return;
     }
 }
 
-static void card_reset (sdcard_t *d)
+static void card_reset(sdcard_t *d)
 {
     d->select = 0;
     d->blen = 512;
@@ -92,20 +92,20 @@ static void card_reset (sdcard_t *d)
  */
 void pic32_sdcard_reset(pic32_t *s)
 {
-    card_reset (&s->sdcard[0]);
-    card_reset (&s->sdcard[1]);
+    card_reset(&s->sdcard[0]);
+    card_reset(&s->sdcard[1]);
 }
 
 /*
  * Initialize SD card.
  */
-void pic32_sdcard_init (pic32_t *s, int unit, const char *name,
+void pic32_sdcard_init(pic32_t *s, int unit, const char *name,
     const char *filename, int cs_port, int cs_pin)
 {
     sdcard_t *d = &s->sdcard[unit];
     struct stat st;
 
-    memset (d, 0, sizeof (*d));
+    memset(d, 0, sizeof(*d));
     d->name = name;
     if (! filename) {
         /* No SD card installed. */
@@ -114,13 +114,13 @@ void pic32_sdcard_init (pic32_t *s, int unit, const char *name,
     d->gpio_port = cs_port;
     d->gpio_cs = (cs_pin >= 0) ? (1 << cs_pin) : 0;
 
-    d->fd = open (filename, O_RDWR);
+    d->fd = open(filename, O_RDWR);
     if (d->fd < 0) {
         /* Fatal: no image available. */
-        perror (filename);
-        exit (1);
+        perror(filename);
+        exit(1);
     }
-    fstat (d->fd, &st);
+    fstat(d->fd, &st);
     d->kbytes = st.st_size / 1024;
     printf("Card%u image '%s', %d kbytes\n", unit, filename, d->kbytes);
     if (qemu_logfile)
@@ -128,16 +128,16 @@ void pic32_sdcard_init (pic32_t *s, int unit, const char *name,
             unit, filename, d->kbytes);
 }
 
-void pic32_sdcard_select (pic32_t *s, int unit, int on)
+void pic32_sdcard_select(pic32_t *s, int unit, int on)
 {
     sdcard_t *d = &s->sdcard[unit];
 
     if (on) {
-        //TRACE ("sdcard%d: +++\n", unit);
+        //TRACE("sdcard%d: +++\n", unit);
         d->select = 1;
         d->count = 0;
     } else {
-        //TRACE ("sdcard%d: ---\n", unit);
+        //TRACE("sdcard%d: ---\n", unit);
         d->select = 0;
     }
 }
@@ -146,14 +146,14 @@ void pic32_sdcard_select (pic32_t *s, int unit, int on)
  * Data i/o: send byte to device.
  * Return received byte.
  */
-unsigned pic32_sdcard_io (pic32_t *s, unsigned data)
+unsigned pic32_sdcard_io(pic32_t *s, unsigned data)
 {
     sdcard_t *d = s->sdcard[0].select ? &s->sdcard[0] :
                   s->sdcard[1].select ? &s->sdcard[1] : 0;
     unsigned reply;
 
     if (! d || ! d->fd) {
-        //TRACE ("sdcard: unselected i/o\n");
+        //TRACE("sdcard: unselected i/o\n");
         return 0xFF;
     }
     data = (unsigned char) data;
@@ -195,7 +195,7 @@ unsigned pic32_sdcard_io (pic32_t *s, unsigned data)
                 d->blen = d->buf[1] << 24 | d->buf[2] << 16 |
                     d->buf[3] << 8 | d->buf[4];
                 if (qemu_loglevel_mask(CPU_LOG_INSTR))
-                    fprintf (qemu_logfile, "--- SD card %d: set block length %u bytes\n",
+                    fprintf(qemu_logfile, "--- SD card %d: set block length %u bytes\n",
                         d->unit, d->blen);
                 reply = (d->blen > 0 && d->blen <= 1024) ? 0 : 4;
             }
@@ -208,7 +208,7 @@ unsigned pic32_sdcard_io (pic32_t *s, unsigned data)
                 d->wbecnt = d->buf[1] << 24 | d->buf[2] << 16 |
                     d->buf[3] << 8 | d->buf[4];
                 if (qemu_loglevel_mask(CPU_LOG_INSTR))
-                    fprintf (qemu_logfile, "--- SD card %d: set write block erase count %u\n",
+                    fprintf(qemu_logfile, "--- SD card %d: set write block erase count %u\n",
                         d->unit, d->wbecnt);
                 reply = 0;
                 d->count = 0;
@@ -221,7 +221,7 @@ unsigned pic32_sdcard_io (pic32_t *s, unsigned data)
             if (d->count == 7) {
                 /* Send reply */
                 if (qemu_loglevel_mask(CPU_LOG_INSTR))
-                    fprintf (qemu_logfile, "--- SD card %d: send media size %u sectors\n",
+                    fprintf(qemu_logfile, "--- SD card %d: send media size %u sectors\n",
                         d->unit, d->kbytes * 2);
                 reply = 0;
                 d->limit = 16 + 3;
@@ -258,13 +258,13 @@ unsigned pic32_sdcard_io (pic32_t *s, unsigned data)
                 d->offset = d->buf[1] << 24 | d->buf[2] << 16 |
                     d->buf[3] << 8 | d->buf[4];
                 if (qemu_loglevel_mask(CPU_LOG_INSTR))
-                    fprintf (qemu_logfile, "--- SD card %d: read offset %#x, length %u bytes\n",
+                    fprintf(qemu_logfile, "--- SD card %d: read offset %#x, length %u bytes\n",
                         d->unit, d->offset, d->blen);
                 d->limit = d->blen + 3;
                 d->count = 1;
                 d->buf[0] = 0;
                 d->buf[1] = DATA_START_BLOCK;
-                read_data (d->fd, d->offset, &d->buf[2], d->blen);
+                read_data(d->fd, d->offset, &d->buf[2], d->blen);
                 d->buf[d->limit - 1] = 0xFF;
                 d->buf[d->limit] = 0xFF;
             }
@@ -280,19 +280,19 @@ unsigned pic32_sdcard_io (pic32_t *s, unsigned data)
                 d->offset = d->buf[1] << 24 | d->buf[2] << 16 |
                     d->buf[3] << 8 | d->buf[4];
                 if (qemu_loglevel_mask(CPU_LOG_INSTR))
-                    fprintf (qemu_logfile, "--- SD card %d: read offset %#x, length %u bytes\n",
+                    fprintf(qemu_logfile, "--- SD card %d: read offset %#x, length %u bytes\n",
                         d->unit, d->offset, d->blen);
                 d->limit = d->blen + 3;
                 d->count = 1;
                 d->buf[0] = 0;
                 d->buf[1] = DATA_START_BLOCK;
-                read_data (d->fd, d->offset, &d->buf[2], d->blen);
+                read_data(d->fd, d->offset, &d->buf[2], d->blen);
                 d->buf[d->limit - 1] = 0xFF;
                 d->buf[d->limit] = 0xFF;
             }
             break;
         case CMD_WRITE_SINGLE:          /* Write block */
-            if (d->count >= sizeof (d->buf))
+            if (d->count >= sizeof(d->buf))
                 break;
             d->buf [d->count++] = data;
             if (d->count == 7) {
@@ -301,7 +301,7 @@ unsigned pic32_sdcard_io (pic32_t *s, unsigned data)
                 d->offset = d->buf[1] << 24 | d->buf[2] << 16 |
                     d->buf[3] << 8 | d->buf[4];
                 if (qemu_loglevel_mask(CPU_LOG_INSTR))
-                    fprintf (qemu_logfile, "--- SD card %d: write offset %#x\n",
+                    fprintf(qemu_logfile, "--- SD card %d: write offset %#x\n",
                         d->unit, d->offset);
             } else if (d->count == 7 + d->blen + 2 + 2) {
                 if (d->buf[7] == DATA_START_BLOCK) {
@@ -309,15 +309,15 @@ unsigned pic32_sdcard_io (pic32_t *s, unsigned data)
                     reply = 0x05;
                     d->offset = d->buf[1] << 24 | d->buf[2] << 16 |
                         d->buf[3] << 8 | d->buf[4];
-                    write_data (d->fd, d->offset, &d->buf[8], d->blen);
+                    write_data(d->fd, d->offset, &d->buf[8], d->blen);
                     if (qemu_loglevel_mask(CPU_LOG_INSTR))
-                        fprintf (qemu_logfile, "--- SD card %d: write data, length %u bytes\n",
+                        fprintf(qemu_logfile, "--- SD card %d: write data, length %u bytes\n",
                             d->unit, d->blen);
                 } else {
                     /* Reject data */
                     reply = 4;
                     if (qemu_loglevel_mask(CPU_LOG_INSTR))
-                        fprintf (qemu_logfile, "--- SD card %d: reject write data, tag=%02x\n",
+                        fprintf(qemu_logfile, "--- SD card %d: reject write data, tag=%02x\n",
                             d->unit, d->buf[7]);
                 }
             }
@@ -332,21 +332,21 @@ unsigned pic32_sdcard_io (pic32_t *s, unsigned data)
                 d->offset = d->buf[1] << 24 | d->buf[2] << 16 |
                     d->buf[3] << 8 | d->buf[4];
                 if (qemu_loglevel_mask(CPU_LOG_INSTR))
-                    fprintf (qemu_logfile, "--- SD card %d: write multiple offset %#x\n",
+                    fprintf(qemu_logfile, "--- SD card %d: write multiple offset %#x\n",
                         d->unit, d->offset);
                 d->count = 0;
             }
             break;
         case WRITE_MULTIPLE_TOKEN:      /* Data for write-miltiple */
-            if (d->count >= sizeof (d->buf))
+            if (d->count >= sizeof(d->buf))
                 break;
             d->buf [d->count++] = data;
             if (d->count == 2 + d->blen + 2) {
                 /* Accept data */
                 reply = 0x05;
-                write_data (d->fd, d->offset, &d->buf[1], d->blen);
+                write_data(d->fd, d->offset, &d->buf[1], d->blen);
                 if (qemu_loglevel_mask(CPU_LOG_INSTR))
-                    fprintf (qemu_logfile, "--- SD card %d: write sector %u, length %u bytes\n",
+                    fprintf(qemu_logfile, "--- SD card %d: write sector %u, length %u bytes\n",
                         d->unit, d->offset / 512, d->blen);
                 d->offset += 512;
                 d->count = 0;
@@ -373,7 +373,7 @@ unsigned pic32_sdcard_io (pic32_t *s, unsigned data)
                 /* Next read-multiple block. */
                 d->offset += d->blen;
                 d->count = 1;
-                read_data (d->fd, d->offset, &d->buf[2], d->blen);
+                read_data(d->fd, d->offset, &d->buf[2], d->blen);
                 reply = 0;
             }
             break;
@@ -382,7 +382,7 @@ unsigned pic32_sdcard_io (pic32_t *s, unsigned data)
         }
     }
     if (qemu_loglevel_mask(CPU_LOG_INSTR)) {
-        TRACE ("sdcard%d: send %02x, reply %02x\n", d->unit, data, reply);
+        TRACE("sdcard%d: send %02x, reply %02x\n", d->unit, data, reply);
     }
     return reply;
 }

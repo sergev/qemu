@@ -30,7 +30,7 @@
 #define SPI_IRQ_TX      1               // transmitter irq offset
 #define SPI_IRQ_RX      2               // receiver irq offset
 
-unsigned pic32_spi_readbuf (pic32_t *s, int unit)
+unsigned pic32_spi_readbuf(pic32_t *s, int unit)
 {
     spi_t *p = &s->spi[unit];
     unsigned result = p->buf[p->rfifo];
@@ -41,12 +41,12 @@ unsigned pic32_spi_readbuf (pic32_t *s, int unit)
     }
     if (VALUE(p->stat) & PIC32_SPISTAT_SPIRBF) {
         VALUE(p->stat) &= ~PIC32_SPISTAT_SPIRBF;
-        //s->irq_clear (s, p->irq + SPI_IRQ_RX);
+        //s->irq_clear(s, p->irq + SPI_IRQ_RX);
     }
     return result;
 }
 
-void pic32_spi_writebuf (pic32_t *s, int unit, unsigned val)
+void pic32_spi_writebuf(pic32_t *s, int unit, unsigned val)
 {
     spi_t *p = &s->spi[unit];
 
@@ -56,19 +56,19 @@ void pic32_spi_writebuf (pic32_t *s, int unit, unsigned val)
 
         if (VALUE(p->con) & PIC32_SPICON_MODE32) {
             /* 32-bit data width */
-            result  = (unsigned char) pic32_sdcard_io (s, val >> 24) << 24;
-            result |= (unsigned char) pic32_sdcard_io (s, val >> 16) << 16;
-            result |= (unsigned char) pic32_sdcard_io (s, val >> 8) << 8;
-            result |= (unsigned char) pic32_sdcard_io (s, val);
+            result  = (unsigned char) pic32_sdcard_io(s, val >> 24) << 24;
+            result |= (unsigned char) pic32_sdcard_io(s, val >> 16) << 16;
+            result |= (unsigned char) pic32_sdcard_io(s, val >> 8) << 8;
+            result |= (unsigned char) pic32_sdcard_io(s, val);
 
         } else if (VALUE(p->con) & PIC32_SPICON_MODE16) {
             /* 16-bit data width */
-            result = (unsigned char) pic32_sdcard_io (s, val >> 8) << 8;
-            result |= (unsigned char) pic32_sdcard_io (s, val);
+            result = (unsigned char) pic32_sdcard_io(s, val >> 8) << 8;
+            result |= (unsigned char) pic32_sdcard_io(s, val);
 
         } else {
             /* 8-bit data width */
-            result = (unsigned char) pic32_sdcard_io (s, val);
+            result = (unsigned char) pic32_sdcard_io(s, val);
         }
         p->buf[p->wfifo] = result;
     } else {
@@ -77,28 +77,28 @@ void pic32_spi_writebuf (pic32_t *s, int unit, unsigned val)
     }
     if (VALUE(p->stat) & PIC32_SPISTAT_SPIRBF) {
         VALUE(p->stat) |= PIC32_SPISTAT_SPIROV;
-        //s->irq_raise (s, p->irq + SPI_IRQ_FAULT);
+        //s->irq_raise(s, p->irq + SPI_IRQ_FAULT);
     } else if (VALUE(p->con) & PIC32_SPICON_ENHBUF) {
         p->wfifo++;
         p->wfifo &= 3;
         if (p->wfifo == p->rfifo) {
             VALUE(p->stat) |= PIC32_SPISTAT_SPIRBF;
-            //s->irq_raise (s, p->irq + SPI_IRQ_RX);
+            //s->irq_raise(s, p->irq + SPI_IRQ_RX);
         }
     } else {
         VALUE(p->stat) |= PIC32_SPISTAT_SPIRBF;
-        //s->irq_raise (s, p->irq + SPI_IRQ_RX);
+        //s->irq_raise(s, p->irq + SPI_IRQ_RX);
     }
 }
 
-void pic32_spi_control (pic32_t *s, int unit)
+void pic32_spi_control(pic32_t *s, int unit)
 {
     spi_t *p = &s->spi[unit];
 
     if (! (VALUE(p->con) & PIC32_SPICON_ON)) {
-        s->irq_clear (s, p->irq + SPI_IRQ_FAULT);
-        s->irq_clear (s, p->irq + SPI_IRQ_RX);
-        s->irq_clear (s, p->irq + SPI_IRQ_TX);
+        s->irq_clear(s, p->irq + SPI_IRQ_FAULT);
+        s->irq_clear(s, p->irq + SPI_IRQ_RX);
+        s->irq_clear(s, p->irq + SPI_IRQ_TX);
         VALUE(p->stat) = PIC32_SPISTAT_SPITBE;
     } else if (! (VALUE(p->con) & PIC32_SPICON_ENHBUF)) {
         p->rfifo = 0;
