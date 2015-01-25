@@ -572,23 +572,31 @@ void mips_cpu_do_interrupt(CPUState *cs)
             unsigned int vector;
             unsigned int pending = (env->CP0_Cause & CP0Ca_IP_mask) >> 8;
 
-            pending &= env->CP0_Status >> 8;
             /* Compute the Vector Spacing.  */
             spacing = (env->CP0_IntCtl >> CP0IntCtl_VS) & ((1 << 6) - 1);
             spacing <<= 5;
 
-            if (env->CP0_Config3 & (1 << CP0C3_VInt)) {
+            if (env->CP0_Config3 & (1 << CP0C3_VEIC)) {
+                /* For VEIC mode, the external interrupt controller feeds the
+                 * vector through the CP0Cause IP lines. */
+                vector = pending;
+
+                /* Architecturally, this is chip-specific behavior.
+                 * TODO: some processors, like PIC32MZ,
+                 * provide vector in a different way.
+                 * Some processors, like PIC32, have a separate
+                 * bit INTCON.MVEC to explicitly enable vectored mode,
+                 * disabled by default. */
+                spacing = 0;
+            } else {
                 /* For VInt mode, the MIPS computes the vector internally.  */
+                pending &= env->CP0_Status >> 8;
                 for (vector = 7; vector > 0; vector--) {
                     if (pending & (1 << vector)) {
                         /* Found it.  */
                         break;
                     }
                 }
-            } else {
-                /* For VEIC mode, the external interrupt controller feeds the
-                   vector through the CP0Cause IP lines.  */
-                vector = pending;
             }
             offset = 0x200 + vector * spacing;
         }

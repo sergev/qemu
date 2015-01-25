@@ -592,6 +592,11 @@ struct CPUMIPSState {
     target_ulong last_DSPControl;
     target_ulong last_cop0[32*8];
     const char *last_mode;
+
+    /* Fields for external interrupt controller. */
+    void *eic_context;
+    void (*eic_timer_irq)(CPUMIPSState *env, int raise);
+    void (*eic_soft_irq)(CPUMIPSState *env, int num);
 };
 
 #include "cpu-qom.h"
@@ -662,7 +667,9 @@ static inline int cpu_mips_hw_interrupts_pending(CPUMIPSState *env)
     if (env->CP0_Config3 & (1 << CP0C3_VEIC)) {
         /* A MIPS configured with a vectorizing external interrupt controller
            will feed a vector into the Cause pending lines. The core treats
-           the status lines as a vector level, not as indiviual masks.  */
+           the status lines as a vector level, not as individual masks.  */
+        pending >>= CP0Ca_IP + 2;
+        status >>= CP0Ca_IP + 2;
         r = pending > status;
     } else {
         /* A MIPS configured with compatibility or VInt (Vectored Interrupts)
