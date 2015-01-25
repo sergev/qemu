@@ -210,7 +210,7 @@ static void mips_jazz_init(MemoryRegion *address_space,
 
     /* Init CPU internal devices */
     cpu_mips_irq_init_cpu(env);
-    cpu_mips_clock_init(env);
+    cpu_mips_clock_init(env, 100*1000*1000);
 
     /* Chipset */
     rc4030_opaque = rc4030_init(env->irq[6], env->irq[3], &rc4030, &dmas,

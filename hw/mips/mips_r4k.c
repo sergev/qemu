@@ -265,7 +265,7 @@ void mips_r4k_init(MachineState *machine)
 
     /* Init CPU internal devices */
     cpu_mips_irq_init_cpu(env);
-    cpu_mips_clock_init(env);
+    cpu_mips_clock_init(env, 100*1000*1000);
 
     /* The PIC is attached to the MIPS CPU INT0 pin */
     isa_bus = isa_bus_new(NULL, get_system_io());

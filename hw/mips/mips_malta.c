@@ -978,7 +978,7 @@ void mips_malta_init(MachineState *machine)
 
         /* Init internal devices */
         cpu_mips_irq_init_cpu(env);
-        cpu_mips_clock_init(env);
+        cpu_mips_clock_init(env, 100*1000*1000);
         qemu_register_reset(main_cpu_reset, cpu);
     }
     cpu = MIPS_CPU(first_cpu);
@@ -1134,7 +1134,7 @@ void mips_malta_init(MachineState *machine)
 
     /* Init internal devices */
     cpu_mips_irq_init_cpu(env);
-    cpu_mips_clock_init(env);
+    cpu_mips_clock_init(env, 100*1000*1000);
 
     /*
      * We have a circular dependency problem: pci_bus depends on isa_irq,

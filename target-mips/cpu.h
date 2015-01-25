@@ -582,6 +582,7 @@ struct CPUMIPSState {
     const mips_def_t *cpu_model;
     void *irq[8];
     QEMUTimer *timer; /* Internal timer */
+    unsigned count_freq; /* rate of Count register */
 
     /* Processor state after the last instruction.
      * Used for instruction tracing. */
