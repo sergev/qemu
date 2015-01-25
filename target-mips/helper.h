@@ -356,6 +356,10 @@ DEF_HELPER_1(rdhwr_ccres, tl, env)
 DEF_HELPER_2(pmon, void, env, int)
 DEF_HELPER_1(wait, void, env)
 
+DEF_HELPER_3(dump_pc, void, env, int, int)
+DEF_HELPER_4(dump_store, void, env, int, tl, tl)
+DEF_HELPER_4(dump_load, void, env, int, tl, tl)
+
 /* Loongson multimedia functions.  */
 DEF_HELPER_FLAGS_2(paddsh, TCG_CALL_NO_RWG_SE, i64, i64, i64)
 DEF_HELPER_FLAGS_2(paddush, TCG_CALL_NO_RWG_SE, i64, i64, i64)

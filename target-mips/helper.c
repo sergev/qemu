@@ -340,9 +340,9 @@ int mips_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
 
 #if 0
     log_cpu_state(cs, 0);
-#endif
     qemu_log("%s pc " TARGET_FMT_lx " ad %" VADDR_PRIx " rw %d mmu_idx %d\n",
               __func__, env->active_tc.PC, address, rw, mmu_idx);
+#endif
 
     /* data access */
 #if !defined(CONFIG_USER_ONLY)
@@ -351,9 +351,6 @@ int mips_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
     access_type = ACCESS_INT;
     ret = get_physical_address(env, &physical, &prot,
                                address, rw, access_type);
-    qemu_log("%s address=%" VADDR_PRIx " ret %d physical " TARGET_FMT_plx
-             " prot %d\n",
-             __func__, address, ret, physical, prot);
     if (ret == TLBRET_MATCH) {
         tlb_set_page(cs, address & TARGET_PAGE_MASK,
                      physical & TARGET_PAGE_MASK, prot | PAGE_EXEC,
@@ -362,6 +359,11 @@ int mips_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
     } else if (ret < 0)
 #endif
     {
+#if !defined(CONFIG_USER_ONLY)
+        qemu_log("%s address=%" VADDR_PRIx " ret %d physical " TARGET_FMT_plx
+                 " prot %d\n",
+                 __func__, address, ret, physical, prot);
+#endif
         raise_mmu_exception(env, address, rw, ret);
         ret = 1;
     }
@@ -492,9 +494,13 @@ void mips_cpu_do_interrupt(CPUState *cs)
             name = excp_names[cs->exception_index];
         }
 
-        qemu_log("%s enter: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " %s exception\n",
-                 __func__, env->active_tc.PC, env->CP0_EPC, name);
+        if (! qemu_loglevel_mask(CPU_LOG_INSTR))
+            qemu_log("%s enter: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " %s exception\n",
+                     __func__, env->active_tc.PC, env->CP0_EPC, name);
     }
+    if (qemu_loglevel_mask(CPU_LOG_INSTR))
+        mips_dump_changed_state(env);
+
     if (cs->exception_index == EXCP_EXT_INTERRUPT &&
         (env->hflags & MIPS_HFLAG_DM)) {
         cs->exception_index = EXCP_DINT;
@@ -744,6 +750,14 @@ void mips_cpu_do_interrupt(CPUState *cs)
         printf("Invalid MIPS exception %d. Exiting\n", cs->exception_index);
         exit(1);
     }
+    if (qemu_loglevel_mask(CPU_LOG_INSTR)) {
+        if (cs->exception_index == EXCP_EXT_INTERRUPT)
+            fprintf (qemu_logfile, "--- Interrupt, vector "TARGET_FMT_lx"\n",
+                env->active_tc.PC);
+        else
+            fprintf (qemu_logfile, "--- Exception #%u: %s, vector "TARGET_FMT_lx"\n",
+                cause, name, env->active_tc.PC);
+    } else
     if (qemu_log_enabled() && cs->exception_index != EXCP_EXT_INTERRUPT) {
         qemu_log("%s: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " cause %d\n"
                 "    S %08x C %08x A " TARGET_FMT_lx " D " TARGET_FMT_lx "\n",
