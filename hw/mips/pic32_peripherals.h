@@ -97,47 +97,47 @@ struct _pic32_t {
     unsigned    sdcard_spi_port;        /* SPI port number of SD card */
     sdcard_t    sdcard [2];             /* SD card data */
 
-    void (*irq_raise) (pic32_t *s, int irq); /* set interrupt request */
-    void (*irq_clear) (pic32_t *s, int irq); /* clear interrupt request */
+    void (*irq_raise)(pic32_t *s, int irq); /* set interrupt request */
+    void (*irq_clear)(pic32_t *s, int irq); /* clear interrupt request */
 };
 
 /*
  * GPIO routines.
  */
-void pic32_gpio_write (pic32_t *s, int unit, unsigned val);
+void pic32_gpio_write(pic32_t *s, int unit, unsigned val);
 
 /*
  * UART routines.
  */
-void pic32_uart_init (pic32_t *s, int unit, int irq, int sta, int mode);
-unsigned pic32_uart_get_char (pic32_t *s, int unit);
-void pic32_uart_put_char (pic32_t *s, int unit, unsigned char data);
-void pic32_uart_poll_status (pic32_t *s, int unit);
-void pic32_uart_update_mode (pic32_t *s, int unit);
-void pic32_uart_update_status (pic32_t *s, int unit);
+void pic32_uart_init(pic32_t *s, int unit, int irq, int sta, int mode);
+unsigned pic32_uart_get_char(pic32_t *s, int unit);
+void pic32_uart_put_char(pic32_t *s, int unit, unsigned char data);
+void pic32_uart_poll_status(pic32_t *s, int unit);
+void pic32_uart_update_mode(pic32_t *s, int unit);
+void pic32_uart_update_status(pic32_t *s, int unit);
 
 /*
  * SPI routines.
  */
 void pic32_spi_init(pic32_t *s, int unit, int irq, int con, int stat);
-void pic32_spi_control (pic32_t *s, int unit);
-unsigned pic32_spi_readbuf (pic32_t *s, int unit);
-void pic32_spi_writebuf (pic32_t *s, int unit, unsigned val);
+void pic32_spi_control(pic32_t *s, int unit);
+unsigned pic32_spi_readbuf(pic32_t *s, int unit);
+void pic32_spi_writebuf(pic32_t *s, int unit, unsigned val);
 
 /*
  * SD card routines.
  */
-void pic32_sdcard_init (pic32_t *s, int unit, const char *name,
+void pic32_sdcard_init(pic32_t *s, int unit, const char *name,
     const char *filename, int cs_port, int cs_pin);
-void pic32_sdcard_reset (pic32_t *s);
-void pic32_sdcard_select (pic32_t *s, int unit, int on);
-unsigned pic32_sdcard_io (pic32_t *s, unsigned data);
+void pic32_sdcard_reset(pic32_t *s);
+void pic32_sdcard_select(pic32_t *s, int unit, int on);
+unsigned pic32_sdcard_io(pic32_t *s, unsigned data);
 
 /*
  * Load a binary file in hex or srec format.
  */
 int pic32_load_hex_file(const char *filename,
-    void (*store_byte) (unsigned address, unsigned char byte));
+    void (*store_byte)(unsigned address, unsigned char byte));
 
 /*
  * Helper defines for i/o switch.
@@ -149,7 +149,7 @@ int pic32_load_hex_file(const char *filename,
                         case name+4: *namep = #name"CLR"; goto op_##name;\
                         case name+8: *namep = #name"SET"; goto op_##name;\
                         case name+12: *namep = #name"INV"; op_##name: \
-                        VALUE(name) = write_op (VALUE(name), data, offset)
+                        VALUE(name) = write_op(VALUE(name), data, offset)
 #define WRITEOPX(name,label) \
                         case name: *namep = #name; goto op_##label;\
                         case name+4: *namep = #name"CLR"; goto op_##label;\
@@ -161,4 +161,4 @@ int pic32_load_hex_file(const char *filename,
                         case name+8: *namep = #name"SET"; goto op_##name;\
                         case name+12: *namep = #name"INV"; op_##name: \
                         VALUE(name) &= romask; \
-                        VALUE(name) |= write_op (VALUE(name), data, offset) & ~(romask)
+                        VALUE(name) |= write_op(VALUE(name), data, offset) & ~(romask)

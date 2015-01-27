@@ -3,7 +3,7 @@
  *
  * Emulates a very simple machine model similar to the one used by the
  * proprietary MIPS emulator.
- *
+ * 
  * Copyright (c) 2007 Thiemo Seufer
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy

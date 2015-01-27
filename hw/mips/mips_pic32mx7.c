@@ -223,15 +223,13 @@ static void update_irq_status(pic32_t *s)
             }
         }
         VALUE(INTSTAT) = vector | (cause_ripl << 8);
-//printf ("-- vector = %d, level = %d\n", vector, level);
     }
-//else printf ("-- no irq pending\n");
 
     if (cause_ripl == current_ripl)
         return;
 
     if (qemu_loglevel_mask(CPU_LOG_INSTR))
-        fprintf (qemu_logfile, "--- Priority level Cause.RIPL = %u\n",
+        fprintf(qemu_logfile, "--- Priority level Cause.RIPL = %u\n",
             cause_ripl);
 
     /*
@@ -245,11 +243,11 @@ static void update_irq_status(pic32_t *s)
 /*
  * Set interrupt flag status
  */
-static void irq_raise (pic32_t *s, int irq)
+static void irq_raise(pic32_t *s, int irq)
 {
     if (VALUE(IFS(irq >> 5)) & (1 << (irq & 31)))
         return;
-//printf ("-- %s() irq = %d\n", __func__, irq);
+
     VALUE(IFS(irq >> 5)) |= 1 << (irq & 31);
     update_irq_status(s);
 }
@@ -257,11 +255,11 @@ static void irq_raise (pic32_t *s, int irq)
 /*
  * Clear interrupt flag status
  */
-static void irq_clear (pic32_t *s, int irq)
+static void irq_clear(pic32_t *s, int irq)
 {
     if (! (VALUE(IFS(irq >> 5)) & (1 << (irq & 31))))
         return;
-//printf ("-- %s() irq = %d\n", __func__, irq);
+
     VALUE(IFS(irq >> 5)) &= ~(1 << (irq & 31));
     update_irq_status(s);
 }
@@ -269,39 +267,39 @@ static void irq_clear (pic32_t *s, int irq)
 /*
  * Timer interrupt.
  */
-static void pic32_timer_irq (CPUMIPSState *env, int raise)
+static void pic32_timer_irq(CPUMIPSState *env, int raise)
 {
     pic32_t *s = env->eic_context;
 
     if (raise) {
         if (qemu_loglevel_mask(CPU_LOG_INSTR))
-            fprintf (qemu_logfile, "--- %08x: Timer interrupt\n",
+            fprintf(qemu_logfile, "--- %08x: Timer interrupt\n",
                 env->active_tc.PC);
-        irq_raise (s, 0);
+        irq_raise(s, 0);
     } else {
         if (qemu_loglevel_mask(CPU_LOG_INSTR))
-            fprintf (qemu_logfile, "--- Clear timer interrupt\n");
-        irq_clear (s, 0);
+            fprintf(qemu_logfile, "--- Clear timer interrupt\n");
+        irq_clear(s, 0);
     }
 }
 
 /*
  * Software interrupt.
  */
-static void pic32_soft_irq (CPUMIPSState *env, int num)
+static void pic32_soft_irq(CPUMIPSState *env, int num)
 {
     pic32_t *s = env->eic_context;
 
     if (qemu_loglevel_mask(CPU_LOG_INSTR))
-        fprintf (qemu_logfile, "--- %08x: Soft interrupt %u\n",
+        fprintf(qemu_logfile, "--- %08x: Soft interrupt %u\n",
             env->active_tc.PC, num);
-    irq_raise (s, num + 1);
+    irq_raise(s, num + 1);
 }
 
 /*
  * Perform an assign/clear/set/invert operation.
  */
-static inline unsigned write_op (int a, int b, int op)
+static inline unsigned write_op(int a, int b, int op)
 {
     switch (op & 0xc) {
     case 0x0: a = b;   break;   // Assign
@@ -449,7 +447,7 @@ static void io_reset(pic32_t *s)
     }
 }
 
-static unsigned io_read32 (pic32_t *s, unsigned offset, const char **namep)
+static unsigned io_read32(pic32_t *s, unsigned offset, const char **namep)
 {
     unsigned *bufp = &VALUE(offset);
 
@@ -457,55 +455,55 @@ static unsigned io_read32 (pic32_t *s, unsigned offset, const char **namep)
     /*-------------------------------------------------------------------------
      * Bus matrix control registers.
      */
-    STORAGE (BMXCON); break;    // Bus Mmatrix Control
-    STORAGE (BMXDKPBA); break;  // Data RAM kernel program base address
-    STORAGE (BMXDUDBA); break;  // Data RAM user data base address
-    STORAGE (BMXDUPBA); break;  // Data RAM user program base address
-    STORAGE (BMXPUPBA); break;  // Program Flash user program base address
-    STORAGE (BMXDRMSZ); break;  // Data RAM memory size
-    STORAGE (BMXPFMSZ); break;  // Program Flash memory size
-    STORAGE (BMXBOOTSZ); break; // Boot Flash size
+    STORAGE(BMXCON); break;     // Bus Mmatrix Control
+    STORAGE(BMXDKPBA); break;   // Data RAM kernel program base address
+    STORAGE(BMXDUDBA); break;   // Data RAM user data base address
+    STORAGE(BMXDUPBA); break;   // Data RAM user program base address
+    STORAGE(BMXPUPBA); break;   // Program Flash user program base address
+    STORAGE(BMXDRMSZ); break;   // Data RAM memory size
+    STORAGE(BMXPFMSZ); break;   // Program Flash memory size
+    STORAGE(BMXBOOTSZ); break;  // Boot Flash size
 
     /*-------------------------------------------------------------------------
      * Interrupt controller registers.
      */
-    STORAGE (INTCON); break;    // Interrupt Control
-    STORAGE (INTSTAT); break;   // Interrupt Status
-    STORAGE (IFS0); break;      // IFS(0..2) - Interrupt Flag Status
-    STORAGE (IFS1); break;
-    STORAGE (IFS2); break;
-    STORAGE (IEC0); break;      // IEC(0..2) - Interrupt Enable Control
-    STORAGE (IEC1); break;
-    STORAGE (IEC2); break;
-    STORAGE (IPC0); break;      // IPC(0..11) - Interrupt Priority Control
-    STORAGE (IPC1); break;
-    STORAGE (IPC2); break;
-    STORAGE (IPC3); break;
-    STORAGE (IPC4); break;
-    STORAGE (IPC5); break;
-    STORAGE (IPC6); break;
-    STORAGE (IPC7); break;
-    STORAGE (IPC8); break;
-    STORAGE (IPC9); break;
-    STORAGE (IPC10); break;
-    STORAGE (IPC11); break;
-    STORAGE (IPC12); break;
+    STORAGE(INTCON); break;     // Interrupt Control
+    STORAGE(INTSTAT); break;    // Interrupt Status
+    STORAGE(IFS0); break;       // IFS(0..2) - Interrupt Flag Status
+    STORAGE(IFS1); break;
+    STORAGE(IFS2); break;
+    STORAGE(IEC0); break;       // IEC(0..2) - Interrupt Enable Control
+    STORAGE(IEC1); break;
+    STORAGE(IEC2); break;
+    STORAGE(IPC0); break;       // IPC(0..11) - Interrupt Priority Control
+    STORAGE(IPC1); break;
+    STORAGE(IPC2); break;
+    STORAGE(IPC3); break;
+    STORAGE(IPC4); break;
+    STORAGE(IPC5); break;
+    STORAGE(IPC6); break;
+    STORAGE(IPC7); break;
+    STORAGE(IPC8); break;
+    STORAGE(IPC9); break;
+    STORAGE(IPC10); break;
+    STORAGE(IPC11); break;
+    STORAGE(IPC12); break;
 
     /*-------------------------------------------------------------------------
      * Prefetch controller.
      */
-    STORAGE (CHECON); break;    // Prefetch Control
+    STORAGE(CHECON); break;     // Prefetch Control
 
     /*-------------------------------------------------------------------------
      * System controller.
      */
-    STORAGE (OSCCON); break;    // Oscillator Control
-    STORAGE (OSCTUN); break;    // Oscillator Tuning
-    STORAGE (DDPCON); break;    // Debug Data Port Control
-    STORAGE (DEVID); break;     // Device Identifier
-    STORAGE (SYSKEY); break;    // System Key
-    STORAGE (RCON); break;      // Reset Control
-    STORAGE (RSWRST);           // Software Reset
+    STORAGE(OSCCON); break;     // Oscillator Control
+    STORAGE(OSCTUN); break;     // Oscillator Tuning
+    STORAGE(DDPCON); break;     // Debug Data Port Control
+    STORAGE(DEVID); break;      // Device Identifier
+    STORAGE(SYSKEY); break;     // System Key
+    STORAGE(RCON); break;       // Reset Control
+    STORAGE(RSWRST);            // Software Reset
         if ((VALUE(RSWRST) & 1) && s->stop_on_reset) {
             exit(0);
         }
@@ -514,331 +512,331 @@ static unsigned io_read32 (pic32_t *s, unsigned offset, const char **namep)
     /*-------------------------------------------------------------------------
      * DMA controller.
      */
-    STORAGE (DMACON); break;    // DMA Control
-    STORAGE (DMASTAT); break;   // DMA Status
-    STORAGE (DMAADDR); break;   // DMA Address
+    STORAGE(DMACON); break;     // DMA Control
+    STORAGE(DMASTAT); break;    // DMA Status
+    STORAGE(DMAADDR); break;    // DMA Address
 
     /*-------------------------------------------------------------------------
      * Analog to digital converter.
      */
-    STORAGE (AD1CON1); break;   // Control register 1
-    STORAGE (AD1CON2); break;   // Control register 2
-    STORAGE (AD1CON3); break;   // Control register 3
-    STORAGE (AD1CHS); break;    // Channel select
-    STORAGE (AD1CSSL); break;   // Input scan selection
-    STORAGE (AD1PCFG); break;   // Port configuration
-    STORAGE (ADC1BUF0); break;  // Result words
-    STORAGE (ADC1BUF1); break;
-    STORAGE (ADC1BUF2); break;
-    STORAGE (ADC1BUF3); break;
-    STORAGE (ADC1BUF4); break;
-    STORAGE (ADC1BUF5); break;
-    STORAGE (ADC1BUF6); break;
-    STORAGE (ADC1BUF7); break;
-    STORAGE (ADC1BUF8); break;
-    STORAGE (ADC1BUF9); break;
-    STORAGE (ADC1BUFA); break;
-    STORAGE (ADC1BUFB); break;
-    STORAGE (ADC1BUFC); break;
-    STORAGE (ADC1BUFD); break;
-    STORAGE (ADC1BUFE); break;
-    STORAGE (ADC1BUFF); break;
+    STORAGE(AD1CON1); break;    // Control register 1
+    STORAGE(AD1CON2); break;    // Control register 2
+    STORAGE(AD1CON3); break;    // Control register 3
+    STORAGE(AD1CHS); break;     // Channel select
+    STORAGE(AD1CSSL); break;    // Input scan selection
+    STORAGE(AD1PCFG); break;    // Port configuration
+    STORAGE(ADC1BUF0); break;   // Result words
+    STORAGE(ADC1BUF1); break;
+    STORAGE(ADC1BUF2); break;
+    STORAGE(ADC1BUF3); break;
+    STORAGE(ADC1BUF4); break;
+    STORAGE(ADC1BUF5); break;
+    STORAGE(ADC1BUF6); break;
+    STORAGE(ADC1BUF7); break;
+    STORAGE(ADC1BUF8); break;
+    STORAGE(ADC1BUF9); break;
+    STORAGE(ADC1BUFA); break;
+    STORAGE(ADC1BUFB); break;
+    STORAGE(ADC1BUFC); break;
+    STORAGE(ADC1BUFD); break;
+    STORAGE(ADC1BUFE); break;
+    STORAGE(ADC1BUFF); break;
 
     /*--------------------------------------
      * USB registers.
      */
-    STORAGE (U1OTGIR); break;   // OTG interrupt flags
-    STORAGE (U1OTGIE); break;   // OTG interrupt enable
-    STORAGE (U1OTGSTAT); break; // Comparator and pin status
-    STORAGE (U1OTGCON); break;  // Resistor and pin control
-    STORAGE (U1PWRC); break;    // Power control
-    STORAGE (U1IR); break;      // Pending interrupt
-    STORAGE (U1IE); break;      // Interrupt enable
-    STORAGE (U1EIR); break;     // Pending error interrupt
-    STORAGE (U1EIE); break;     // Error interrupt enable
-    STORAGE (U1STAT); break;    // Status FIFO
-    STORAGE (U1CON); break;     // Control
-    STORAGE (U1ADDR); break;    // Address
-    STORAGE (U1BDTP1); break;   // Buffer descriptor table pointer 1
-    STORAGE (U1FRML); break;    // Frame counter low
-    STORAGE (U1FRMH); break;    // Frame counter high
-    STORAGE (U1TOK); break;     // Host control
-    STORAGE (U1SOF); break;     // SOF counter
-    STORAGE (U1BDTP2); break;   // Buffer descriptor table pointer 2
-    STORAGE (U1BDTP3); break;   // Buffer descriptor table pointer 3
-    STORAGE (U1CNFG1); break;   // Debug and idle
-    STORAGE (U1EP(0)); break;   // Endpoint control
-    STORAGE (U1EP(1)); break;
-    STORAGE (U1EP(2)); break;
-    STORAGE (U1EP(3)); break;
-    STORAGE (U1EP(4)); break;
-    STORAGE (U1EP(5)); break;
-    STORAGE (U1EP(6)); break;
-    STORAGE (U1EP(7)); break;
-    STORAGE (U1EP(8)); break;
-    STORAGE (U1EP(9)); break;
-    STORAGE (U1EP(10)); break;
-    STORAGE (U1EP(11)); break;
-    STORAGE (U1EP(12)); break;
-    STORAGE (U1EP(13)); break;
-    STORAGE (U1EP(14)); break;
-    STORAGE (U1EP(15)); break;
+    STORAGE(U1OTGIR); break;    // OTG interrupt flags
+    STORAGE(U1OTGIE); break;    // OTG interrupt enable
+    STORAGE(U1OTGSTAT); break;  // Comparator and pin status
+    STORAGE(U1OTGCON); break;   // Resistor and pin control
+    STORAGE(U1PWRC); break;     // Power control
+    STORAGE(U1IR); break;       // Pending interrupt
+    STORAGE(U1IE); break;       // Interrupt enable
+    STORAGE(U1EIR); break;      // Pending error interrupt
+    STORAGE(U1EIE); break;      // Error interrupt enable
+    STORAGE(U1STAT); break;     // Status FIFO
+    STORAGE(U1CON); break;      // Control
+    STORAGE(U1ADDR); break;     // Address
+    STORAGE(U1BDTP1); break;    // Buffer descriptor table pointer 1
+    STORAGE(U1FRML); break;     // Frame counter low
+    STORAGE(U1FRMH); break;     // Frame counter high
+    STORAGE(U1TOK); break;      // Host control
+    STORAGE(U1SOF); break;      // SOF counter
+    STORAGE(U1BDTP2); break;    // Buffer descriptor table pointer 2
+    STORAGE(U1BDTP3); break;    // Buffer descriptor table pointer 3
+    STORAGE(U1CNFG1); break;    // Debug and idle
+    STORAGE(U1EP(0)); break;    // Endpoint control
+    STORAGE(U1EP(1)); break;
+    STORAGE(U1EP(2)); break;
+    STORAGE(U1EP(3)); break;
+    STORAGE(U1EP(4)); break;
+    STORAGE(U1EP(5)); break;
+    STORAGE(U1EP(6)); break;
+    STORAGE(U1EP(7)); break;
+    STORAGE(U1EP(8)); break;
+    STORAGE(U1EP(9)); break;
+    STORAGE(U1EP(10)); break;
+    STORAGE(U1EP(11)); break;
+    STORAGE(U1EP(12)); break;
+    STORAGE(U1EP(13)); break;
+    STORAGE(U1EP(14)); break;
+    STORAGE(U1EP(15)); break;
 
     /*-------------------------------------------------------------------------
      * General purpose IO signals.
      */
-    STORAGE (TRISA); break;     // Port A: mask of inputs
-    STORAGE (PORTA); break;     // Port A: read inputs
-    STORAGE (LATA); break;      // Port A: read outputs
-    STORAGE (ODCA); break;      // Port A: open drain configuration
-    STORAGE (TRISB); break;     // Port B: mask of inputs
-    STORAGE (PORTB); break;     // Port B: read inputs
-    STORAGE (LATB); break;      // Port B: read outputs
-    STORAGE (ODCB); break;      // Port B: open drain configuration
-    STORAGE (TRISC); break;     // Port C: mask of inputs
-    STORAGE (PORTC); break;     // Port C: read inputs
-    STORAGE (LATC); break;      // Port C: read outputs
-    STORAGE (ODCC); break;      // Port C: open drain configuration
-    STORAGE (TRISD); break;     // Port D: mask of inputs
-    STORAGE (PORTD); break;     // Port D: read inputs
-    STORAGE (LATD); break;      // Port D: read outputs
-    STORAGE (ODCD); break;      // Port D: open drain configuration
-    STORAGE (TRISE); break;     // Port E: mask of inputs
-    STORAGE (PORTE); break;     // Port E: read inputs
-    STORAGE (LATE); break;      // Port E: read outputs
-    STORAGE (ODCE); break;      // Port E: open drain configuration
-    STORAGE (TRISF); break;     // Port F: mask of inputs
-    STORAGE (PORTF); break;     // Port F: read inputs
-    STORAGE (LATF); break;      // Port F: read outputs
-    STORAGE (ODCF); break;      // Port F: open drain configuration
-    STORAGE (TRISG); break;     // Port G: mask of inputs
-    STORAGE (PORTG); break;     // Port G: read inputs
-    STORAGE (LATG); break;      // Port G: read outputs
-    STORAGE (ODCG); break;      // Port G: open drain configuration
-    STORAGE (CNCON); break;     // Interrupt-on-change control
-    STORAGE (CNEN); break;      // Input change interrupt enable
-    STORAGE (CNPUE); break;     // Input pin pull-up enable
+    STORAGE(TRISA); break;      // Port A: mask of inputs
+    STORAGE(PORTA); break;      // Port A: read inputs
+    STORAGE(LATA); break;       // Port A: read outputs
+    STORAGE(ODCA); break;       // Port A: open drain configuration
+    STORAGE(TRISB); break;      // Port B: mask of inputs
+    STORAGE(PORTB); break;      // Port B: read inputs
+    STORAGE(LATB); break;       // Port B: read outputs
+    STORAGE(ODCB); break;       // Port B: open drain configuration
+    STORAGE(TRISC); break;      // Port C: mask of inputs
+    STORAGE(PORTC); break;      // Port C: read inputs
+    STORAGE(LATC); break;       // Port C: read outputs
+    STORAGE(ODCC); break;       // Port C: open drain configuration
+    STORAGE(TRISD); break;      // Port D: mask of inputs
+    STORAGE(PORTD); break;      // Port D: read inputs
+    STORAGE(LATD); break;       // Port D: read outputs
+    STORAGE(ODCD); break;       // Port D: open drain configuration
+    STORAGE(TRISE); break;      // Port E: mask of inputs
+    STORAGE(PORTE); break;      // Port E: read inputs
+    STORAGE(LATE); break;       // Port E: read outputs
+    STORAGE(ODCE); break;       // Port E: open drain configuration
+    STORAGE(TRISF); break;      // Port F: mask of inputs
+    STORAGE(PORTF); break;      // Port F: read inputs
+    STORAGE(LATF); break;       // Port F: read outputs
+    STORAGE(ODCF); break;       // Port F: open drain configuration
+    STORAGE(TRISG); break;      // Port G: mask of inputs
+    STORAGE(PORTG); break;      // Port G: read inputs
+    STORAGE(LATG); break;       // Port G: read outputs
+    STORAGE(ODCG); break;       // Port G: open drain configuration
+    STORAGE(CNCON); break;      // Interrupt-on-change control
+    STORAGE(CNEN); break;       // Input change interrupt enable
+    STORAGE(CNPUE); break;      // Input pin pull-up enable
 
     /*-------------------------------------------------------------------------
      * UART 1.
      */
-    STORAGE (U1RXREG);                          // Receive data
+    STORAGE(U1RXREG);                           // Receive data
         *bufp = pic32_uart_get_char(s, 0);
         break;
-    STORAGE (U1BRG); break;                     // Baud rate
-    STORAGE (U1MODE); break;                    // Mode
-    STORAGE (U1STA);                            // Status and control
+    STORAGE(U1BRG); break;                      // Baud rate
+    STORAGE(U1MODE); break;                     // Mode
+    STORAGE(U1STA);                             // Status and control
         pic32_uart_poll_status(s, 0);
         break;
-    STORAGE (U1TXREG);   *bufp = 0; break;      // Transmit
-    STORAGE (U1MODECLR); *bufp = 0; break;
-    STORAGE (U1MODESET); *bufp = 0; break;
-    STORAGE (U1MODEINV); *bufp = 0; break;
-    STORAGE (U1STACLR);  *bufp = 0; break;
-    STORAGE (U1STASET);  *bufp = 0; break;
-    STORAGE (U1STAINV);  *bufp = 0; break;
-    STORAGE (U1BRGCLR);  *bufp = 0; break;
-    STORAGE (U1BRGSET);  *bufp = 0; break;
-    STORAGE (U1BRGINV);  *bufp = 0; break;
+    STORAGE(U1TXREG);   *bufp = 0; break;       // Transmit
+    STORAGE(U1MODECLR); *bufp = 0; break;
+    STORAGE(U1MODESET); *bufp = 0; break;
+    STORAGE(U1MODEINV); *bufp = 0; break;
+    STORAGE(U1STACLR);  *bufp = 0; break;
+    STORAGE(U1STASET);  *bufp = 0; break;
+    STORAGE(U1STAINV);  *bufp = 0; break;
+    STORAGE(U1BRGCLR);  *bufp = 0; break;
+    STORAGE(U1BRGSET);  *bufp = 0; break;
+    STORAGE(U1BRGINV);  *bufp = 0; break;
 
     /*-------------------------------------------------------------------------
      * UART 2.
      */
-    STORAGE (U2RXREG);                          // Receive data
+    STORAGE(U2RXREG);                           // Receive data
         *bufp = pic32_uart_get_char(s, 1);
         break;
-    STORAGE (U2BRG); break;                     // Baud rate
-    STORAGE (U2MODE); break;                    // Mode
-    STORAGE (U2STA);                            // Status and control
+    STORAGE(U2BRG); break;                      // Baud rate
+    STORAGE(U2MODE); break;                     // Mode
+    STORAGE(U2STA);                             // Status and control
         pic32_uart_poll_status(s, 1);
         break;
-    STORAGE (U2TXREG);   *bufp = 0; break;      // Transmit
-    STORAGE (U2MODECLR); *bufp = 0; break;
-    STORAGE (U2MODESET); *bufp = 0; break;
-    STORAGE (U2MODEINV); *bufp = 0; break;
-    STORAGE (U2STACLR);  *bufp = 0; break;
-    STORAGE (U2STASET);  *bufp = 0; break;
-    STORAGE (U2STAINV);  *bufp = 0; break;
-    STORAGE (U2BRGCLR);  *bufp = 0; break;
-    STORAGE (U2BRGSET);  *bufp = 0; break;
-    STORAGE (U2BRGINV);  *bufp = 0; break;
+    STORAGE(U2TXREG);   *bufp = 0; break;      // Transmit
+    STORAGE(U2MODECLR); *bufp = 0; break;
+    STORAGE(U2MODESET); *bufp = 0; break;
+    STORAGE(U2MODEINV); *bufp = 0; break;
+    STORAGE(U2STACLR);  *bufp = 0; break;
+    STORAGE(U2STASET);  *bufp = 0; break;
+    STORAGE(U2STAINV);  *bufp = 0; break;
+    STORAGE(U2BRGCLR);  *bufp = 0; break;
+    STORAGE(U2BRGSET);  *bufp = 0; break;
+    STORAGE(U2BRGINV);  *bufp = 0; break;
 
     /*-------------------------------------------------------------------------
      * UART 3.
      */
-    STORAGE (U3RXREG);                          // Receive data
+    STORAGE(U3RXREG);                           // Receive data
         *bufp = pic32_uart_get_char(s, 2);
         break;
-    STORAGE (U3BRG); break;                     // Baud rate
-    STORAGE (U3MODE); break;                    // Mode
-    STORAGE (U3STA);                            // Status and control
+    STORAGE(U3BRG); break;                      // Baud rate
+    STORAGE(U3MODE); break;                     // Mode
+    STORAGE(U3STA);                             // Status and control
         pic32_uart_poll_status(s, 2);
         break;
-    STORAGE (U3TXREG);   *bufp = 0; break;      // Transmit
-    STORAGE (U3MODECLR); *bufp = 0; break;
-    STORAGE (U3MODESET); *bufp = 0; break;
-    STORAGE (U3MODEINV); *bufp = 0; break;
-    STORAGE (U3STACLR);  *bufp = 0; break;
-    STORAGE (U3STASET);  *bufp = 0; break;
-    STORAGE (U3STAINV);  *bufp = 0; break;
-    STORAGE (U3BRGCLR);  *bufp = 0; break;
-    STORAGE (U3BRGSET);  *bufp = 0; break;
-    STORAGE (U3BRGINV);  *bufp = 0; break;
+    STORAGE(U3TXREG);   *bufp = 0; break;       // Transmit
+    STORAGE(U3MODECLR); *bufp = 0; break;
+    STORAGE(U3MODESET); *bufp = 0; break;
+    STORAGE(U3MODEINV); *bufp = 0; break;
+    STORAGE(U3STACLR);  *bufp = 0; break;
+    STORAGE(U3STASET);  *bufp = 0; break;
+    STORAGE(U3STAINV);  *bufp = 0; break;
+    STORAGE(U3BRGCLR);  *bufp = 0; break;
+    STORAGE(U3BRGSET);  *bufp = 0; break;
+    STORAGE(U3BRGINV);  *bufp = 0; break;
 
     /*-------------------------------------------------------------------------
      * UART 4.
      */
-    STORAGE (U4RXREG);                          // Receive data
+    STORAGE(U4RXREG);                           // Receive data
         *bufp = pic32_uart_get_char(s, 3);
         break;
-    STORAGE (U4BRG); break;                     // Baud rate
-    STORAGE (U4MODE); break;                    // Mode
-    STORAGE (U4STA);                            // Status and control
+    STORAGE(U4BRG); break;                      // Baud rate
+    STORAGE(U4MODE); break;                     // Mode
+    STORAGE(U4STA);                             // Status and control
         pic32_uart_poll_status(s, 3);
         break;
-    STORAGE (U4TXREG);   *bufp = 0; break;      // Transmit
-    STORAGE (U4MODECLR); *bufp = 0; break;
-    STORAGE (U4MODESET); *bufp = 0; break;
-    STORAGE (U4MODEINV); *bufp = 0; break;
-    STORAGE (U4STACLR);  *bufp = 0; break;
-    STORAGE (U4STASET);  *bufp = 0; break;
-    STORAGE (U4STAINV);  *bufp = 0; break;
-    STORAGE (U4BRGCLR);  *bufp = 0; break;
-    STORAGE (U4BRGSET);  *bufp = 0; break;
-    STORAGE (U4BRGINV);  *bufp = 0; break;
+    STORAGE(U4TXREG);   *bufp = 0; break;       // Transmit
+    STORAGE(U4MODECLR); *bufp = 0; break;
+    STORAGE(U4MODESET); *bufp = 0; break;
+    STORAGE(U4MODEINV); *bufp = 0; break;
+    STORAGE(U4STACLR);  *bufp = 0; break;
+    STORAGE(U4STASET);  *bufp = 0; break;
+    STORAGE(U4STAINV);  *bufp = 0; break;
+    STORAGE(U4BRGCLR);  *bufp = 0; break;
+    STORAGE(U4BRGSET);  *bufp = 0; break;
+    STORAGE(U4BRGINV);  *bufp = 0; break;
 
     /*-------------------------------------------------------------------------
      * UART 5.
      */
-    STORAGE (U5RXREG);                          // Receive data
+    STORAGE(U5RXREG);                           // Receive data
         *bufp = pic32_uart_get_char(s, 4);
         break;
-    STORAGE (U5BRG); break;                     // Baud rate
-    STORAGE (U5MODE); break;                    // Mode
-    STORAGE (U5STA);                            // Status and control
+    STORAGE(U5BRG); break;                      // Baud rate
+    STORAGE(U5MODE); break;                     // Mode
+    STORAGE(U5STA);                             // Status and control
         pic32_uart_poll_status(s, 4);
         break;
-    STORAGE (U5TXREG);   *bufp = 0; break;      // Transmit
-    STORAGE (U5MODECLR); *bufp = 0; break;
-    STORAGE (U5MODESET); *bufp = 0; break;
-    STORAGE (U5MODEINV); *bufp = 0; break;
-    STORAGE (U5STACLR);  *bufp = 0; break;
-    STORAGE (U5STASET);  *bufp = 0; break;
-    STORAGE (U5STAINV);  *bufp = 0; break;
-    STORAGE (U5BRGCLR);  *bufp = 0; break;
-    STORAGE (U5BRGSET);  *bufp = 0; break;
-    STORAGE (U5BRGINV);  *bufp = 0; break;
+    STORAGE(U5TXREG);   *bufp = 0; break;       // Transmit
+    STORAGE(U5MODECLR); *bufp = 0; break;
+    STORAGE(U5MODESET); *bufp = 0; break;
+    STORAGE(U5MODEINV); *bufp = 0; break;
+    STORAGE(U5STACLR);  *bufp = 0; break;
+    STORAGE(U5STASET);  *bufp = 0; break;
+    STORAGE(U5STAINV);  *bufp = 0; break;
+    STORAGE(U5BRGCLR);  *bufp = 0; break;
+    STORAGE(U5BRGSET);  *bufp = 0; break;
+    STORAGE(U5BRGINV);  *bufp = 0; break;
 
     /*-------------------------------------------------------------------------
      * UART 6.
      */
-    STORAGE (U6RXREG);                          // Receive data
+    STORAGE(U6RXREG);                           // Receive data
         *bufp = pic32_uart_get_char(s, 5);
         break;
-    STORAGE (U6BRG); break;                     // Baud rate
-    STORAGE (U6MODE); break;                    // Mode
-    STORAGE (U6STA);                            // Status and control
+    STORAGE(U6BRG); break;                      // Baud rate
+    STORAGE(U6MODE); break;                     // Mode
+    STORAGE(U6STA);                             // Status and control
         pic32_uart_poll_status(s, 5);
         break;
-    STORAGE (U6TXREG);   *bufp = 0; break;      // Transmit
-    STORAGE (U6MODECLR); *bufp = 0; break;
-    STORAGE (U6MODESET); *bufp = 0; break;
-    STORAGE (U6MODEINV); *bufp = 0; break;
-    STORAGE (U6STACLR);  *bufp = 0; break;
-    STORAGE (U6STASET);  *bufp = 0; break;
-    STORAGE (U6STAINV);  *bufp = 0; break;
-    STORAGE (U6BRGCLR);  *bufp = 0; break;
-    STORAGE (U6BRGSET);  *bufp = 0; break;
-    STORAGE (U6BRGINV);  *bufp = 0; break;
+    STORAGE(U6TXREG);   *bufp = 0; break;       // Transmit
+    STORAGE(U6MODECLR); *bufp = 0; break;
+    STORAGE(U6MODESET); *bufp = 0; break;
+    STORAGE(U6MODEINV); *bufp = 0; break;
+    STORAGE(U6STACLR);  *bufp = 0; break;
+    STORAGE(U6STASET);  *bufp = 0; break;
+    STORAGE(U6STAINV);  *bufp = 0; break;
+    STORAGE(U6BRGCLR);  *bufp = 0; break;
+    STORAGE(U6BRGSET);  *bufp = 0; break;
+    STORAGE(U6BRGINV);  *bufp = 0; break;
 
     /*-------------------------------------------------------------------------
      * SPI 1.
      */
-    STORAGE (SPI1CON); break;                   // Control
-    STORAGE (SPI1CONCLR); *bufp = 0; break;
-    STORAGE (SPI1CONSET); *bufp = 0; break;
-    STORAGE (SPI1CONINV); *bufp = 0; break;
-    STORAGE (SPI1STAT); break;                  // Status
-    STORAGE (SPI1STATCLR); *bufp = 0; break;
-    STORAGE (SPI1STATSET); *bufp = 0; break;
-    STORAGE (SPI1STATINV); *bufp = 0; break;
-    STORAGE (SPI1BUF);                          // Buffer
-        *bufp = pic32_spi_readbuf (s, 0);
+    STORAGE(SPI1CON); break;                    // Control
+    STORAGE(SPI1CONCLR); *bufp = 0; break;
+    STORAGE(SPI1CONSET); *bufp = 0; break;
+    STORAGE(SPI1CONINV); *bufp = 0; break;
+    STORAGE(SPI1STAT); break;                   // Status
+    STORAGE(SPI1STATCLR); *bufp = 0; break;
+    STORAGE(SPI1STATSET); *bufp = 0; break;
+    STORAGE(SPI1STATINV); *bufp = 0; break;
+    STORAGE(SPI1BUF);                           // Buffer
+        *bufp = pic32_spi_readbuf(s, 0);
         break;
-    STORAGE (SPI1BRG); break;                   // Baud rate
-    STORAGE (SPI1BRGCLR); *bufp = 0; break;
-    STORAGE (SPI1BRGSET); *bufp = 0; break;
-    STORAGE (SPI1BRGINV); *bufp = 0; break;
+    STORAGE(SPI1BRG); break;                    // Baud rate
+    STORAGE(SPI1BRGCLR); *bufp = 0; break;
+    STORAGE(SPI1BRGSET); *bufp = 0; break;
+    STORAGE(SPI1BRGINV); *bufp = 0; break;
 
     /*-------------------------------------------------------------------------
      * SPI 2.
      */
-    STORAGE (SPI2CON); break;                   // Control
-    STORAGE (SPI2CONCLR); *bufp = 0; break;
-    STORAGE (SPI2CONSET); *bufp = 0; break;
-    STORAGE (SPI2CONINV); *bufp = 0; break;
-    STORAGE (SPI2STAT); break;                  // Status
-    STORAGE (SPI2STATCLR); *bufp = 0; break;
-    STORAGE (SPI2STATSET); *bufp = 0; break;
-    STORAGE (SPI2STATINV); *bufp = 0; break;
-    STORAGE (SPI2BUF);                          // Buffer
-        *bufp = pic32_spi_readbuf (s, 1);
+    STORAGE(SPI2CON); break;                    // Control
+    STORAGE(SPI2CONCLR); *bufp = 0; break;
+    STORAGE(SPI2CONSET); *bufp = 0; break;
+    STORAGE(SPI2CONINV); *bufp = 0; break;
+    STORAGE(SPI2STAT); break;                   // Status
+    STORAGE(SPI2STATCLR); *bufp = 0; break;
+    STORAGE(SPI2STATSET); *bufp = 0; break;
+    STORAGE(SPI2STATINV); *bufp = 0; break;
+    STORAGE(SPI2BUF);                           // Buffer
+        *bufp = pic32_spi_readbuf(s, 1);
         break;
-    STORAGE (SPI2BRG); break;                   // Baud rate
-    STORAGE (SPI2BRGCLR); *bufp = 0; break;
-    STORAGE (SPI2BRGSET); *bufp = 0; break;
-    STORAGE (SPI2BRGINV); *bufp = 0; break;
+    STORAGE(SPI2BRG); break;                    // Baud rate
+    STORAGE(SPI2BRGCLR); *bufp = 0; break;
+    STORAGE(SPI2BRGSET); *bufp = 0; break;
+    STORAGE(SPI2BRGINV); *bufp = 0; break;
 
     /*-------------------------------------------------------------------------
      * SPI 3.
      */
-    STORAGE (SPI3CON); break;                   // Control
-    STORAGE (SPI3CONCLR); *bufp = 0; break;
-    STORAGE (SPI3CONSET); *bufp = 0; break;
-    STORAGE (SPI3CONINV); *bufp = 0; break;
-    STORAGE (SPI3STAT); break;                  // Status
-    STORAGE (SPI3STATCLR); *bufp = 0; break;
-    STORAGE (SPI3STATSET); *bufp = 0; break;
-    STORAGE (SPI3STATINV); *bufp = 0; break;
-    STORAGE (SPI3BUF);                          // SPIx Buffer
-        *bufp = pic32_spi_readbuf (s, 2);
+    STORAGE(SPI3CON); break;                    // Control
+    STORAGE(SPI3CONCLR); *bufp = 0; break;
+    STORAGE(SPI3CONSET); *bufp = 0; break;
+    STORAGE(SPI3CONINV); *bufp = 0; break;
+    STORAGE(SPI3STAT); break;                   // Status
+    STORAGE(SPI3STATCLR); *bufp = 0; break;
+    STORAGE(SPI3STATSET); *bufp = 0; break;
+    STORAGE(SPI3STATINV); *bufp = 0; break;
+    STORAGE(SPI3BUF);                           // SPIx Buffer
+        *bufp = pic32_spi_readbuf(s, 2);
         break;
-    STORAGE (SPI3BRG); break;                   // Baud rate
-    STORAGE (SPI3BRGCLR); *bufp = 0; break;
-    STORAGE (SPI3BRGSET); *bufp = 0; break;
-    STORAGE (SPI3BRGINV); *bufp = 0; break;
+    STORAGE(SPI3BRG); break;                    // Baud rate
+    STORAGE(SPI3BRGCLR); *bufp = 0; break;
+    STORAGE(SPI3BRGSET); *bufp = 0; break;
+    STORAGE(SPI3BRGINV); *bufp = 0; break;
 
     /*-------------------------------------------------------------------------
      * SPI 4.
      */
-    STORAGE (SPI4CON); break;                   // Control
-    STORAGE (SPI4CONCLR); *bufp = 0; break;
-    STORAGE (SPI4CONSET); *bufp = 0; break;
-    STORAGE (SPI4CONINV); *bufp = 0; break;
-    STORAGE (SPI4STAT); break;                  // Status
-    STORAGE (SPI4STATCLR); *bufp = 0; break;
-    STORAGE (SPI4STATSET); *bufp = 0; break;
-    STORAGE (SPI4STATINV); *bufp = 0; break;
-    STORAGE (SPI4BUF);                          // Buffer
-        *bufp = pic32_spi_readbuf (s, 3);
+    STORAGE(SPI4CON); break;                    // Control
+    STORAGE(SPI4CONCLR); *bufp = 0; break;
+    STORAGE(SPI4CONSET); *bufp = 0; break;
+    STORAGE(SPI4CONINV); *bufp = 0; break;
+    STORAGE(SPI4STAT); break;                   // Status
+    STORAGE(SPI4STATCLR); *bufp = 0; break;
+    STORAGE(SPI4STATSET); *bufp = 0; break;
+    STORAGE(SPI4STATINV); *bufp = 0; break;
+    STORAGE(SPI4BUF);                           // Buffer
+        *bufp = pic32_spi_readbuf(s, 3);
         break;
-    STORAGE (SPI4BRG); break;                   // Baud rate
-    STORAGE (SPI4BRGCLR); *bufp = 0; break;
-    STORAGE (SPI4BRGSET); *bufp = 0; break;
-    STORAGE (SPI4BRGINV); *bufp = 0; break;
+    STORAGE(SPI4BRG); break;                    // Baud rate
+    STORAGE(SPI4BRGCLR); *bufp = 0; break;
+    STORAGE(SPI4BRGSET); *bufp = 0; break;
+    STORAGE(SPI4BRGINV); *bufp = 0; break;
 
     default:
-        printf ("--- Read 1f8%05x: peripheral register not supported\n",
+        printf("--- Read 1f8%05x: peripheral register not supported\n",
             offset);
         if (qemu_loglevel_mask(CPU_LOG_INSTR))
-            fprintf (qemu_logfile, "--- Read 1f8%05x: peripheral register not supported\n",
+            fprintf(qemu_logfile, "--- Read 1f8%05x: peripheral register not supported\n",
                 offset);
-        exit (1);
+        exit(1);
     }
     return *bufp;
 }
 
-static void io_write32 (pic32_t *s, unsigned offset, unsigned data, const char **namep)
+static void io_write32(pic32_t *s, unsigned offset, unsigned data, const char **namep)
 {
     unsigned *bufp = &VALUE(offset);
 
@@ -846,11 +844,11 @@ static void io_write32 (pic32_t *s, unsigned offset, unsigned data, const char *
     /*-------------------------------------------------------------------------
      * Bus matrix control registers.
      */
-    WRITEOP (BMXCON); return;   // Bus Matrix Control
-    STORAGE (BMXDKPBA); break;  // Data RAM kernel program base address
-    STORAGE (BMXDUDBA); break;  // Data RAM user data base address
-    STORAGE (BMXDUPBA); break;  // Data RAM user program base address
-    STORAGE (BMXPUPBA); break;  // Program Flash user program base address
+    WRITEOP(BMXCON); return;    // Bus Matrix Control
+    STORAGE(BMXDKPBA); break;   // Data RAM kernel program base address
+    STORAGE(BMXDUDBA); break;   // Data RAM user data base address
+    STORAGE(BMXDUPBA); break;   // Data RAM user program base address
+    STORAGE(BMXPUPBA); break;   // Program Flash user program base address
     READONLY(BMXDRMSZ);         // Data RAM memory size
     READONLY(BMXPFMSZ);         // Program Flash memory size
     READONLY(BMXBOOTSZ);        // Boot Flash size
@@ -858,44 +856,44 @@ static void io_write32 (pic32_t *s, unsigned offset, unsigned data, const char *
     /*-------------------------------------------------------------------------
      * Interrupt controller registers.
      */
-    WRITEOP (INTCON); return;   // Interrupt Control
+    WRITEOP(INTCON); return;    // Interrupt Control
     READONLY(INTSTAT);          // Interrupt Status
-    WRITEOP (IPTMR);  return;   // Temporal Proximity Timer
-    WRITEOP (IFS0); goto irq;   // IFS(0..2) - Interrupt Flag Status
-    WRITEOP (IFS1); goto irq;
-    WRITEOP (IFS2); goto irq;
-    WRITEOP (IEC0); goto irq;   // IEC(0..2) - Interrupt Enable Control
-    WRITEOP (IEC1); goto irq;
-    WRITEOP (IEC2); goto irq;
-    WRITEOP (IPC0); goto irq;   // IPC(0..11) - Interrupt Priority Control
-    WRITEOP (IPC1); goto irq;
-    WRITEOP (IPC2); goto irq;
-    WRITEOP (IPC3); goto irq;
-    WRITEOP (IPC4); goto irq;
-    WRITEOP (IPC5); goto irq;
-    WRITEOP (IPC6); goto irq;
-    WRITEOP (IPC7); goto irq;
-    WRITEOP (IPC8); goto irq;
-    WRITEOP (IPC9); goto irq;
-    WRITEOP (IPC10); goto irq;
-    WRITEOP (IPC11); goto irq;
-    WRITEOP (IPC12);
+    WRITEOP(IPTMR);  return;    // Temporal Proximity Timer
+    WRITEOP(IFS0); goto irq;    // IFS(0..2) - Interrupt Flag Status
+    WRITEOP(IFS1); goto irq;
+    WRITEOP(IFS2); goto irq;
+    WRITEOP(IEC0); goto irq;    // IEC(0..2) - Interrupt Enable Control
+    WRITEOP(IEC1); goto irq;
+    WRITEOP(IEC2); goto irq;
+    WRITEOP(IPC0); goto irq;    // IPC(0..11) - Interrupt Priority Control
+    WRITEOP(IPC1); goto irq;
+    WRITEOP(IPC2); goto irq;
+    WRITEOP(IPC3); goto irq;
+    WRITEOP(IPC4); goto irq;
+    WRITEOP(IPC5); goto irq;
+    WRITEOP(IPC6); goto irq;
+    WRITEOP(IPC7); goto irq;
+    WRITEOP(IPC8); goto irq;
+    WRITEOP(IPC9); goto irq;
+    WRITEOP(IPC10); goto irq;
+    WRITEOP(IPC11); goto irq;
+    WRITEOP(IPC12);
 irq:    update_irq_status(s);
         return;
 
     /*-------------------------------------------------------------------------
      * Prefetch controller.
      */
-    WRITEOP (CHECON); return;   // Prefetch Control
+    WRITEOP(CHECON); return;    // Prefetch Control
 
     /*-------------------------------------------------------------------------
      * System controller.
      */
-    STORAGE (OSCCON); break;    // Oscillator Control
-    STORAGE (OSCTUN); break;    // Oscillator Tuning
-    STORAGE (DDPCON); break;    // Debug Data Port Control
+    STORAGE(OSCCON); break;     // Oscillator Control
+    STORAGE(OSCTUN); break;     // Oscillator Tuning
+    STORAGE(DDPCON); break;     // Debug Data Port Control
     READONLY(DEVID);            // Device Identifier
-    STORAGE (SYSKEY);           // System Key
+    STORAGE(SYSKEY);            // System Key
         /* Unlock state machine. */
         if (s->syskey_unlock == 0 && VALUE(SYSKEY) == 0xaa996655)
             s->syskey_unlock = 1;
@@ -904,8 +902,8 @@ irq:    update_irq_status(s);
         else
             s->syskey_unlock = 0;
         break;
-    STORAGE (RCON); break;      // Reset Control
-    WRITEOP (RSWRST);           // Software Reset
+    STORAGE(RCON); break;       // Reset Control
+    WRITEOP(RSWRST);            // Software Reset
         if (s->syskey_unlock == 2 && (VALUE(RSWRST) & 1)) {
             /* Reset CPU. */
             qemu_system_reset_request();
@@ -919,19 +917,19 @@ irq:    update_irq_status(s);
     /*-------------------------------------------------------------------------
      * DMA controller.
      */
-    WRITEOP (DMACON); return;   // DMA Control
-    STORAGE (DMASTAT); break;   // DMA Status
-    STORAGE (DMAADDR); break;   // DMA Address
+    WRITEOP(DMACON); return;    // DMA Control
+    STORAGE(DMASTAT); break;    // DMA Status
+    STORAGE(DMAADDR); break;    // DMA Address
 
     /*-------------------------------------------------------------------------
      * Analog to digital converter.
      */
-    WRITEOP (AD1CON1); return;  // Control register 1
-    WRITEOP (AD1CON2); return;  // Control register 2
-    WRITEOP (AD1CON3); return;  // Control register 3
-    WRITEOP (AD1CHS); return;   // Channel select
-    WRITEOP (AD1CSSL); return;  // Input scan selection
-    WRITEOP (AD1PCFG); return;  // Port configuration
+    WRITEOP(AD1CON1); return;   // Control register 1
+    WRITEOP(AD1CON2); return;   // Control register 2
+    WRITEOP(AD1CON3); return;   // Control register 3
+    WRITEOP(AD1CHS); return;    // Channel select
+    WRITEOP(AD1CSSL); return;   // Input scan selection
+    WRITEOP(AD1PCFG); return;   // Port configuration
     READONLY(ADC1BUF0);         // Result words
     READONLY(ADC1BUF1);
     READONLY(ADC1BUF2);
@@ -952,252 +950,252 @@ irq:    update_irq_status(s);
     /*--------------------------------------
      * USB registers.
      */
-    STORAGE (U1OTGIR);          // OTG interrupt flags
+    STORAGE(U1OTGIR);           // OTG interrupt flags
         VALUE(U1OTGIR) = 0;
         return;
-    STORAGE (U1OTGIE); break;   // OTG interrupt enable
+    STORAGE(U1OTGIE); break;    // OTG interrupt enable
     READONLY(U1OTGSTAT);        // Comparator and pin status
-    STORAGE (U1OTGCON); break;  // Resistor and pin control
-    STORAGE (U1PWRC); break;    // Power control
-    STORAGE (U1IR);             // Pending interrupt
+    STORAGE(U1OTGCON); break;   // Resistor and pin control
+    STORAGE(U1PWRC); break;     // Power control
+    STORAGE(U1IR);              // Pending interrupt
         VALUE(U1IR) = 0;
         return;
-    STORAGE (U1IE); break;      // Interrupt enable
-    STORAGE (U1EIR);            // Pending error interrupt
+    STORAGE(U1IE); break;       // Interrupt enable
+    STORAGE(U1EIR);             // Pending error interrupt
         VALUE(U1EIR) = 0;
         return;
-    STORAGE (U1EIE); break;     // Error interrupt enable
+    STORAGE(U1EIE); break;      // Error interrupt enable
     READONLY(U1STAT);           // Status FIFO
-    STORAGE (U1CON); break;     // Control
-    STORAGE (U1ADDR); break;    // Address
-    STORAGE (U1BDTP1); break;   // Buffer descriptor table pointer 1
+    STORAGE(U1CON); break;      // Control
+    STORAGE(U1ADDR); break;     // Address
+    STORAGE(U1BDTP1); break;    // Buffer descriptor table pointer 1
     READONLY(U1FRML);           // Frame counter low
     READONLY(U1FRMH);           // Frame counter high
-    STORAGE (U1TOK); break;     // Host control
-    STORAGE (U1SOF); break;     // SOF counter
-    STORAGE (U1BDTP2); break;   // Buffer descriptor table pointer 2
-    STORAGE (U1BDTP3); break;   // Buffer descriptor table pointer 3
-    STORAGE (U1CNFG1); break;   // Debug and idle
-    STORAGE (U1EP(0)); break;   // Endpoint control
-    STORAGE (U1EP(1)); break;
-    STORAGE (U1EP(2)); break;
-    STORAGE (U1EP(3)); break;
-    STORAGE (U1EP(4)); break;
-    STORAGE (U1EP(5)); break;
-    STORAGE (U1EP(6)); break;
-    STORAGE (U1EP(7)); break;
-    STORAGE (U1EP(8)); break;
-    STORAGE (U1EP(9)); break;
-    STORAGE (U1EP(10)); break;
-    STORAGE (U1EP(11)); break;
-    STORAGE (U1EP(12)); break;
-    STORAGE (U1EP(13)); break;
-    STORAGE (U1EP(14)); break;
-    STORAGE (U1EP(15)); break;
+    STORAGE(U1TOK); break;      // Host control
+    STORAGE(U1SOF); break;      // SOF counter
+    STORAGE(U1BDTP2); break;    // Buffer descriptor table pointer 2
+    STORAGE(U1BDTP3); break;    // Buffer descriptor table pointer 3
+    STORAGE(U1CNFG1); break;    // Debug and idle
+    STORAGE(U1EP(0)); break;    // Endpoint control
+    STORAGE(U1EP(1)); break;
+    STORAGE(U1EP(2)); break;
+    STORAGE(U1EP(3)); break;
+    STORAGE(U1EP(4)); break;
+    STORAGE(U1EP(5)); break;
+    STORAGE(U1EP(6)); break;
+    STORAGE(U1EP(7)); break;
+    STORAGE(U1EP(8)); break;
+    STORAGE(U1EP(9)); break;
+    STORAGE(U1EP(10)); break;
+    STORAGE(U1EP(11)); break;
+    STORAGE(U1EP(12)); break;
+    STORAGE(U1EP(13)); break;
+    STORAGE(U1EP(14)); break;
+    STORAGE(U1EP(15)); break;
 
     /*-------------------------------------------------------------------------
      * General purpose IO signals.
      */
-    WRITEOP (TRISA); return;        // Port A: mask of inputs
+    WRITEOP(TRISA); return;         // Port A: mask of inputs
     WRITEOPX(PORTA, LATA);          // Port A: write outputs
-    WRITEOP (LATA);                 // Port A: write outputs
-        pic32_gpio_write (s, 0, VALUE(LATA));
+    WRITEOP(LATA);                  // Port A: write outputs
+        pic32_gpio_write(s, 0, VALUE(LATA));
         return;
-    WRITEOP (ODCA); return;         // Port A: open drain configuration
-    WRITEOP (TRISB); return;        // Port B: mask of inputs
+    WRITEOP(ODCA); return;          // Port A: open drain configuration
+    WRITEOP(TRISB); return;         // Port B: mask of inputs
     WRITEOPX(PORTB, LATB);          // Port B: write outputs
-    WRITEOP (LATB);                 // Port B: write outputs
-        pic32_gpio_write (s, 1, VALUE(LATB));
+    WRITEOP(LATB);                  // Port B: write outputs
+        pic32_gpio_write(s, 1, VALUE(LATB));
         return;
-    WRITEOP (ODCB); return;         // Port B: open drain configuration
-    WRITEOP (TRISC); return;        // Port C: mask of inputs
+    WRITEOP(ODCB); return;          // Port B: open drain configuration
+    WRITEOP(TRISC); return;         // Port C: mask of inputs
     WRITEOPX(PORTC, LATC);          // Port C: write outputs
-    WRITEOP (LATC);                 // Port C: write outputs
-        pic32_gpio_write (s, 2, VALUE(LATC));
+    WRITEOP(LATC);                  // Port C: write outputs
+        pic32_gpio_write(s, 2, VALUE(LATC));
         return;
-    WRITEOP (ODCC); return;         // Port C: open drain configuration
-    WRITEOP (TRISD); return;        // Port D: mask of inputs
+    WRITEOP(ODCC); return;          // Port C: open drain configuration
+    WRITEOP(TRISD); return;         // Port D: mask of inputs
     WRITEOPX(PORTD, LATD);          // Port D: write outputs
-    WRITEOP (LATD);                 // Port D: write outputs
-        pic32_gpio_write (s, 3, VALUE(LATD));
+    WRITEOP(LATD);                  // Port D: write outputs
+        pic32_gpio_write(s, 3, VALUE(LATD));
         return;
-    WRITEOP (ODCD); return;         // Port D: open drain configuration
-    WRITEOP (TRISE); return;        // Port E: mask of inputs
+    WRITEOP(ODCD); return;          // Port D: open drain configuration
+    WRITEOP(TRISE); return;         // Port E: mask of inputs
     WRITEOPX(PORTE, LATE);          // Port E: write outputs
-    WRITEOP (LATE);                 // Port E: write outputs
-        pic32_gpio_write (s, 4, VALUE(LATE));
+    WRITEOP(LATE);                  // Port E: write outputs
+        pic32_gpio_write(s, 4, VALUE(LATE));
         return;
-    WRITEOP (ODCE); return;         // Port E: open drain configuration
-    WRITEOP (TRISF); return;        // Port F: mask of inputs
+    WRITEOP(ODCE); return;          // Port E: open drain configuration
+    WRITEOP(TRISF); return;         // Port F: mask of inputs
     WRITEOPX(PORTF, LATF);          // Port F: write outputs
-    WRITEOP (LATF);                 // Port F: write outputs
-        pic32_gpio_write (s, 5, VALUE(LATF));
+    WRITEOP(LATF);                  // Port F: write outputs
+        pic32_gpio_write(s, 5, VALUE(LATF));
         return;
-    WRITEOP (ODCF); return;         // Port F: open drain configuration
-    WRITEOP (TRISG); return;        // Port G: mask of inputs
+    WRITEOP(ODCF); return;          // Port F: open drain configuration
+    WRITEOP(TRISG); return;         // Port G: mask of inputs
     WRITEOPX(PORTG, LATG);          // Port G: write outputs
-    WRITEOP (LATG);                 // Port G: write outputs
-        pic32_gpio_write (s, 6, VALUE(LATG));
+    WRITEOP(LATG);                  // Port G: write outputs
+        pic32_gpio_write(s, 6, VALUE(LATG));
         return;
-    WRITEOP (ODCG); return;         // Port G: open drain configuration
-    WRITEOP (CNCON); return;        // Interrupt-on-change control
-    WRITEOP (CNEN); return;         // Input change interrupt enable
-    WRITEOP (CNPUE); return;        // Input pin pull-up enable
+    WRITEOP(ODCG); return;          // Port G: open drain configuration
+    WRITEOP(CNCON); return;         // Interrupt-on-change control
+    WRITEOP(CNEN); return;          // Input change interrupt enable
+    WRITEOP(CNPUE); return;         // Input pin pull-up enable
 
     /*-------------------------------------------------------------------------
      * UART 1.
      */
-    STORAGE (U1TXREG);                              // Transmit
-        pic32_uart_put_char (s, 0, data);
+    STORAGE(U1TXREG);                               // Transmit
+        pic32_uart_put_char(s, 0, data);
         break;
-    WRITEOP (U1MODE);                               // Mode
-        pic32_uart_update_mode (s, 0);
+    WRITEOP(U1MODE);                                // Mode
+        pic32_uart_update_mode(s, 0);
         return;
-    WRITEOPR (U1STA,                                // Status and control
+    WRITEOPR(U1STA,                                 // Status and control
         PIC32_USTA_URXDA | PIC32_USTA_FERR | PIC32_USTA_PERR |
         PIC32_USTA_RIDLE | PIC32_USTA_TRMT | PIC32_USTA_UTXBF);
-        pic32_uart_update_status (s, 0);
+        pic32_uart_update_status(s, 0);
         return;
-    WRITEOP (U1BRG); return;                        // Baud rate
-    READONLY (U1RXREG);                             // Receive
+    WRITEOP(U1BRG); return;                         // Baud rate
+    READONLY(U1RXREG);                              // Receive
 
     /*-------------------------------------------------------------------------
      * UART 2.
      */
-    STORAGE (U2TXREG);                              // Transmit
-        pic32_uart_put_char (s, 1, data);
+    STORAGE(U2TXREG);                               // Transmit
+        pic32_uart_put_char(s, 1, data);
         break;
-    WRITEOP (U2MODE);                               // Mode
-        pic32_uart_update_mode (s, 1);
+    WRITEOP(U2MODE);                                // Mode
+        pic32_uart_update_mode(s, 1);
         return;
-    WRITEOPR (U2STA,                                // Status and control
+    WRITEOPR(U2STA,                                 // Status and control
         PIC32_USTA_URXDA | PIC32_USTA_FERR | PIC32_USTA_PERR |
         PIC32_USTA_RIDLE | PIC32_USTA_TRMT | PIC32_USTA_UTXBF);
-        pic32_uart_update_status (s, 1);
+        pic32_uart_update_status(s, 1);
         return;
-    WRITEOP (U2BRG); return;                        // Baud rate
-    READONLY (U2RXREG);                             // Receive
+    WRITEOP(U2BRG); return;                         // Baud rate
+    READONLY(U2RXREG);                              // Receive
 
     /*-------------------------------------------------------------------------
      * UART 3.
      */
-    STORAGE (U3TXREG);                              // Transmit
-        pic32_uart_put_char (s, 2, data);
+    STORAGE(U3TXREG);                               // Transmit
+        pic32_uart_put_char(s, 2, data);
         break;
-    WRITEOP (U3MODE);                               // Mode
-        pic32_uart_update_mode (s, 2);
+    WRITEOP(U3MODE);                                // Mode
+        pic32_uart_update_mode(s, 2);
         return;
-    WRITEOPR (U3STA,                                // Status and control
+    WRITEOPR(U3STA,                                 // Status and control
         PIC32_USTA_URXDA | PIC32_USTA_FERR | PIC32_USTA_PERR |
         PIC32_USTA_RIDLE | PIC32_USTA_TRMT | PIC32_USTA_UTXBF);
-        pic32_uart_update_status (s, 2);
+        pic32_uart_update_status(s, 2);
         return;
-    WRITEOP (U3BRG); return;                        // Baud rate
-    READONLY (U3RXREG);                             // Receive
+    WRITEOP(U3BRG); return;                         // Baud rate
+    READONLY(U3RXREG);                              // Receive
 
     /*-------------------------------------------------------------------------
      * UART 4.
      */
-    STORAGE (U4TXREG);                              // Transmit
-        pic32_uart_put_char (s, 3, data);
+    STORAGE(U4TXREG);                               // Transmit
+        pic32_uart_put_char(s, 3, data);
         break;
-    WRITEOP (U4MODE);                               // Mode
-        pic32_uart_update_mode (s, 3);
+    WRITEOP(U4MODE);                                // Mode
+        pic32_uart_update_mode(s, 3);
         return;
-    WRITEOPR (U4STA,                                // Status and control
+    WRITEOPR(U4STA,                                 // Status and control
         PIC32_USTA_URXDA | PIC32_USTA_FERR | PIC32_USTA_PERR |
         PIC32_USTA_RIDLE | PIC32_USTA_TRMT | PIC32_USTA_UTXBF);
-        pic32_uart_update_status (s, 3);
+        pic32_uart_update_status(s, 3);
         return;
-    WRITEOP (U4BRG); return;                        // Baud rate
-    READONLY (U4RXREG);                             // Receive
+    WRITEOP(U4BRG); return;                         // Baud rate
+    READONLY(U4RXREG);                              // Receive
 
     /*-------------------------------------------------------------------------
      * UART 5.
      */
-    STORAGE (U5TXREG);                              // Transmit
-        pic32_uart_put_char (s, 4, data);
+    STORAGE(U5TXREG);                               // Transmit
+        pic32_uart_put_char(s, 4, data);
         break;
-    WRITEOP (U5MODE);                               // Mode
-        pic32_uart_update_mode (s, 4);
+    WRITEOP(U5MODE);                                // Mode
+        pic32_uart_update_mode(s, 4);
         return;
-    WRITEOPR (U5STA,                                // Status and control
+    WRITEOPR(U5STA,                                 // Status and control
         PIC32_USTA_URXDA | PIC32_USTA_FERR | PIC32_USTA_PERR |
         PIC32_USTA_RIDLE | PIC32_USTA_TRMT | PIC32_USTA_UTXBF);
-        pic32_uart_update_status (s, 4);
+        pic32_uart_update_status(s, 4);
         return;
-    WRITEOP (U5BRG); return;                        // Baud rate
-    READONLY (U5RXREG);                             // Receive
+    WRITEOP(U5BRG); return;                         // Baud rate
+    READONLY(U5RXREG);                              // Receive
 
     /*-------------------------------------------------------------------------
      * UART 6.
      */
-    STORAGE (U6TXREG);                              // Transmit
-        pic32_uart_put_char (s, 5, data);
+    STORAGE(U6TXREG);                               // Transmit
+        pic32_uart_put_char(s, 5, data);
         break;
-    WRITEOP (U6MODE);                               // Mode
-        pic32_uart_update_mode (s, 5);
+    WRITEOP(U6MODE);                                // Mode
+        pic32_uart_update_mode(s, 5);
         return;
-    WRITEOPR (U6STA,                                // Status and control
+    WRITEOPR(U6STA,                                 // Status and control
         PIC32_USTA_URXDA | PIC32_USTA_FERR | PIC32_USTA_PERR |
         PIC32_USTA_RIDLE | PIC32_USTA_TRMT | PIC32_USTA_UTXBF);
-        pic32_uart_update_status (s, 5);
+        pic32_uart_update_status(s, 5);
         return;
-    WRITEOP (U6BRG); return;                        // Baud rate
-    READONLY (U6RXREG);                             // Receive
+    WRITEOP(U6BRG); return;                         // Baud rate
+    READONLY(U6RXREG);                              // Receive
 
     /*-------------------------------------------------------------------------
      * SPI.
      */
-    WRITEOP (SPI1CON);                              // Control
-        pic32_spi_control (s, 0);
+    WRITEOP(SPI1CON);                               // Control
+        pic32_spi_control(s, 0);
         return;
-    WRITEOPR (SPI1STAT, ~PIC32_SPISTAT_SPIROV);     // Status
+    WRITEOPR(SPI1STAT, ~PIC32_SPISTAT_SPIROV);      // Status
         return;                                     // Only ROV bit is writable
-    STORAGE (SPI1BUF);                              // Buffer
-        pic32_spi_writebuf (s, 0, data);
+    STORAGE(SPI1BUF);                               // Buffer
+        pic32_spi_writebuf(s, 0, data);
         return;
-    WRITEOP (SPI1BRG); return;                      // Baud rate
-    WRITEOP (SPI2CON);                              // Control
-        pic32_spi_control (s, 1);
+    WRITEOP(SPI1BRG); return;                       // Baud rate
+    WRITEOP(SPI2CON);                               // Control
+        pic32_spi_control(s, 1);
         return;
-    WRITEOPR (SPI2STAT, ~PIC32_SPISTAT_SPIROV);     // Status
+    WRITEOPR(SPI2STAT, ~PIC32_SPISTAT_SPIROV);      // Status
         return;                                     // Only ROV bit is writable
-    STORAGE (SPI2BUF);                              // Buffer
-        pic32_spi_writebuf (s, 1, data);
+    STORAGE(SPI2BUF);                               // Buffer
+        pic32_spi_writebuf(s, 1, data);
         return;
-    WRITEOP (SPI2BRG); return;                      // Baud rate
-    WRITEOP (SPI3CON);                              // Control
-        pic32_spi_control (s, 2);
+    WRITEOP(SPI2BRG); return;                       // Baud rate
+    WRITEOP(SPI3CON);                               // Control
+        pic32_spi_control(s, 2);
         return;
-    WRITEOPR (SPI3STAT, ~PIC32_SPISTAT_SPIROV);     // Status
+    WRITEOPR(SPI3STAT, ~PIC32_SPISTAT_SPIROV);      // Status
         return;                                     // Only ROV bit is writable
-    STORAGE (SPI3BUF);                              // Buffer
-        pic32_spi_writebuf (s, 2, data);
+    STORAGE(SPI3BUF);                               // Buffer
+        pic32_spi_writebuf(s, 2, data);
         return;
-    WRITEOP (SPI3BRG); return;                      // Baud rate
-    WRITEOP (SPI4CON);                              // Control
-        pic32_spi_control (s, 3);
+    WRITEOP(SPI3BRG); return;                       // Baud rate
+    WRITEOP(SPI4CON);                               // Control
+        pic32_spi_control(s, 3);
         return;
-    WRITEOPR (SPI4STAT, ~PIC32_SPISTAT_SPIROV);     // Status
+    WRITEOPR(SPI4STAT, ~PIC32_SPISTAT_SPIROV);      // Status
         return;                                     // Only ROV bit is writable
-    STORAGE (SPI4BUF);                              // Buffer
-        pic32_spi_writebuf (s, 3, data);
+    STORAGE(SPI4BUF);                               // Buffer
+        pic32_spi_writebuf(s, 3, data);
         return;
-    WRITEOP (SPI4BRG); return;                      // Baud rate
+    WRITEOP(SPI4BRG); return;                       // Baud rate
 
     default:
-        printf ("--- Write %08x to 1f8%05x: peripheral register not supported\n",
+        printf("--- Write %08x to 1f8%05x: peripheral register not supported\n",
             data, offset);
         if (qemu_loglevel_mask(CPU_LOG_INSTR))
-            fprintf (qemu_logfile, "--- Write %08x to 1f8%05x: peripheral register not supported\n",
+            fprintf(qemu_logfile, "--- Write %08x to 1f8%05x: peripheral register not supported\n",
                 data, offset);
-        exit (1);
+        exit(1);
 readonly:
-        printf ("--- Write %08x to %s: readonly register\n",
+        printf("--- Write %08x to %s: readonly register\n",
             data, *namep);
         if (qemu_loglevel_mask(CPU_LOG_INSTR))
-            fprintf (qemu_logfile, "--- Write %08x to %s: readonly register\n",
+            fprintf(qemu_logfile, "--- Write %08x to %s: readonly register\n",
                 data, *namep);
         *namep = 0;
         return;
@@ -1212,7 +1210,7 @@ static uint64_t pic32_io_read(void *opaque, hwaddr addr, unsigned bytes)
     const char *name = "???";
     uint32_t data = 0;
 
-    data = io_read32 (s, offset & ~3, &name);
+    data = io_read32(s, offset & ~3, &name);
     switch (bytes) {
     case 1:
         if ((offset &= 3) != 0) {
@@ -1260,7 +1258,7 @@ static void pic32_io_write(void *opaque, hwaddr addr, uint64_t data, unsigned by
         data <<= (offset & 2) * 8;
         break;
     }
-    io_write32 (s, offset & ~3, data, &name);
+    io_write32(s, offset & ~3, data, &name);
 
     if (qemu_loglevel_mask(CPU_LOG_INSTR) && name != 0) {
         fprintf(qemu_logfile, "--- I/O Write %08x to %s\n",
@@ -1289,7 +1287,7 @@ static void main_cpu_reset(void *opaque)
         env->CP0_WatchHi[i] = 0;
 }
 
-static void store_byte (unsigned address, unsigned char byte)
+static void store_byte(unsigned address, unsigned char byte)
 {
     if (address >= PROGRAM_FLASH_START &&
         address < PROGRAM_FLASH_START + PROGRAM_FLASH_SIZE)
@@ -1308,7 +1306,7 @@ static void store_byte (unsigned address, unsigned char byte)
             address, PROGRAM_FLASH_START,
             PROGRAM_FLASH_START + PROGRAM_FLASH_SIZE - 1,
             BOOT_FLASH_START, BOOT_FLASH_START + BOOT_FLASH_SIZE - 1);
-        exit (1);
+        exit(1);
     }
 }
 
@@ -1321,7 +1319,7 @@ static void pic32_pass_signal_chars(void)
 
     tcgetattr(0, &tty);
     tty.c_lflag &= ~ISIG;
-    tcsetattr (0, TCSANOW, &tty);
+    tcsetattr(0, TCSANOW, &tty);
 }
 
 static void pic32_init(MachineState *machine, int board_type)
@@ -1505,8 +1503,8 @@ static void pic32_init(MachineState *machine, int board_type)
             dinfo->is_default = 1;
         }
     }
-    pic32_sdcard_init (s, 0, "sd0", sd0_file, cs0_port, cs0_pin);
-    pic32_sdcard_init (s, 1, "sd1", sd1_file, cs1_port, cs1_pin);
+    pic32_sdcard_init(s, 0, "sd0", sd0_file, cs0_port, cs0_pin);
+    pic32_sdcard_init(s, 1, "sd1", sd1_file, cs1_port, cs1_pin);
 
     io_reset(s);
     pic32_sdcard_reset(s);

@@ -35,7 +35,7 @@
 /*
  * Read of UxRXREG register.
  */
-unsigned pic32_uart_get_char (pic32_t *s, int unit)
+unsigned pic32_uart_get_char(pic32_t *s, int unit)
 {
     uart_t *u = &s->uart[unit];
     unsigned value;
@@ -44,14 +44,14 @@ unsigned pic32_uart_get_char (pic32_t *s, int unit)
     value = u->rxbyte;
     VALUE(u->sta) &= ~PIC32_USTA_URXDA;
 
-    s->irq_clear (s, u->irq + UART_IRQ_RX);
+    s->irq_clear(s, u->irq + UART_IRQ_RX);
     return value;
 }
 
 /*
  * Write to UxTXREG register.
  */
-void pic32_uart_put_char (pic32_t *s, int unit, unsigned char byte)
+void pic32_uart_put_char(pic32_t *s, int unit, unsigned char byte)
 {
     uart_t *u = &s->uart[unit];
 
@@ -84,26 +84,26 @@ void pic32_uart_put_char (pic32_t *s, int unit, unsigned char byte)
 /*
  * Called before reading a value of UxBRG, UxMODE or UxSTA registers.
  */
-void pic32_uart_poll_status (pic32_t *s, int unit)
+void pic32_uart_poll_status(pic32_t *s, int unit)
 {
     uart_t *u = &s->uart[unit];
 
     // Keep receiver idle, transmit shift register always empty
     VALUE(u->sta) |= PIC32_USTA_RIDLE;
 
-    //printf ("<%x>", VALUE(u->sta)); fflush (stdout);
+    //printf("<%x>", VALUE(u->sta)); fflush(stdout);
 }
 
 /*
  * Write to UxMODE register.
  */
-void pic32_uart_update_mode (pic32_t *s, int unit)
+void pic32_uart_update_mode(pic32_t *s, int unit)
 {
     uart_t *u = &s->uart[unit];
 
     if (! (VALUE(u->mode) & PIC32_UMODE_ON)) {
-        s->irq_clear (s, u->irq + UART_IRQ_RX);
-        s->irq_clear (s, u->irq + UART_IRQ_TX);
+        s->irq_clear(s, u->irq + UART_IRQ_RX);
+        s->irq_clear(s, u->irq + UART_IRQ_TX);
         VALUE(u->sta) &= ~(PIC32_USTA_URXDA | PIC32_USTA_FERR |
                            PIC32_USTA_PERR | PIC32_USTA_UTXBF);
         VALUE(u->sta) |= PIC32_USTA_RIDLE | PIC32_USTA_TRMT;
@@ -113,17 +113,17 @@ void pic32_uart_update_mode (pic32_t *s, int unit)
 /*
  * Write to UxSTA register.
  */
-void pic32_uart_update_status (pic32_t *s, int unit)
+void pic32_uart_update_status(pic32_t *s, int unit)
 {
     uart_t *u = &s->uart[unit];
 
     if (! (VALUE(u->sta) & PIC32_USTA_URXEN)) {
-        s->irq_clear (s, u->irq + UART_IRQ_RX);
+        s->irq_clear(s, u->irq + UART_IRQ_RX);
         VALUE(u->sta) &= ~(PIC32_USTA_URXDA | PIC32_USTA_FERR |
                            PIC32_USTA_PERR);
     }
     if (! (VALUE(u->sta) & PIC32_USTA_UTXEN)) {
-        s->irq_clear (s, u->irq + UART_IRQ_TX);
+        s->irq_clear(s, u->irq + UART_IRQ_TX);
         VALUE(u->sta) &= ~PIC32_USTA_UTXBF;
         VALUE(u->sta) |= PIC32_USTA_TRMT;
     }
@@ -176,7 +176,7 @@ static void uart_receive(void *opaque, const uint8_t *buf, int size)
     VALUE(u->sta) |= PIC32_USTA_URXDA;
 
     /* Activate receive interrupt. */
-    s->irq_raise (s, u->irq + UART_IRQ_RX);
+    s->irq_raise(s, u->irq + UART_IRQ_RX);
 }
 
 /*
@@ -193,7 +193,7 @@ static void uart_timeout(void *opaque)
 //printf("uart%u: raise tx irq %u\n", unit, u->irq + UART_IRQ_TX);
         if ((VALUE(u->mode) & PIC32_UMODE_ON) &&
             (VALUE(u->sta) & PIC32_USTA_UTXEN))
-            s->irq_raise (s, u->irq + UART_IRQ_TX);
+            s->irq_raise(s, u->irq + UART_IRQ_TX);
         VALUE(u->sta) &= ~PIC32_USTA_UTXBF;
         VALUE(u->sta) |= PIC32_USTA_TRMT;
         u->oactive = 0;

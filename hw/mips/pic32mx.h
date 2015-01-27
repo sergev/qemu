@@ -841,7 +841,6 @@
 #define PIC32_NVMCON_WREN       0x00004000
 #define PIC32_NVMCON_WR         0x00008000
 
-
 /*
  * Timer2 registers
  */
@@ -860,6 +859,13 @@
 #define OC4R            PIC32_R (0x3610)
 #define OC4RS           PIC32_R (0x3620)
 
+/*
+ * Watchdog registers
+ */
+#define WDTCON          PIC32_R (0x0000)    /* Watchdog timer control */
+#define WDTCONCLR       PIC32_R (0x0004)
+#define WDTCONSET       PIC32_R (0x0008)
+
 /*--------------------------------------
  * Configuration registers.
  */
@@ -870,10 +876,10 @@
 
 #define PIC32_DEVCFG(cfg0, cfg1, cfg2, cfg3) \
     asm (".section .config"); \
-    unsigned __DEVCFG0 __attribute__ ((section (".config0"))) = (cfg0) ^ 0x7fffffff; \
-    unsigned __DEVCFG1 __attribute__ ((section (".config1"))) = (cfg1) | DEVCFG1_UNUSED; \
-    unsigned __DEVCFG2 __attribute__ ((section (".config2"))) = (cfg2) | DEVCFG2_UNUSED; \
-    unsigned __DEVCFG3 __attribute__ ((section (".config3"))) = (cfg3) | DEVCFG3_UNUSED
+    unsigned __DEVCFG0 __attribute__ ((section(".config0"))) = (cfg0) ^ 0x7fffffff; \
+    unsigned __DEVCFG1 __attribute__ ((section(".config1"))) = (cfg1) | DEVCFG1_UNUSED; \
+    unsigned __DEVCFG2 __attribute__ ((section(".config2"))) = (cfg2) | DEVCFG2_UNUSED; \
+    unsigned __DEVCFG3 __attribute__ ((section(".config3"))) = (cfg3) | DEVCFG3_UNUSED
 
 /*
  * Config0 register at 1fc02ffc, inverted.
@@ -936,10 +942,6 @@
 #define DEVCFG1_WDTPS_524288    0x00130000 /* 1:524288 */
 #define DEVCFG1_WDTPS_1048576   0x00140000 /* 1:1048576 */
 #define DEVCFG1_FWDTEN          0x00800000 /* Watchdog enable */
-#define WDTCON      PIC32_R (0x0000)   /* Watchdog timer control */
-#define WDTCONCLR   PIC32_R (0x0004)   /* Watchdog timer control */
-#define WDTCONSET   PIC32_R (0x0008)   /* Watchdog timer control */
-
 
 /*
  * Config2 register at 1fc02ff4.
