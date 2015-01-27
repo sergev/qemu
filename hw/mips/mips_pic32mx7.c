@@ -223,7 +223,9 @@ static void update_irq_status(pic32_t *s)
             }
         }
         VALUE(INTSTAT) = vector | (cause_ripl << 8);
+//printf ("-- vector = %d, level = %d\n", vector, level);
     }
+//else printf ("-- no irq pending\n");
 
     if (cause_ripl == current_ripl)
         return;
@@ -247,7 +249,7 @@ static void irq_raise(pic32_t *s, int irq)
 {
     if (VALUE(IFS(irq >> 5)) & (1 << (irq & 31)))
         return;
-
+//printf ("-- %s() irq = %d\n", __func__, irq);
     VALUE(IFS(irq >> 5)) |= 1 << (irq & 31);
     update_irq_status(s);
 }
@@ -259,7 +261,7 @@ static void irq_clear(pic32_t *s, int irq)
 {
     if (! (VALUE(IFS(irq >> 5)) & (1 << (irq & 31))))
         return;
-
+//printf ("-- %s() irq = %d\n", __func__, irq);
     VALUE(IFS(irq >> 5)) &= ~(1 << (irq & 31));
     update_irq_status(s);
 }
