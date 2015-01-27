@@ -791,6 +791,7 @@ hwaddr cpu_mips_translate_address (CPUMIPSState *env, target_ulong address,
 		                               int rw);
 #endif
 target_ulong exception_resume_pc (CPUMIPSState *env);
+void mips_dump_changed_state(CPUMIPSState *env);
 
 /* op_helper.c */
 extern unsigned int ieee_rm[];

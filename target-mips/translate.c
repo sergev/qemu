@@ -1687,7 +1687,7 @@ generate_exception (DisasContext *ctx, int excp)
 }
 
 static inline void
-generate_dump_pc (int pc, int isa)
+generate_dump_pc(int pc, int isa)
 {
     TCGv_i32 tpc = tcg_const_i32(pc);
     TCGv_i32 tisa = tcg_const_i32(isa);
@@ -1697,7 +1697,7 @@ generate_dump_pc (int pc, int isa)
 }
 
 static inline void
-generate_dump_store (int op, TCGv addr, TCGv value)
+generate_dump_store(int op, TCGv addr, TCGv value)
 {
     TCGv_i32 top = tcg_const_i32(op);
     gen_helper_dump_store(cpu_env, top, addr, value);
@@ -1705,7 +1705,7 @@ generate_dump_store (int op, TCGv addr, TCGv value)
 }
 
 static inline void
-generate_dump_load (int op, TCGv addr, TCGv value)
+generate_dump_load(int op, TCGv addr, TCGv value)
 {
     TCGv_i32 top = tcg_const_i32(op);
     gen_helper_dump_load(cpu_env, top, addr, value);

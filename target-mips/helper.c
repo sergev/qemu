@@ -498,6 +498,9 @@ void mips_cpu_do_interrupt(CPUState *cs)
             qemu_log("%s enter: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " %s exception\n",
                      __func__, env->active_tc.PC, env->CP0_EPC, name);
     }
+    if (qemu_loglevel_mask(CPU_LOG_INSTR))
+        mips_dump_changed_state(env);
+
     if (cs->exception_index == EXCP_EXT_INTERRUPT &&
         (env->hflags & MIPS_HFLAG_DM)) {
         cs->exception_index = EXCP_DINT;

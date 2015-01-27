@@ -2669,6 +2669,19 @@ static void dump_changed_regs(CPUMIPSState *env)
     }
 }
 
+/*
+ * Print the changed processor state.
+ */
+void mips_dump_changed_state(CPUMIPSState *env)
+{
+    /* Print changed state: GPR, HI/LO, COP0. */
+    dump_changed_regs(env);
+    dump_changed_cop0(env);
+
+    /* Print changed mode: kernel/user/debug */
+    dump_changed_mode(env);
+}
+
 static void dump_print_target_address(bfd_vma addr, struct disassemble_info *info)
 {
     fprintf(qemu_logfile, "%08x", (unsigned) addr);
@@ -2684,16 +2697,8 @@ void helper_dump_pc(CPUMIPSState *env, int pc, int isa)
     int (*print_insn)(bfd_vma pc, disassemble_info *info);
     int opcode, nbytes;
 
-    /* Print changed state: GPR, HI/LO, DSPControl. */
-    dump_changed_regs(env);
-
-#ifndef CONFIG_USER_ONLY
-    /* Print changed COP0 registers. */
-    dump_changed_cop0(env);
-
-    /* Printed changed mode: kernel/user/debug */
-    dump_changed_mode(env);
-#endif
+    /* Print changed state: GPR, HI/LO, COP0. */
+    mips_dump_changed_state(env);
 
     /* Fetch opcode. */
     if (isa == 0) {
@@ -2799,7 +2804,6 @@ enum {
     OPC_SCD      = (0x3C << 26),
     OPC_SD       = (0x3F << 26),
 };
-
 
 /*
  * Print the memory store to log file.
