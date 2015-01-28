@@ -4,3 +4,4 @@ obj-$(CONFIG_FULONG) += mips_fulong2e.o
 obj-y += gt64xxx_pci.o
 obj-y += mips_pic32mz.o mips_pic32mx7.o
 obj-y += pic32_load_hex.o pic32_sdcard.o pic32_spi.o pic32_uart.o pic32_gpio.o
+obj-y += pic32_ethernet.o

@@ -1660,7 +1660,9 @@ irq:    update_irq_status(s);
     /*-------------------------------------------------------------------------
      * Ethernet.
      */
-    WRITEOP(ETHCON1); return;           // Control 1
+    WRITEOP(ETHCON1);                   // Control 1
+        pic32_eth_control(s);
+        return;
     WRITEOP(ETHCON2); return;           // Control 2: RX data buffer size
     WRITEOP(ETHTXST); return;           // Tx descriptor start address
     WRITEOP(ETHRXST); return;           // Rx descriptor start address
@@ -2017,6 +2019,9 @@ static void pic32_init(MachineState *machine, int board_type)
     }
     pic32_sdcard_init(s, 0, "sd0", sd0_file, cs0_port, cs0_pin);
     pic32_sdcard_init(s, 1, "sd1", sd1_file, cs1_port, cs1_pin);
+
+    /* Ethernet. */
+    pic32_eth_init(s);
 
     io_reset(s);
     pic32_sdcard_reset(s);
