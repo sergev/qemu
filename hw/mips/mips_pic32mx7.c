@@ -1437,9 +1437,9 @@ static void pic32_init(MachineState *machine, int board_type)
         BOOTMEM(DEVCFG3) = 0xffff0722;
         VALUE(DEVID)     = 0x04307053;      // MX795F512L
         VALUE(OSCCON)    = 0x01453320;      // external oscillator 8MHz
-        s->sdcard_spi_port = 3;             // SD card at SPI4,
-        cs0_port = 3;  cs0_pin = 3;         // select0 at D3,
-        cs1_port = 3;  cs1_pin = 4;         // select1 at D4
+        s->sdcard_spi_port = 1;             // SD card at SPI2,
+        cs0_port = 2;  cs0_pin = 14;        // select0 at C14,
+        cs1_port = 3;  cs1_pin = 1;         // select1 at D1
         break;
     case BOARD_MAXIMITE:
         BOOTMEM(DEVCFG0) = 0xffffff7f;      // TODO: get real data from Maximite board
