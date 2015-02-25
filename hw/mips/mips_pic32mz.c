@@ -2021,7 +2021,8 @@ static void pic32_init(MachineState *machine, int board_type)
     pic32_sdcard_init(s, 1, "sd1", sd1_file, cs1_port, cs1_pin);
 
     /* Ethernet. */
-    pic32_eth_init(s);
+    if (nd_table[0].used)
+        pic32_eth_init(s, &nd_table[0]);
 
     io_reset(s);
     pic32_sdcard_reset(s);

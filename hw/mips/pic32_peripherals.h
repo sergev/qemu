@@ -30,6 +30,7 @@ typedef struct _uart_t uart_t;
 typedef struct _spi_t spi_t;
 typedef struct _sdcard_t sdcard_t;
 typedef struct _pic32_t pic32_t;
+typedef struct _eth_t eth_t;
 
 /*
  * UART private data.
@@ -98,8 +99,8 @@ struct _pic32_t {
     unsigned    sdcard_spi_port;        /* SPI port number of SD card */
     sdcard_t    sdcard [2];             /* SD card data */
 
-    NICState    *eth_nic;               /* virtual network interface */
-    NICConf     eth_conf;               /* network configuration */
+    DeviceState *eth_dev;               /* Ethernet device */
+    eth_t       *eth;                   /* Ethernet driver data */
 
     void (*irq_raise)(pic32_t *s, int irq); /* set interrupt request */
     void (*irq_clear)(pic32_t *s, int irq); /* clear interrupt request */
@@ -140,7 +141,7 @@ unsigned pic32_sdcard_io(pic32_t *s, unsigned data);
 /*
  * Ethernet routines.
  */
-void pic32_eth_init(pic32_t *s);
+void pic32_eth_init(pic32_t *s, NICInfo *nd);
 void pic32_eth_control(pic32_t *s);
 
 /*

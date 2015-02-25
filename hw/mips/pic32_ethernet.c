@@ -32,6 +32,19 @@
 #define TRACE(...)  /*empty*/
 #endif
 
+#define NAME_PIC32_ETH "pic32-eth"
+
+/*
+ * PIC32 Ethernet device.
+ */
+typedef struct _eth_t {
+    SysBusDevice parent_obj;
+
+    pic32_t     *pic32;
+    NICState    *eth_nic;       /* virtual network interface */
+    NICConf     eth_conf;       /* network configuration */
+} eth_t;
+
 /*
  * DMA buffer descriptor.
  */
@@ -69,9 +82,10 @@ typedef struct {
 /*
  * Reset the Ethernet controller.
  */
-static void eth_reset(pic32_t *s)
+static void eth_reset(eth_t *e)
 {
-    uint8_t *macaddr = s->eth_conf.macaddr.a;
+    uint8_t *macaddr = e->eth_conf.macaddr.a;
+    pic32_t *s = e->pic32;
 
     s->irq_clear(s, PIC32_IRQ_ETH);
     VALUE(ETHSTAT) = 0;
@@ -85,9 +99,11 @@ static void eth_reset(pic32_t *s)
  */
 void pic32_eth_control(pic32_t *s)
 {
+    eth_t *e = s->eth;
+
     if (! (VALUE(ETHCON1) & PIC32_ETHCON1_ON)) {
         /* Ethernet controller is disabled. */
-        eth_reset(s);
+        eth_reset(e);
         return;
     }
 
@@ -114,7 +130,7 @@ void pic32_eth_control(pic32_t *s)
                 TRACE("-%02x", buf[i]);
             TRACE("\n");
 
-            qemu_send_packet(qemu_get_queue(s->eth_nic), buf, nbytes);
+            qemu_send_packet(qemu_get_queue(e->eth_nic), buf, nbytes);
         }
 
         /* Activate TXDONE interrupt. */
@@ -127,9 +143,10 @@ void pic32_eth_control(pic32_t *s)
 /*
  * Return true when we aready to receive a packet.
  */
-static int eth_can_receive(NetClientState *nc)
+static int nic_can_receive(NetClientState *nc)
 {
-    pic32_t *s = qemu_get_nic_opaque(nc);
+    eth_t *e = qemu_get_nic_opaque(nc);
+    pic32_t *s = e->pic32;
     eth_desc_t d = { 0 };
 
     TRACE("--- %s()\n", __func__);
@@ -144,13 +161,13 @@ static int eth_can_receive(NetClientState *nc)
     return DESC_EOWN(&d);
 }
 
-
 /*
  * Receive a packet.
  */
-static ssize_t eth_receive(NetClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t nic_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    pic32_t *s = qemu_get_nic_opaque(nc);
+    eth_t *e = qemu_get_nic_opaque(nc);
+    pic32_t *s = e->pic32;
 
     TRACE("--- %s: %d bytes\n", __func__, (int) size);
     if (! (VALUE(ETHCON1) & PIC32_ETHCON1_ON)) {
@@ -170,26 +187,26 @@ static ssize_t eth_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         return -1;
 
     /* XXX: check this */
-    if (s->rxcr & 0x10) {
+    if (e->rxcr & 0x10) {
         /* promiscuous: receive all */
     } else {
         if (memcmp(buf, broadcast_macaddr, 6) == 0) {
             /* broadcast address */
-            if (!(s->rxcr & 0x04))
+            if (!(e->rxcr & 0x04))
                 return size;
         } else if (buf[0] & 0x01) {
             /* multicast */
-            if (!(s->rxcr & 0x08))
+            if (!(e->rxcr & 0x08))
                 return size;
             mcast_idx = compute_mcast_idx(buf);
-            if (!(s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7))))
+            if (!(e->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7))))
                 return size;
-        } else if (s->mem[0] == buf[0] &&
-                   s->mem[2] == buf[1] &&
-                   s->mem[4] == buf[2] &&
-                   s->mem[6] == buf[3] &&
-                   s->mem[8] == buf[4] &&
-                   s->mem[10] == buf[5]) {
+        } else if (e->mem[0] == buf[0] &&
+                   e->mem[2] == buf[1] &&
+                   e->mem[4] == buf[2] &&
+                   e->mem[6] == buf[3] &&
+                   e->mem[8] == buf[4] &&
+                   e->mem[10] == buf[5]) {
             /* match */
         } else {
             return size;
@@ -205,20 +222,20 @@ static ssize_t eth_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         nbytes = MIN_BUF_SIZE;
     }
 
-    index = s->curpag << 8;
+    index = e->curpag << 8;
     /* 4 bytes for header */
     total_len = nbytes + 4;
     /* address for next packet (4 bytes for CRC) */
     next = index + ((total_len + 4 + 255) & ~0xff);
-    if (next >= s->stop)
-        next -= (s->stop - s->start);
+    if (next >= e->stop)
+        next -= (e->stop - e->start);
     /* prepare packet header */
-    p = s->mem + index;
-    s->rsr = ENRSR_RXOK; /* receive status */
+    p = e->mem + index;
+    e->rsr = ENRSR_RXOK; /* receive status */
     /* XXX: check this */
     if (buf[0] & 0x01)
-        s->rsr |= ENRSR_PHY;
-    p[0] = s->rsr;
+        e->rsr |= ENRSR_PHY;
+    p[0] = e->rsr;
     p[1] = next >> 8;
     p[2] = total_len;
     p[3] = total_len >> 8;
@@ -226,24 +243,24 @@ static ssize_t eth_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 
     /* write packet data */
     while (nbytes > 0) {
-        if (index <= s->stop)
-            avail = s->stop - index;
+        if (index <= e->stop)
+            avail = e->stop - index;
         else
             avail = 0;
         len = nbytes;
         if (len > avail)
             len = avail;
-        memcpy(s->mem + index, buf, len);
+        memcpy(e->mem + index, buf, len);
         buf += len;
         index += len;
-        if (index == s->stop)
-            index = s->start;
+        if (index == e->stop)
+            index = e->start;
         nbytes -= len;
     }
-    s->curpag = next >> 8;
+    e->curpag = next >> 8;
 
     /* now we can signal we have received something */
-    s->isr |= ENISR_RX;
+    e->isr |= ENISR_RX;
     eth_update_irq(s);
 #endif
     return size;
@@ -252,34 +269,123 @@ static ssize_t eth_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 /*
  * Deallocate the QEMU network interface.
  */
-static void eth_cleanup(NetClientState *nc)
+static void nic_cleanup(NetClientState *nc)
 {
-    pic32_t *s = qemu_get_nic_opaque(nc);
+    eth_t *e = qemu_get_nic_opaque(nc);
 
-    s->eth_nic = 0;
+    e->eth_nic = 0;
 }
 
 /*
- * Table of methods for QEMU network interface.
+ * Initialize Ethernet device.
  */
-static NetClientInfo eth_info = {
-    .type           = NET_CLIENT_OPTIONS_KIND_NIC,
-    .size           = sizeof(NICState),
-    .can_receive    = eth_can_receive,
-    .receive        = eth_receive,
-    .cleanup        = eth_cleanup,
+void pic32_eth_init(pic32_t *s, NICInfo *nd)
+{
+    /* Create Ethernet device. */
+    s->eth_dev = qdev_create(NULL, NAME_PIC32_ETH);
+    qdev_set_nic_properties(s->eth_dev, nd);
+    qdev_init_nofail(s->eth_dev);
+
+    /* Setup back pointer from Ethernet device to pic32 object. */
+    s->eth = OBJECT_CHECK(eth_t, s->eth_dev, NAME_PIC32_ETH);
+    s->eth->pic32 = s;
+}
+
+/*
+ * Initialize pic32-eth object.
+ */
+static int eth_object_init(SysBusDevice *sbd)
+{
+    /* Table of methods for QEMU network interface. */
+    static NetClientInfo nic_info = {
+        .type           = NET_CLIENT_OPTIONS_KIND_NIC,
+        .size           = sizeof(NICState),
+        .can_receive    = nic_can_receive,
+        .receive        = nic_receive,
+        .cleanup        = nic_cleanup,
+    };
+    DeviceState *dev = DEVICE(sbd);
+    eth_t *e = OBJECT_CHECK(eth_t, dev, NAME_PIC32_ETH);
+
+    /* Initialize MAC address. */
+    qemu_macaddr_default_if_unset(&e->eth_conf.macaddr);
+
+    /* Create a QEMU network interface. */
+    e->eth_nic = qemu_new_nic(&nic_info, &e->eth_conf,
+        object_get_typename(OBJECT(dev)), dev->id, e);
+
+    qemu_format_nic_info_str(qemu_get_queue(e->eth_nic),
+        e->eth_conf.macaddr.a);
+
+    return 0;
+}
+
+/*
+ * Reset pic32-eth object.
+ */
+static void eth_object_reset(DeviceState *dev)
+{
+    eth_t *e = OBJECT_CHECK(eth_t, dev, NAME_PIC32_ETH);
+
+    eth_reset(e);
+}
+
+/*
+ * Descriptor of eth_t data structure.
+ */
+static const VMStateDescription vmstate_info = {
+    .name               = NAME_PIC32_ETH,
+    .version_id         = 0,
+    .minimum_version_id = 0,
+    .fields             = (VMStateField[]) {
+#if 0
+        //TODO
+        VMSTATE_UINT32(busy, MIPSnetState),
+        VMSTATE_UINT32(rx_count, MIPSnetState),
+        VMSTATE_UINT32(rx_read, MIPSnetState),
+        VMSTATE_UINT32(tx_count, MIPSnetState),
+        VMSTATE_UINT32(tx_written, MIPSnetState),
+        VMSTATE_UINT32(intctl, MIPSnetState),
+        VMSTATE_BUFFER(rx_buffer, MIPSnetState),
+        VMSTATE_BUFFER(tx_buffer, MIPSnetState),
+#endif
+        VMSTATE_END_OF_LIST()
+    }
 };
 
 /*
- * Initialize Ethernet data.
+ * Build pic32-eth object.
  */
-void pic32_eth_init(pic32_t *s)
+static void eth_object_constructor(ObjectClass *klass, void *data)
 {
-    /* Initialize MAC address. */
-    qemu_macaddr_default_if_unset(&s->eth_conf.macaddr);
-    eth_reset(s);
+    static Property eth_properties[] = {
+        DEFINE_NIC_PROPERTIES(eth_t, eth_conf),
+        DEFINE_PROP_END_OF_LIST(),
+    };
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    /* Create a QEMU network interface. */
-    s->eth_nic = qemu_new_nic(&eth_info, &s->eth_conf, "pic32", "eth", s);
-    qemu_format_nic_info_str(qemu_get_queue(s->eth_nic), s->eth_conf.macaddr.a);
+    k->init = eth_object_init;
+    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
+    dc->desc = "PIC32 Ethernet device";
+    dc->reset = eth_object_reset;
+    dc->vmsd = &vmstate_info;
+    dc->props = eth_properties;
 }
+
+/*
+ * Instantiate pic32-eth class.
+ */
+static void eth_register_types(void)
+{
+    static const TypeInfo eth_class_info = {
+        .name          = NAME_PIC32_ETH,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(eth_t),
+        .class_init    = eth_object_constructor,
+    };
+
+    type_register_static(&eth_class_info);
+}
+
+type_init(eth_register_types)
