@@ -87,6 +87,7 @@ static void eth_reset(eth_t *e)
     uint8_t *macaddr = e->eth_conf.macaddr.a;
     pic32_t *s = e->pic32;
 
+    TRACE("--- %s()\n", __func__);
     s->irq_clear(s, PIC32_IRQ_ETH);
     VALUE(ETHSTAT) = 0;
     VALUE(EMAC1SA2) = macaddr[0] | (macaddr[1] << 8);
@@ -101,6 +102,7 @@ void pic32_eth_control(pic32_t *s)
 {
     eth_t *e = s->eth;
 
+    TRACE("--- %s()\n", __func__);
     if (! (VALUE(ETHCON1) & PIC32_ETHCON1_ON)) {
         /* Ethernet controller is disabled. */
         eth_reset(e);
@@ -141,7 +143,7 @@ void pic32_eth_control(pic32_t *s)
 }
 
 /*
- * Return true when we aready to receive a packet.
+ * Return true when we are ready to receive a packet.
  */
 static int nic_can_receive(NetClientState *nc)
 {
@@ -149,7 +151,7 @@ static int nic_can_receive(NetClientState *nc)
     pic32_t *s = e->pic32;
     eth_desc_t d = { 0 };
 
-    TRACE("--- %s()\n", __func__);
+    //TRACE("--- %s()\n", __func__);
     if (! (VALUE(ETHCON1) & PIC32_ETHCON1_ON)) {
         /* While interface is down,
          * we can receive anything (and discard). */
@@ -273,6 +275,7 @@ static void nic_cleanup(NetClientState *nc)
 {
     eth_t *e = qemu_get_nic_opaque(nc);
 
+    TRACE("--- %s()\n", __func__);
     e->eth_nic = 0;
 }
 
@@ -281,6 +284,8 @@ static void nic_cleanup(NetClientState *nc)
  */
 void pic32_eth_init(pic32_t *s, NICInfo *nd)
 {
+    TRACE("--- %s()\n", __func__);
+
     /* Create Ethernet device. */
     s->eth_dev = qdev_create(NULL, NAME_PIC32_ETH);
     qdev_set_nic_properties(s->eth_dev, nd);
@@ -307,6 +312,8 @@ static int eth_object_init(SysBusDevice *sbd)
     DeviceState *dev = DEVICE(sbd);
     eth_t *e = OBJECT_CHECK(eth_t, dev, NAME_PIC32_ETH);
 
+    TRACE("--- %s()\n", __func__);
+
     /* Initialize MAC address. */
     qemu_macaddr_default_if_unset(&e->eth_conf.macaddr);
 
@@ -327,6 +334,7 @@ static void eth_object_reset(DeviceState *dev)
 {
     eth_t *e = OBJECT_CHECK(eth_t, dev, NAME_PIC32_ETH);
 
+    TRACE("--- %s()\n", __func__);
     eth_reset(e);
 }
 
