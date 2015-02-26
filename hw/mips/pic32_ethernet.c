@@ -23,16 +23,19 @@
  */
 #include "hw/hw.h"
 #include "exec/address-spaces.h"
+#include "sysemu/dma.h"
 #include "pic32_peripherals.h"
 
 #include "pic32mz.h"
 
-#define TRACE       printf
+//#define TRACE       printf
 #ifndef TRACE
 #define TRACE(...)  /*empty*/
 #endif
 
 #define NAME_PIC32_ETH "pic32-eth"
+
+#define MIN_RX_SIZE 60
 
 /*
  * PIC32 Ethernet device.
@@ -56,28 +59,32 @@ typedef struct {
 } eth_desc_t;
 
 /* Start of packet */
-#define DESC_SOP(d)         ((d)->hdr & 0x80000000)
-#define DESC_SET_SOP(d)     (d)->hdr |= 0x80000000
+#define DESC_SOP(d)             ((d)->hdr & 0x80000000)
+#define DESC_SET_SOP(d)         (d)->hdr |= 0x80000000
+#define DESC_CLEAR_SOP(d)       (d)->hdr &= ~0x80000000
 
 /* End of packet */
-#define DESC_EOP(d)         ((d)->hdr & 0x40000000)
-#define DESC_SET_EOP(d)     (d)->hdr |= 0x40000000
+#define DESC_EOP(d)             ((d)->hdr & 0x40000000)
+#define DESC_SET_EOP(d)         (d)->hdr |= 0x40000000
+#define DESC_CLEAR_EOP(d)       (d)->hdr &= ~0x40000000
 
 /* Number of data bytes */
-#define DESC_BYTECNT(d)     ((d)->hdr >> 16 & 0x7ff)
-#define DESC_SET_BYTECNT(d,n) ((d)->hdr |= (n) << 16)
+#define DESC_BYTECNT(d)         ((d)->hdr >> 16 & 0x7ff)
+#define DESC_SET_BYTECNT(d,n)   ((d)->hdr |= (n) << 16)
 
 /* Next descriptor pointer valid */
-#define DESC_SET_NPV(d)     (d)->hdr |= 0x00000100
-#define DESC_CLEAR_NPV(d)   (d)->hdr &= ~0x00000100
+#define DESC_NPV(d)             ((d)->hdr & 0x00000100)
+#define DESC_SET_NPV(d)         (d)->hdr |= 0x00000100
+#define DESC_CLEAR_NPV(d)       (d)->hdr &= ~0x00000100
 
 /* Eth controller owns this desc */
-#define DESC_EOWN(d)        ((d)->hdr & 0x00000080)
-#define DESC_SET_EOWN(d)    (d)->hdr |= 0x00000080
-#define DESC_CLEAR_EOWN(d)  (d)->hdr &= ~0x00000080
+#define DESC_EOWN(d)            ((d)->hdr & 0x00000080)
+#define DESC_SET_EOWN(d)        (d)->hdr |= 0x00000080
+#define DESC_CLEAR_EOWN(d)      (d)->hdr &= ~0x00000080
 
 /* Size of received packet */
-#define DESC_FRAMESZ(d)     ((d)->status & 0xffff)
+#define DESC_FRAMESZ(d)         ((d)->status & 0xffff)
+#define DESC_SET_FRAMESZ(d,n)   ((d)->status |= (n))
 
 /*
  * Reset the Ethernet controller.
@@ -116,7 +123,6 @@ void pic32_eth_control(pic32_t *s)
         unsigned nbytes, i;
         unsigned char buf[2048];
 
-        //TODO
         d.hdr   = ldl_le_phys(&address_space_memory, paddr);
         d.paddr = ldl_le_phys(&address_space_memory, paddr + 4);
         TRACE("--- eth transmit request: desc [%08x] = %08x %08x\n", paddr, d.hdr, d.paddr);
@@ -143,13 +149,23 @@ void pic32_eth_control(pic32_t *s)
 }
 
 /*
+ * Return true when no receive buffers available.
+ */
+static int eth_buffer_full(pic32_t *s)
+{
+    eth_desc_t d = { 0 };
+
+    d.hdr = ldl_le_phys(&address_space_memory, VALUE(ETHRXST));
+    return !DESC_EOWN(&d);
+}
+
+/*
  * Return true when we are ready to receive a packet.
  */
 static int nic_can_receive(NetClientState *nc)
 {
     eth_t *e = qemu_get_nic_opaque(nc);
     pic32_t *s = e->pic32;
-    eth_desc_t d = { 0 };
 
     //TRACE("--- %s()\n", __func__);
     if (! (VALUE(ETHCON1) & PIC32_ETHCON1_ON)) {
@@ -159,8 +175,7 @@ static int nic_can_receive(NetClientState *nc)
     }
 
     /* Check whether we have at least one receive buffer available. */
-    d.hdr = ldl_le_phys(&address_space_memory, VALUE(ETHRXST));
-    return DESC_EOWN(&d);
+    return !eth_buffer_full(s);
 }
 
 /*
@@ -170,101 +185,108 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     eth_t *e = qemu_get_nic_opaque(nc);
     pic32_t *s = e->pic32;
+    unsigned rxfc, rxst, rxbufsz, nbytes, len;
+    int start_of_packet;
+    uint8_t buf1[60];
+    eth_desc_t d = { 0 };
 
     TRACE("--- %s: %d bytes\n", __func__, (int) size);
     if (! (VALUE(ETHCON1) & PIC32_ETHCON1_ON)) {
         /* Ethernet controller is down. */
         return -1;
     }
-#if 0
-    int nbytes;
-    uint8_t *p;
-    unsigned int total_len, next, avail, len, index, mcast_idx;
-    uint8_t buf1[60];
-    static const uint8_t broadcast_macaddr[6] =
-        { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-#define MIN_BUF_SIZE 60
 
     if (eth_buffer_full(s))
         return -1;
 
-    /* XXX: check this */
-    if (e->rxcr & 0x10) {
-        /* promiscuous: receive all */
-    } else {
-        if (memcmp(buf, broadcast_macaddr, 6) == 0) {
-            /* broadcast address */
-            if (!(e->rxcr & 0x04))
-                return size;
-        } else if (buf[0] & 0x01) {
-            /* multicast */
-            if (!(e->rxcr & 0x08))
-                return size;
-            mcast_idx = compute_mcast_idx(buf);
-            if (!(e->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7))))
-                return size;
-        } else if (e->mem[0] == buf[0] &&
-                   e->mem[2] == buf[1] &&
-                   e->mem[4] == buf[2] &&
-                   e->mem[6] == buf[3] &&
-                   e->mem[8] == buf[4] &&
-                   e->mem[10] == buf[5]) {
-            /* match */
-        } else {
+    /* Cast acceptance filter. */
+    rxfc = VALUE(ETHRXFC);
+    if (buf[0] == 0xff && buf[1] == 0xff && buf[2] == 0xff &&
+        buf[3] == 0xff && buf[4] == 0xff && buf[5] == 0xff) {
+        /* Broadcast address. */
+        if (! (rxfc & PIC32_ETHRXFC_BCEN))
             return size;
+    } else if (buf[0] & 0x01) {
+        /* Multicast. */
+        if (! (rxfc & PIC32_ETHRXFC_MCEN))
+            return size;
+    } else if (VALUE(EMAC1SA2) == (buf[0] | (buf[1] << 8)) ||
+               VALUE(EMAC1SA2) == (buf[2] | (buf[3] << 8)) ||
+               VALUE(EMAC1SA2) == (buf[4] | (buf[5] << 8))) {
+        /* Unicast for our MAC address. */
+        if (! (rxfc & PIC32_ETHRXFC_UCEN))
+            return size;
+    } else {
+        /* Not-Me Unicast. */
+        if (! (rxfc & PIC32_ETHRXFC_NOTMEEN))
+            return size;
+    }
+
+    /* If packet too small, then expand it */
+    nbytes = size;
+    if (nbytes < MIN_RX_SIZE) {
+        memcpy(buf1, buf, nbytes);
+        memset(buf1 + nbytes, 0, MIN_RX_SIZE - nbytes);
+        buf = buf1;
+        nbytes = MIN_RX_SIZE;
+    }
+
+    /* Copy data to descriptor chain. */
+    rxst = VALUE(ETHRXST);
+    rxbufsz = VALUE(ETHCON2) & 0x7f0;
+    start_of_packet = 1;
+    for (;;) {
+        /* Get descriptor. */
+        dma_memory_read(&address_space_memory, rxst, &d, 16);
+        if (! DESC_EOWN(&d)) {
+            TRACE("--- No more descriptors available\n");
+            VALUE(ETHIRQ) |= PIC32_ETHIRQ_RXBUFNA;
+            break;
+        }
+
+        /* Copy data to buffer. */
+        len = nbytes;
+        if (len > rxbufsz)
+            len = rxbufsz;
+        TRACE("--- Copy %d bytes to %08x\n", len, d.paddr);
+        dma_memory_write(&address_space_memory, d.paddr, buf, len);
+        buf += len;
+
+        /* Update the descriptor. */
+        DESC_CLEAR_EOWN(&d);
+        DESC_SET_BYTECNT(&d, len);
+        if (start_of_packet) {
+            DESC_SET_SOP(&d);
+            DESC_SET_FRAMESZ(&d, nbytes);
+            start_of_packet = 0;
+        } else
+            DESC_CLEAR_SOP(&d);
+        if (nbytes == len)
+            DESC_SET_EOP(&d);
+        else
+            DESC_CLEAR_EOP(&d);
+
+        /* Write the descriptor to memory. */
+        TRACE("--- Update RX descriptor at %08x\n", rxst);
+        dma_memory_write(&address_space_memory, rxst, &d, 16);
+
+        /* Switch to next descriptor. */
+        if (DESC_NPV(&d))
+            rxst = ldl_le_phys(&address_space_memory, rxst+16);
+        else
+            rxst += 16;
+        VALUE(ETHRXST) = rxst;
+
+        nbytes -= len;
+        if (nbytes == 0) {
+            /* Packet successfully received. */
+            VALUE(ETHIRQ) |= PIC32_ETHIRQ_RXDONE;
+            break;
         }
     }
 
-    /* if too small buffer, then expand it */
-    nbytes = size;
-    if (nbytes < MIN_BUF_SIZE) {
-        memcpy(buf1, buf, nbytes);
-        memset(buf1 + nbytes, 0, MIN_BUF_SIZE - nbytes);
-        buf = buf1;
-        nbytes = MIN_BUF_SIZE;
-    }
-
-    index = e->curpag << 8;
-    /* 4 bytes for header */
-    total_len = nbytes + 4;
-    /* address for next packet (4 bytes for CRC) */
-    next = index + ((total_len + 4 + 255) & ~0xff);
-    if (next >= e->stop)
-        next -= (e->stop - e->start);
-    /* prepare packet header */
-    p = e->mem + index;
-    e->rsr = ENRSR_RXOK; /* receive status */
-    /* XXX: check this */
-    if (buf[0] & 0x01)
-        e->rsr |= ENRSR_PHY;
-    p[0] = e->rsr;
-    p[1] = next >> 8;
-    p[2] = total_len;
-    p[3] = total_len >> 8;
-    index += 4;
-
-    /* write packet data */
-    while (nbytes > 0) {
-        if (index <= e->stop)
-            avail = e->stop - index;
-        else
-            avail = 0;
-        len = nbytes;
-        if (len > avail)
-            len = avail;
-        memcpy(e->mem + index, buf, len);
-        buf += len;
-        index += len;
-        if (index == e->stop)
-            index = e->start;
-        nbytes -= len;
-    }
-    e->curpag = next >> 8;
-
-    /* now we can signal we have received something */
-    e->isr |= ENISR_RX;
-    eth_update_irq(s);
-#endif
+    /* Activate interrupt. */
+    s->irq_raise(s, PIC32_IRQ_ETH);
     return size;
 }
 
@@ -275,7 +297,7 @@ static void nic_cleanup(NetClientState *nc)
 {
     eth_t *e = qemu_get_nic_opaque(nc);
 
-    TRACE("--- %s()\n", __func__);
+    //TRACE("--- %s()\n", __func__);
     e->eth_nic = 0;
 }
 
@@ -312,7 +334,7 @@ static int eth_object_init(SysBusDevice *sbd)
     DeviceState *dev = DEVICE(sbd);
     eth_t *e = OBJECT_CHECK(eth_t, dev, NAME_PIC32_ETH);
 
-    TRACE("--- %s()\n", __func__);
+    //TRACE("--- %s()\n", __func__);
 
     /* Initialize MAC address. */
     qemu_macaddr_default_if_unset(&e->eth_conf.macaddr);
@@ -334,7 +356,7 @@ static void eth_object_reset(DeviceState *dev)
 {
     eth_t *e = OBJECT_CHECK(eth_t, dev, NAME_PIC32_ETH);
 
-    TRACE("--- %s()\n", __func__);
+    //TRACE("--- %s()\n", __func__);
     eth_reset(e);
 }
 
@@ -346,17 +368,6 @@ static const VMStateDescription vmstate_info = {
     .version_id         = 0,
     .minimum_version_id = 0,
     .fields             = (VMStateField[]) {
-#if 0
-        //TODO
-        VMSTATE_UINT32(busy, MIPSnetState),
-        VMSTATE_UINT32(rx_count, MIPSnetState),
-        VMSTATE_UINT32(rx_read, MIPSnetState),
-        VMSTATE_UINT32(tx_count, MIPSnetState),
-        VMSTATE_UINT32(tx_written, MIPSnetState),
-        VMSTATE_UINT32(intctl, MIPSnetState),
-        VMSTATE_BUFFER(rx_buffer, MIPSnetState),
-        VMSTATE_BUFFER(tx_buffer, MIPSnetState),
-#endif
         VMSTATE_END_OF_LIST()
     }
 };

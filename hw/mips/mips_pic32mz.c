@@ -244,6 +244,8 @@ static void io_reset(pic32_t *s)
     VALUE(ANSELB) = 0xFFFF;             // Port B: analog select
     VALUE(TRISB) = 0xFFFF;              // Port B: mask of inputs
     VALUE(PORTB) = 0xFFFF;              // Port B: read inputs, write outputs
+    if (s->board_type == BOARD_MEBII)
+        VALUE(PORTB) ^= 1 << 12;        // Disable pin RB12 - button 1
     VALUE(LATB)  = 0xFFFF;              // Port B: read/write outputs
     VALUE(ODCB)  = 0;                   // Port B: open drain configuration
     VALUE(CNPUB) = 0;                   // Input pin pull-up
