@@ -1695,9 +1695,13 @@ irq:    update_irq_status(s);
     WRITEOP(EMAC1SUPP); return;         // MAC PHY support
     WRITEOP(EMAC1TEST); return;         // MAC test
     WRITEOP(EMAC1MCFG); return;         // MII configuration
-    WRITEOP(EMAC1MCMD); return;         // MII command
+    WRITEOP(EMAC1MCMD);                 // MII command
+        pic32_mii_command(s);
+        return;
     WRITEOP(EMAC1MADR); return;         // MII address
-    WRITEOP(EMAC1MWTD); return;         // MII write data
+    WRITEOP(EMAC1MWTD);                 // MII write data
+        pic32_mii_write(s);
+        return;
     WRITEOP(EMAC1MRDD); return;         // MII read data
     WRITEOP(EMAC1MIND); return;         // MII indicators
     WRITEOP(EMAC1SA0); return;          // MAC station address 0

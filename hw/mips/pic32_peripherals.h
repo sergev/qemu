@@ -143,6 +143,8 @@ unsigned pic32_sdcard_io(pic32_t *s, unsigned data);
  */
 void pic32_eth_init(pic32_t *s, NICInfo *nd);
 void pic32_eth_control(pic32_t *s);
+void pic32_mii_command(pic32_t *s);
+void pic32_mii_write(pic32_t *s);
 
 /*
  * Load a binary file in hex or srec format.

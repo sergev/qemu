@@ -90,6 +90,26 @@ typedef struct {
 #define DESC_RXF(d)             ((d)->ctl >> 24)
 #define DESC_SET_RXF(d,n)       ((d)->ctl = ((d)->ctl & 0xffffff) | (n) << 24)
 
+/*-------------------------------------------------------------
+ * PHY declarations for SMSC LAN8720A chip.
+ */
+#define PHY_CONTROL             0       /* Basic Control Register */
+#define PHY_STATUS              1       /* Basic Status Register */
+#define PHY_MODE                18      /* Special Modes */
+#define PHY_SPECIAL             31      /* Special Control/Status Register */
+
+#define PHY_CONTROL_RESET       0x8000  /* Soft reset, bit self cleared */
+
+#define PHY_STATUS_ANEG_ACK     0x0020  /* Auto-negotiation acknowledge */
+#define PHY_STATUS_CAP_ANEG     0x0008  /* Auto-negotiation available */
+#define PHY_STATUS_LINK         0x0004  /* Link valid */
+
+#define PHY_MODE_PHYAD          0x000f  /* PHY address mask */
+
+#define PHY_SPECIAL_AUTODONE    0x1000  /* Auto-negotiation is done */
+#define PHY_SPECIAL_FDX         0x0010  /* Full duplex */
+#define PHY_SPECIAL_100         0x0008  /* Speed 100 Mbps */
+
 /*
  * Reset the Ethernet controller.
  */
@@ -149,6 +169,58 @@ void pic32_eth_control(pic32_t *s)
         VALUE(ETHCON1) &= ~PIC32_ETHCON1_TXRTS;
         VALUE(ETHIRQ) |= PIC32_ETHIRQ_TXDONE;
         s->irq_raise(s, PIC32_IRQ_ETH);
+    }
+}
+
+/*
+ * Write to EMAC1MCMD register.
+ */
+void pic32_mii_command(pic32_t *s)
+{
+    unsigned cmd = VALUE(EMAC1MCMD);
+    unsigned addr = VALUE(EMAC1MADR);
+    unsigned data = 0;
+
+    if (cmd & (PIC32_EMAC1MCMD_READ | PIC32_EMAC1MCMD_SCAN)) {
+        TRACE("--- %s() cmd = %04x, addr = %04x\n", __func__, cmd, addr);
+        switch (addr & 0x1f) {
+        case PHY_CONTROL:                   /* Basic Control Register */
+            data = 0;
+            break;
+        case PHY_STATUS:                    /* Basic Status Register */
+            data = PHY_STATUS_ANEG_ACK |
+                   PHY_STATUS_CAP_ANEG |
+                   PHY_STATUS_LINK;
+            break;
+        case PHY_MODE:                      /* Special Modes */
+            data = cmd >> 8;                /* PHY id. */
+            break;
+        case PHY_SPECIAL:                   /* Special Control/Status Register */
+            data = PHY_SPECIAL_AUTODONE |
+                   PHY_SPECIAL_FDX |
+                   PHY_SPECIAL_100;
+            break;
+        }
+        TRACE("---     return %04x\n", data);
+        VALUE(EMAC1MRDD) = data;
+    }
+}
+
+/*
+ * Write to EMAC1MWTD register.
+ */
+void pic32_mii_write(pic32_t *s)
+{
+    unsigned addr = VALUE(EMAC1MADR);
+    unsigned data = VALUE(EMAC1MWTD);
+
+    TRACE("--- %s() addr = %04x, data = %04x\n", __func__, addr, data);
+    switch (addr & 0x1f) {
+    case PHY_CONTROL:                   /* Basic Control Register */
+        if (data & PHY_CONTROL_RESET) {
+            TRACE("---     PHY reset\n");
+        }
+        break;
     }
 }
 
