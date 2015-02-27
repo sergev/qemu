@@ -40,13 +40,13 @@
 /*
  * PIC32 Ethernet device.
  */
-typedef struct _eth_t {
+struct _eth_t {
     SysBusDevice parent_obj;
 
     pic32_t     *pic32;
     NICState    *eth_nic;       /* virtual network interface */
     NICConf     eth_conf;       /* network configuration */
-} eth_t;
+};
 
 /*
  * DMA buffer descriptor.
