@@ -86,6 +86,10 @@ typedef struct {
 #define DESC_FRAMESZ(d)         ((d)->status & 0xffff)
 #define DESC_SET_FRAMESZ(d,n)   ((d)->status = ((d)->status & ~0xffff) | (n))
 
+/* Receive filter status */
+#define DESC_RXF(d)             ((d)->ctl >> 24)
+#define DESC_SET_RXF(d,n)       ((d)->ctl = ((d)->ctl & 0xffffff) | (n) << 24)
+
 /*
  * Reset the Ethernet controller.
  */
@@ -185,7 +189,7 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     eth_t *e = qemu_get_nic_opaque(nc);
     pic32_t *s = e->pic32;
-    unsigned rxfc, rxst, rxst0, rxbufsz, nbytes, len;
+    unsigned rxfc, rxf, rxst, rxst0, rxbufsz, nbytes, len;
     int start_of_packet;
     uint8_t buf1[60];
     eth_desc_t *d, desc0, desc1;
@@ -206,20 +210,24 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         /* Broadcast address. */
         if (! (rxfc & PIC32_ETHRXFC_BCEN))
             return size;
+        rxf = 0x40;
     } else if (buf[0] & 0x01) {
         /* Multicast. */
         if (! (rxfc & PIC32_ETHRXFC_MCEN))
             return size;
+        rxf = 0x80;
     } else if (VALUE(EMAC1SA2) == (buf[0] | (buf[1] << 8)) ||
                VALUE(EMAC1SA2) == (buf[2] | (buf[3] << 8)) ||
                VALUE(EMAC1SA2) == (buf[4] | (buf[5] << 8))) {
         /* Unicast for our MAC address. */
         if (! (rxfc & PIC32_ETHRXFC_UCEN))
             return size;
+        rxf = 0x20;
     } else {
         /* Not-Me Unicast. */
         if (! (rxfc & PIC32_ETHRXFC_NOTMEEN))
             return size;
+        rxf = 0x00;
     }
 
     /* If packet too small, then expand it */
@@ -260,6 +268,7 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         if (start_of_packet) {
             DESC_SET_SOP(d);
             DESC_SET_FRAMESZ(d, nbytes);
+            DESC_SET_RXF(d, rxf);
             start_of_packet = 0;
         } else
             DESC_CLEAR_SOP(d);
