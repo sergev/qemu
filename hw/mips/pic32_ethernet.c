@@ -60,31 +60,31 @@ typedef struct {
 
 /* Start of packet */
 #define DESC_SOP(d)             ((d)->hdr & 0x80000000)
-#define DESC_SET_SOP(d)         (d)->hdr |= 0x80000000
-#define DESC_CLEAR_SOP(d)       (d)->hdr &= ~0x80000000
+#define DESC_SET_SOP(d)         ((d)->hdr |= 0x80000000)
+#define DESC_CLEAR_SOP(d)       ((d)->hdr &= ~0x80000000)
 
 /* End of packet */
 #define DESC_EOP(d)             ((d)->hdr & 0x40000000)
-#define DESC_SET_EOP(d)         (d)->hdr |= 0x40000000
-#define DESC_CLEAR_EOP(d)       (d)->hdr &= ~0x40000000
+#define DESC_SET_EOP(d)         ((d)->hdr |= 0x40000000)
+#define DESC_CLEAR_EOP(d)       ((d)->hdr &= ~0x40000000)
 
 /* Number of data bytes */
 #define DESC_BYTECNT(d)         ((d)->hdr >> 16 & 0x7ff)
-#define DESC_SET_BYTECNT(d,n)   ((d)->hdr |= (n) << 16)
+#define DESC_SET_BYTECNT(d,n)   ((d)->hdr = ((d)->hdr & ~0x7ff0000) | (n) << 16)
 
 /* Next descriptor pointer valid */
 #define DESC_NPV(d)             ((d)->hdr & 0x00000100)
-#define DESC_SET_NPV(d)         (d)->hdr |= 0x00000100
-#define DESC_CLEAR_NPV(d)       (d)->hdr &= ~0x00000100
+#define DESC_SET_NPV(d)         ((d)->hdr |= 0x00000100)
+#define DESC_CLEAR_NPV(d)       ((d)->hdr &= ~0x00000100)
 
 /* Eth controller owns this desc */
 #define DESC_EOWN(d)            ((d)->hdr & 0x00000080)
-#define DESC_SET_EOWN(d)        (d)->hdr |= 0x00000080
-#define DESC_CLEAR_EOWN(d)      (d)->hdr &= ~0x00000080
+#define DESC_SET_EOWN(d)        ((d)->hdr |= 0x00000080)
+#define DESC_CLEAR_EOWN(d)      ((d)->hdr &= ~0x00000080)
 
 /* Size of received packet */
 #define DESC_FRAMESZ(d)         ((d)->status & 0xffff)
-#define DESC_SET_FRAMESZ(d,n)   ((d)->status |= (n))
+#define DESC_SET_FRAMESZ(d,n)   ((d)->status = ((d)->status & ~0xffff) | (n))
 
 /*
  * Reset the Ethernet controller.
@@ -125,7 +125,7 @@ void pic32_eth_control(pic32_t *s)
 
         d.hdr   = ldl_le_phys(&address_space_memory, paddr);
         d.paddr = ldl_le_phys(&address_space_memory, paddr + 4);
-        TRACE("--- eth transmit request: desc [%08x] = %08x %08x\n", paddr, d.hdr, d.paddr);
+        TRACE("--- TX desc [%08x] = %08x %08x\n", paddr, d.hdr, d.paddr);
 
         nbytes = DESC_BYTECNT(&d);
         if (nbytes > 0 && nbytes <= sizeof(buf)) {
@@ -185,10 +185,10 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     eth_t *e = qemu_get_nic_opaque(nc);
     pic32_t *s = e->pic32;
-    unsigned rxfc, rxst, rxbufsz, nbytes, len;
+    unsigned rxfc, rxst, rxst0, rxbufsz, nbytes, len;
     int start_of_packet;
     uint8_t buf1[60];
-    eth_desc_t d = { 0 };
+    eth_desc_t *d, desc0, desc1;
 
     TRACE("--- %s: %d bytes\n", __func__, (int) size);
     if (! (VALUE(ETHCON1) & PIC32_ETHCON1_ON)) {
@@ -232,13 +232,15 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     }
 
     /* Copy data to descriptor chain. */
-    rxst = VALUE(ETHRXST);
+    rxst0 = VALUE(ETHRXST);
     rxbufsz = VALUE(ETHCON2) & 0x7f0;
     start_of_packet = 1;
+    d = &desc0;
+    rxst = rxst0;
     for (;;) {
         /* Get descriptor. */
-        dma_memory_read(&address_space_memory, rxst, &d, 16);
-        if (! DESC_EOWN(&d)) {
+        dma_memory_read(&address_space_memory, rxst, d, 16);
+        if (! DESC_EOWN(d) || (! start_of_packet && rxst == rxst0)) {
             TRACE("--- No more descriptors available\n");
             VALUE(ETHIRQ) |= PIC32_ETHIRQ_RXBUFNA;
             break;
@@ -248,37 +250,43 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         len = nbytes;
         if (len > rxbufsz)
             len = rxbufsz;
-        TRACE("--- Copy %d bytes to %08x\n", len, d.paddr);
-        dma_memory_write(&address_space_memory, d.paddr, buf, len);
+        TRACE("--- Copy %d bytes to %08x\n", len, d->paddr);
+        dma_memory_write(&address_space_memory, d->paddr, buf, len);
         buf += len;
 
         /* Update the descriptor. */
-        DESC_CLEAR_EOWN(&d);
-        DESC_SET_BYTECNT(&d, len);
+        DESC_CLEAR_EOWN(d);
+        DESC_SET_BYTECNT(d, len);
         if (start_of_packet) {
-            DESC_SET_SOP(&d);
-            DESC_SET_FRAMESZ(&d, nbytes);
+            DESC_SET_SOP(d);
+            DESC_SET_FRAMESZ(d, nbytes);
             start_of_packet = 0;
         } else
-            DESC_CLEAR_SOP(&d);
+            DESC_CLEAR_SOP(d);
         if (nbytes == len)
-            DESC_SET_EOP(&d);
+            DESC_SET_EOP(d);
         else
-            DESC_CLEAR_EOP(&d);
+            DESC_CLEAR_EOP(d);
 
-        /* Write the descriptor to memory. */
-        TRACE("--- Update RX descriptor at %08x\n", rxst);
-        dma_memory_write(&address_space_memory, rxst, &d, 16);
+        /* Write the descriptor back memory (all but the first). */
+        if (d == &desc1) {
+            TRACE("--- RX desc [%08x] = %08x ... ... %08x\n", rxst, desc1.hdr, desc1.status);
+            dma_memory_write(&address_space_memory, rxst, &desc1, 16);
+        }
 
         /* Switch to next descriptor. */
-        if (DESC_NPV(&d))
-            rxst = ldl_le_phys(&address_space_memory, rxst+16);
-        else
-            rxst += 16;
+        rxst += 16;
+        if (DESC_NPV(d))
+            rxst = ldl_le_phys(&address_space_memory, rxst);
         VALUE(ETHRXST) = rxst;
+        d = &desc1;
 
         nbytes -= len;
         if (nbytes == 0) {
+            /* Update the first descriptor. */
+            TRACE("--- RX desc [%08x] = %08x ... ... %08x\n", rxst0, desc0.hdr, desc0.status);
+            dma_memory_write(&address_space_memory, rxst0, &desc0, 16);
+
             /* Packet successfully received. */
             VALUE(ETHIRQ) |= PIC32_ETHIRQ_RXDONE;
             break;
