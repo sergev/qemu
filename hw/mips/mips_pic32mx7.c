@@ -891,8 +891,8 @@ irq:    update_irq_status(s);
     /*-------------------------------------------------------------------------
      * System controller.
      */
-    STORAGE(OSCCON); break;     // Oscillator Control
-    STORAGE(OSCTUN); break;     // Oscillator Tuning
+    WRITEOPR(OSCCON, PIC32_OSCCON_UNUSED); break; // Oscillator Control
+    WRITEOPR(OSCTUN, PIC32_OSCTUN_UNUSED); break; // Oscillator Tuning
     STORAGE(DDPCON); break;     // Debug Data Port Control
     READONLY(DEVID);            // Device Identifier
     STORAGE(SYSKEY);            // System Key
@@ -904,7 +904,7 @@ irq:    update_irq_status(s);
         else
             s->syskey_unlock = 0;
         break;
-    STORAGE(RCON); break;       // Reset Control
+    WRITEOPR(RCON, PIC32_RCON_UNUSED); break;       // Reset Control
     WRITEOP(RSWRST);            // Software Reset
         if (s->syskey_unlock == 2 && (VALUE(RSWRST) & 1)) {
             /* Reset CPU. */

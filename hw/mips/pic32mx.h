@@ -764,7 +764,13 @@
  * System controller registers.
  */
 #define OSCCON          PIC32_R (0xf000)
+#define OSCCONCLR       PIC32_R (0xf004)
+#define OSCCONSET       PIC32_R (0xf008)
+#define OSCCONINV       PIC32_R (0xf00c)
 #define OSCTUN          PIC32_R (0xf010)
+#define OSCTUNCLR       PIC32_R (0xf014)
+#define OSCTUNSET       PIC32_R (0xf018)
+#define OSCTUNINV       PIC32_R (0xf01c)
 #define DDPCON          PIC32_R (0xf200)        /* Debug Data Port Control */
 #define DEVID           PIC32_R (0xf220)
 #define SYSKEY          PIC32_R (0xf230)
@@ -778,8 +784,35 @@
 #define RSWRSTINV       PIC32_R (0xf61C)
 
 /*
+ * Oscillator control register.
+ */
+#define PIC32_OSCCON_UNUSED     0xc0a08800
+#define PIC32_OSCCON_OSWEN      0x00000001
+#define PIC32_OSCCON_SOSCEN     0x00000002
+#define PIC32_OSCCON_UFRCEN     0x00000004
+#define PIC32_OSCCON_CF         0x00000008
+#define PIC32_OSCCON_SLPEN      0x00000010
+#define PIC32_OSCCON_SLOCK      0x00000020
+#define PIC32_OSCCON_ULOCK      0x00000040
+#define PIC32_OSCCON_CLKLOCK    0x00000080
+#define PIC32_OSCCON_NOSC       0x00000700
+#define PIC32_OSCCON_COSC       0x00007000
+#define PIC32_OSCCON_PLLMULT    0x00070000
+#define PIC32_OSCCON_PBDIV      0x00180000
+#define PIC32_OSCCON_SOSCRDY    0x00400000
+#define PIC32_OSCCON_FRCDIV     0x07000000
+#define PIC32_OSCCON_PLLODIV    0x38000000
+
+/*
+ * Oscillator tune register.
+ */
+#define PIC32_OSCTUN_UNUSED     0xffffffc0
+#define PIC32_OSCTUN_TUN        0x0000003f
+
+/*
  * Reset control register.
  */
+#define PIC32_RCON_UNUSED       0xfffffc20
 #define PIC32_RCON_POR          0x00000001
 #define PIC32_RCON_BOR          0x00000002
 #define PIC32_RCON_IDLE         0x00000004
