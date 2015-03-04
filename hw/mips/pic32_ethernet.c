@@ -95,6 +95,8 @@ typedef struct {
  */
 #define PHY_CONTROL             0       /* Basic Control Register */
 #define PHY_STATUS              1       /* Basic Status Register */
+#define PHY_ID1                 2       /* PHY identifier 1 */
+#define PHY_ID2                 3       /* PHY identifier 2 */
 #define PHY_MODE                18      /* Special Modes */
 #define PHY_SPECIAL             31      /* Special Control/Status Register */
 
@@ -191,6 +193,12 @@ void pic32_mii_command(pic32_t *s)
             data = PHY_STATUS_ANEG_ACK |
                    PHY_STATUS_CAP_ANEG |
                    PHY_STATUS_LINK;
+            break;
+        case PHY_ID1:                       /* PHY identifier 1 */
+            data = 0x0007;                  /* Vendor: SMSC */
+            break;
+        case PHY_ID2:                       /* PHY identifier 2 */
+            data = 0xc111;                  /* Device: LAN8720A */
             break;
         case PHY_MODE:                      /* Special Modes */
             data = cmd >> 8;                /* PHY id. */
