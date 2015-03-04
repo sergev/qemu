@@ -173,5 +173,4 @@ int pic32_load_hex_file(const char *filename,
                         case name+4: *namep = #name"CLR"; goto op_##name;\
                         case name+8: *namep = #name"SET"; goto op_##name;\
                         case name+12: *namep = #name"INV"; op_##name: \
-                        VALUE(name) &= romask; \
-                        VALUE(name) |= write_op(VALUE(name), data, offset) & ~(romask)
+                        VALUE(name) = (VALUE(name) & (romask)) | (write_op(VALUE(name), data, offset) & ~(romask))
