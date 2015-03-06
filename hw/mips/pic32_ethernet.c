@@ -91,7 +91,7 @@ typedef struct {
 #define DESC_SET_RXF(d,n)       ((d)->ctl = ((d)->ctl & 0xffffff) | (n) << 24)
 
 /*-------------------------------------------------------------
- * PHY declarations for SMSC LAN8720A chip.
+ * PHY declarations for SMSC LAN8720A/8740A chip.
  */
 #define PHY_CONTROL             0       /* Basic Control Register */
 #define PHY_STATUS              1       /* Basic Status Register */
@@ -198,7 +198,7 @@ void pic32_mii_command(pic32_t *s)
             data = 0x0007;                  /* Vendor: SMSC */
             break;
         case PHY_ID2:                       /* PHY identifier 2 */
-            data = 0xc111;                  /* Device: LAN8720A */
+            data = 0xc111;                  /* Device: LAN8740A */
             break;
         case PHY_MODE:                      /* Special Modes */
             data = cmd >> 8;                /* PHY id. */
