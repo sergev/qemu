@@ -450,54 +450,130 @@ static unsigned io_read32(pic32_t *s, unsigned offset, const char **namep)
     STORAGE(IEC3); break;
     STORAGE(IEC4); break;
     STORAGE(IEC5); break;
-    STORAGE(IPC0); break;       // IPC(0..11) - Interrupt Priority Control
-    STORAGE(IPC1); break;
-    STORAGE(IPC2); break;
-    STORAGE(IPC3); break;
-    STORAGE(IPC4); break;
-    STORAGE(IPC5); break;
-    STORAGE(IPC6); break;
-    STORAGE(IPC7); break;
-    STORAGE(IPC8); break;
-    STORAGE(IPC9); break;
-    STORAGE(IPC10); break;
-    STORAGE(IPC11); break;
-    STORAGE(IPC12); break;
-    STORAGE(IPC13); break;
-    STORAGE(IPC14); break;
-    STORAGE(IPC15); break;
-    STORAGE(IPC16); break;
-    STORAGE(IPC17); break;
-    STORAGE(IPC18); break;
-    STORAGE(IPC19); break;
-    STORAGE(IPC20); break;
-    STORAGE(IPC21); break;
-    STORAGE(IPC22); break;
-    STORAGE(IPC23); break;
-    STORAGE(IPC24); break;
-    STORAGE(IPC25); break;
-    STORAGE(IPC26); break;
-    STORAGE(IPC27); break;
-    STORAGE(IPC28); break;
-    STORAGE(IPC29); break;
-    STORAGE(IPC30); break;
-    STORAGE(IPC31); break;
-    STORAGE(IPC32); break;
-    STORAGE(IPC33); break;
-    STORAGE(IPC34); break;
-    STORAGE(IPC35); break;
-    STORAGE(IPC36); break;
-    STORAGE(IPC37); break;
-    STORAGE(IPC38); break;
-    STORAGE(IPC39); break;
-    STORAGE(IPC40); break;
-    STORAGE(IPC41); break;
-    STORAGE(IPC42); break;
-    STORAGE(IPC43); break;
-    STORAGE(IPC44); break;
-    STORAGE(IPC45); break;
-    STORAGE(IPC46); break;
-    STORAGE(IPC47); break;
+
+    // IPC(0..11) - Interrupt Priority Control
+    STORAGE(IPC0); break;       STORAGE(IPC1); break;
+    STORAGE(IPC2); break;       STORAGE(IPC3); break;
+    STORAGE(IPC4); break;       STORAGE(IPC5); break;
+    STORAGE(IPC6); break;       STORAGE(IPC7); break;
+    STORAGE(IPC8); break;       STORAGE(IPC9); break;
+    STORAGE(IPC10); break;      STORAGE(IPC11); break;
+    STORAGE(IPC12); break;      STORAGE(IPC13); break;
+    STORAGE(IPC14); break;      STORAGE(IPC15); break;
+    STORAGE(IPC16); break;      STORAGE(IPC17); break;
+    STORAGE(IPC18); break;      STORAGE(IPC19); break;
+    STORAGE(IPC20); break;      STORAGE(IPC21); break;
+    STORAGE(IPC22); break;      STORAGE(IPC23); break;
+    STORAGE(IPC24); break;      STORAGE(IPC25); break;
+    STORAGE(IPC26); break;      STORAGE(IPC27); break;
+    STORAGE(IPC28); break;      STORAGE(IPC29); break;
+    STORAGE(IPC30); break;      STORAGE(IPC31); break;
+    STORAGE(IPC32); break;      STORAGE(IPC33); break;
+    STORAGE(IPC34); break;      STORAGE(IPC35); break;
+    STORAGE(IPC36); break;      STORAGE(IPC37); break;
+    STORAGE(IPC38); break;      STORAGE(IPC39); break;
+    STORAGE(IPC40); break;      STORAGE(IPC41); break;
+    STORAGE(IPC42); break;      STORAGE(IPC43); break;
+    STORAGE(IPC44); break;      STORAGE(IPC45); break;
+    STORAGE(IPC46); break;      STORAGE(IPC47); break;
+
+    // OFF000..OFF190 - Interrupt Vector Address Offset
+    STORAGE(OFF(0)); break;     STORAGE(OFF(1)); break;
+    STORAGE(OFF(2)); break;     STORAGE(OFF(3)); break;
+    STORAGE(OFF(4)); break;     STORAGE(OFF(5)); break;
+    STORAGE(OFF(6)); break;     STORAGE(OFF(7)); break;
+    STORAGE(OFF(8)); break;     STORAGE(OFF(9)); break;
+    STORAGE(OFF(10)); break;    STORAGE(OFF(11)); break;
+    STORAGE(OFF(12)); break;    STORAGE(OFF(13)); break;
+    STORAGE(OFF(14)); break;    STORAGE(OFF(15)); break;
+    STORAGE(OFF(16)); break;    STORAGE(OFF(17)); break;
+    STORAGE(OFF(18)); break;    STORAGE(OFF(19)); break;
+    STORAGE(OFF(20)); break;    STORAGE(OFF(21)); break;
+    STORAGE(OFF(22)); break;    STORAGE(OFF(23)); break;
+    STORAGE(OFF(24)); break;    STORAGE(OFF(25)); break;
+    STORAGE(OFF(26)); break;    STORAGE(OFF(27)); break;
+    STORAGE(OFF(28)); break;    STORAGE(OFF(29)); break;
+    STORAGE(OFF(30)); break;    STORAGE(OFF(31)); break;
+    STORAGE(OFF(32)); break;    STORAGE(OFF(33)); break;
+    STORAGE(OFF(34)); break;    STORAGE(OFF(35)); break;
+    STORAGE(OFF(36)); break;    STORAGE(OFF(37)); break;
+    STORAGE(OFF(38)); break;    STORAGE(OFF(39)); break;
+    STORAGE(OFF(40)); break;    STORAGE(OFF(41)); break;
+    STORAGE(OFF(42)); break;    STORAGE(OFF(43)); break;
+    STORAGE(OFF(44)); break;    STORAGE(OFF(45)); break;
+    STORAGE(OFF(46)); break;    STORAGE(OFF(47)); break;
+    STORAGE(OFF(48)); break;    STORAGE(OFF(49)); break;
+    STORAGE(OFF(50)); break;    STORAGE(OFF(51)); break;
+    STORAGE(OFF(52)); break;    STORAGE(OFF(53)); break;
+    STORAGE(OFF(54)); break;    STORAGE(OFF(55)); break;
+    STORAGE(OFF(56)); break;    STORAGE(OFF(57)); break;
+    STORAGE(OFF(58)); break;    STORAGE(OFF(59)); break;
+    STORAGE(OFF(60)); break;    STORAGE(OFF(61)); break;
+    STORAGE(OFF(62)); break;    STORAGE(OFF(63)); break;
+    STORAGE(OFF(64)); break;    STORAGE(OFF(65)); break;
+    STORAGE(OFF(66)); break;    STORAGE(OFF(67)); break;
+    STORAGE(OFF(68)); break;    STORAGE(OFF(69)); break;
+    STORAGE(OFF(70)); break;    STORAGE(OFF(71)); break;
+    STORAGE(OFF(72)); break;    STORAGE(OFF(73)); break;
+    STORAGE(OFF(74)); break;    STORAGE(OFF(75)); break;
+    STORAGE(OFF(76)); break;    STORAGE(OFF(77)); break;
+    STORAGE(OFF(78)); break;    STORAGE(OFF(79)); break;
+    STORAGE(OFF(80)); break;    STORAGE(OFF(81)); break;
+    STORAGE(OFF(82)); break;    STORAGE(OFF(83)); break;
+    STORAGE(OFF(84)); break;    STORAGE(OFF(85)); break;
+    STORAGE(OFF(86)); break;    STORAGE(OFF(87)); break;
+    STORAGE(OFF(88)); break;    STORAGE(OFF(89)); break;
+    STORAGE(OFF(90)); break;    STORAGE(OFF(91)); break;
+    STORAGE(OFF(92)); break;    STORAGE(OFF(93)); break;
+    STORAGE(OFF(94)); break;    STORAGE(OFF(95)); break;
+    STORAGE(OFF(96)); break;    STORAGE(OFF(97)); break;
+    STORAGE(OFF(98)); break;    STORAGE(OFF(99)); break;
+    STORAGE(OFF(100)); break;   STORAGE(OFF(101)); break;
+    STORAGE(OFF(102)); break;   STORAGE(OFF(103)); break;
+    STORAGE(OFF(104)); break;   STORAGE(OFF(105)); break;
+    STORAGE(OFF(106)); break;   STORAGE(OFF(107)); break;
+    STORAGE(OFF(108)); break;   STORAGE(OFF(109)); break;
+    STORAGE(OFF(110)); break;   STORAGE(OFF(111)); break;
+    STORAGE(OFF(112)); break;   STORAGE(OFF(113)); break;
+    STORAGE(OFF(114)); break;   STORAGE(OFF(115)); break;
+    STORAGE(OFF(116)); break;   STORAGE(OFF(117)); break;
+    STORAGE(OFF(118)); break;   STORAGE(OFF(119)); break;
+    STORAGE(OFF(120)); break;   STORAGE(OFF(121)); break;
+    STORAGE(OFF(122)); break;   STORAGE(OFF(123)); break;
+    STORAGE(OFF(124)); break;   STORAGE(OFF(125)); break;
+    STORAGE(OFF(126)); break;   STORAGE(OFF(127)); break;
+    STORAGE(OFF(128)); break;   STORAGE(OFF(129)); break;
+    STORAGE(OFF(130)); break;   STORAGE(OFF(131)); break;
+    STORAGE(OFF(132)); break;   STORAGE(OFF(133)); break;
+    STORAGE(OFF(134)); break;   STORAGE(OFF(135)); break;
+    STORAGE(OFF(136)); break;   STORAGE(OFF(137)); break;
+    STORAGE(OFF(138)); break;   STORAGE(OFF(139)); break;
+    STORAGE(OFF(140)); break;   STORAGE(OFF(141)); break;
+    STORAGE(OFF(142)); break;   STORAGE(OFF(143)); break;
+    STORAGE(OFF(144)); break;   STORAGE(OFF(145)); break;
+    STORAGE(OFF(146)); break;   STORAGE(OFF(147)); break;
+    STORAGE(OFF(148)); break;   STORAGE(OFF(149)); break;
+    STORAGE(OFF(150)); break;   STORAGE(OFF(151)); break;
+    STORAGE(OFF(152)); break;   STORAGE(OFF(153)); break;
+    STORAGE(OFF(154)); break;   STORAGE(OFF(155)); break;
+    STORAGE(OFF(156)); break;   STORAGE(OFF(157)); break;
+    STORAGE(OFF(158)); break;   STORAGE(OFF(159)); break;
+    STORAGE(OFF(160)); break;   STORAGE(OFF(161)); break;
+    STORAGE(OFF(162)); break;   STORAGE(OFF(163)); break;
+    STORAGE(OFF(164)); break;   STORAGE(OFF(165)); break;
+    STORAGE(OFF(166)); break;   STORAGE(OFF(167)); break;
+    STORAGE(OFF(168)); break;   STORAGE(OFF(169)); break;
+    STORAGE(OFF(170)); break;   STORAGE(OFF(171)); break;
+    STORAGE(OFF(172)); break;   STORAGE(OFF(173)); break;
+    STORAGE(OFF(174)); break;   STORAGE(OFF(175)); break;
+    STORAGE(OFF(176)); break;   STORAGE(OFF(177)); break;
+    STORAGE(OFF(178)); break;   STORAGE(OFF(179)); break;
+    STORAGE(OFF(180)); break;   STORAGE(OFF(181)); break;
+    STORAGE(OFF(182)); break;   STORAGE(OFF(183)); break;
+    STORAGE(OFF(184)); break;   STORAGE(OFF(185)); break;
+    STORAGE(OFF(186)); break;   STORAGE(OFF(187)); break;
+    STORAGE(OFF(188)); break;   STORAGE(OFF(189)); break;
+    STORAGE(OFF(190)); break;
 
     /*-------------------------------------------------------------------------
      * Prefetch controller.
@@ -520,13 +596,50 @@ static unsigned io_read32(pic32_t *s, unsigned offset, const char **namep)
     STORAGE(OSCCON); break;     // Oscillator Control
     STORAGE(OSCTUN); break;     // Oscillator Tuning
     STORAGE(SPLLCON); break;    // System PLL Control
+    STORAGE(REFO1CON); break;
+    STORAGE(REFO1CONCLR); *bufp = 0; break;
+    STORAGE(REFO1CONSET); *bufp = 0; break;
+    STORAGE(REFO1CONINV); *bufp = 0; break;
+    STORAGE(REFO2CON); break;
+    STORAGE(REFO2CONCLR); *bufp = 0; break;
+    STORAGE(REFO2CONSET); *bufp = 0; break;
+    STORAGE(REFO2CONINV); *bufp = 0; break;
+    STORAGE(REFO3CON); break;
+    STORAGE(REFO3CONCLR); *bufp = 0; break;
+    STORAGE(REFO3CONSET); *bufp = 0; break;
+    STORAGE(REFO3CONINV); *bufp = 0; break;
+    STORAGE(REFO4CON); break;
+    STORAGE(REFO4CONCLR); *bufp = 0; break;
+    STORAGE(REFO4CONSET); *bufp = 0; break;
+    STORAGE(REFO4CONINV); *bufp = 0; break;
     STORAGE(PB1DIV); break;     // Peripheral bus 1 divisor
+    STORAGE(PB1DIVCLR); *bufp = 0; break;
+    STORAGE(PB1DIVSET); *bufp = 0; break;
+    STORAGE(PB1DIVINV); *bufp = 0; break;
     STORAGE(PB2DIV); break;     // Peripheral bus 2 divisor
+    STORAGE(PB2DIVCLR); *bufp = 0; break;
+    STORAGE(PB2DIVSET); *bufp = 0; break;
+    STORAGE(PB2DIVINV); *bufp = 0; break;
     STORAGE(PB3DIV); break;     // Peripheral bus 3 divisor
+    STORAGE(PB3DIVCLR); *bufp = 0; break;
+    STORAGE(PB3DIVSET); *bufp = 0; break;
+    STORAGE(PB3DIVINV); *bufp = 0; break;
     STORAGE(PB4DIV); break;     // Peripheral bus 4 divisor
+    STORAGE(PB4DIVCLR); *bufp = 0; break;
+    STORAGE(PB4DIVSET); *bufp = 0; break;
+    STORAGE(PB4DIVINV); *bufp = 0; break;
     STORAGE(PB5DIV); break;     // Peripheral bus 5 divisor
+    STORAGE(PB5DIVCLR); *bufp = 0; break;
+    STORAGE(PB5DIVSET); *bufp = 0; break;
+    STORAGE(PB5DIVINV); *bufp = 0; break;
     STORAGE(PB7DIV); break;     // Peripheral bus 7 divisor
+    STORAGE(PB7DIVCLR); *bufp = 0; break;
+    STORAGE(PB7DIVSET); *bufp = 0; break;
+    STORAGE(PB7DIVINV); *bufp = 0; break;
     STORAGE(PB8DIV); break;     // Peripheral bus 8 divisor
+    STORAGE(PB8DIVCLR); *bufp = 0; break;
+    STORAGE(PB8DIVSET); *bufp = 0; break;
+    STORAGE(PB8DIVINV); *bufp = 0; break;
 
     /*-------------------------------------------------------------------------
      * Peripheral port select registers: input.
@@ -1158,56 +1271,132 @@ static void io_write32(pic32_t *s, unsigned offset, unsigned data, const char **
     WRITEOP(IEC3); goto irq;
     WRITEOP(IEC4); goto irq;
     WRITEOP(IEC5); goto irq;
-    WRITEOP(IPC0); goto irq;    // IPC(0..11) - Interrupt Priority Control
-    WRITEOP(IPC1); goto irq;
-    WRITEOP(IPC2); goto irq;
-    WRITEOP(IPC3); goto irq;
-    WRITEOP(IPC4); goto irq;
-    WRITEOP(IPC5); goto irq;
-    WRITEOP(IPC6); goto irq;
-    WRITEOP(IPC7); goto irq;
-    WRITEOP(IPC8); goto irq;
-    WRITEOP(IPC9); goto irq;
-    WRITEOP(IPC10); goto irq;
-    WRITEOP(IPC11); goto irq;
-    WRITEOP(IPC12); goto irq;
-    WRITEOP(IPC13); goto irq;
-    WRITEOP(IPC14); goto irq;
-    WRITEOP(IPC15); goto irq;
-    WRITEOP(IPC16); goto irq;
-    WRITEOP(IPC17); goto irq;
-    WRITEOP(IPC18); goto irq;
-    WRITEOP(IPC19); goto irq;
-    WRITEOP(IPC20); goto irq;
-    WRITEOP(IPC21); goto irq;
-    WRITEOP(IPC22); goto irq;
-    WRITEOP(IPC23); goto irq;
-    WRITEOP(IPC24); goto irq;
-    WRITEOP(IPC25); goto irq;
-    WRITEOP(IPC26); goto irq;
-    WRITEOP(IPC27); goto irq;
-    WRITEOP(IPC28); goto irq;
-    WRITEOP(IPC29); goto irq;
-    WRITEOP(IPC30); goto irq;
-    WRITEOP(IPC31); goto irq;
-    WRITEOP(IPC32); goto irq;
-    WRITEOP(IPC33); goto irq;
-    WRITEOP(IPC34); goto irq;
-    WRITEOP(IPC35); goto irq;
-    WRITEOP(IPC36); goto irq;
-    WRITEOP(IPC37); goto irq;
-    WRITEOP(IPC38); goto irq;
-    WRITEOP(IPC39); goto irq;
-    WRITEOP(IPC40); goto irq;
-    WRITEOP(IPC41); goto irq;
-    WRITEOP(IPC42); goto irq;
-    WRITEOP(IPC43); goto irq;
-    WRITEOP(IPC44); goto irq;
-    WRITEOP(IPC45); goto irq;
-    WRITEOP(IPC46); goto irq;
-    WRITEOP(IPC47);
+
+    // IPC(0..11) - Interrupt Priority Control
+    WRITEOP(IPC0); goto irq;    WRITEOP(IPC1); goto irq;
+    WRITEOP(IPC2); goto irq;    WRITEOP(IPC3); goto irq;
+    WRITEOP(IPC4); goto irq;    WRITEOP(IPC5); goto irq;
+    WRITEOP(IPC6); goto irq;    WRITEOP(IPC7); goto irq;
+    WRITEOP(IPC8); goto irq;    WRITEOP(IPC9); goto irq;
+    WRITEOP(IPC10); goto irq;   WRITEOP(IPC11); goto irq;
+    WRITEOP(IPC12); goto irq;   WRITEOP(IPC13); goto irq;
+    WRITEOP(IPC14); goto irq;   WRITEOP(IPC15); goto irq;
+    WRITEOP(IPC16); goto irq;   WRITEOP(IPC17); goto irq;
+    WRITEOP(IPC18); goto irq;   WRITEOP(IPC19); goto irq;
+    WRITEOP(IPC20); goto irq;   WRITEOP(IPC21); goto irq;
+    WRITEOP(IPC22); goto irq;   WRITEOP(IPC23); goto irq;
+    WRITEOP(IPC24); goto irq;   WRITEOP(IPC25); goto irq;
+    WRITEOP(IPC26); goto irq;   WRITEOP(IPC27); goto irq;
+    WRITEOP(IPC28); goto irq;   WRITEOP(IPC29); goto irq;
+    WRITEOP(IPC30); goto irq;   WRITEOP(IPC31); goto irq;
+    WRITEOP(IPC32); goto irq;   WRITEOP(IPC33); goto irq;
+    WRITEOP(IPC34); goto irq;   WRITEOP(IPC35); goto irq;
+    WRITEOP(IPC36); goto irq;   WRITEOP(IPC37); goto irq;
+    WRITEOP(IPC38); goto irq;   WRITEOP(IPC39); goto irq;
+    WRITEOP(IPC40); goto irq;   WRITEOP(IPC41); goto irq;
+    WRITEOP(IPC42); goto irq;   WRITEOP(IPC43); goto irq;
+    WRITEOP(IPC44); goto irq;   WRITEOP(IPC45); goto irq;
+    WRITEOP(IPC46); goto irq;   WRITEOP(IPC47);
 irq:    update_irq_status(s);
         return;
+
+    // OFF000..OFF190 - Interrupt Vector Address Offset
+    STORAGE(OFF(0)); break;     STORAGE(OFF(1)); break;
+    STORAGE(OFF(2)); break;     STORAGE(OFF(3)); break;
+    STORAGE(OFF(4)); break;     STORAGE(OFF(5)); break;
+    STORAGE(OFF(6)); break;     STORAGE(OFF(7)); break;
+    STORAGE(OFF(8)); break;     STORAGE(OFF(9)); break;
+    STORAGE(OFF(10)); break;    STORAGE(OFF(11)); break;
+    STORAGE(OFF(12)); break;    STORAGE(OFF(13)); break;
+    STORAGE(OFF(14)); break;    STORAGE(OFF(15)); break;
+    STORAGE(OFF(16)); break;    STORAGE(OFF(17)); break;
+    STORAGE(OFF(18)); break;    STORAGE(OFF(19)); break;
+    STORAGE(OFF(20)); break;    STORAGE(OFF(21)); break;
+    STORAGE(OFF(22)); break;    STORAGE(OFF(23)); break;
+    STORAGE(OFF(24)); break;    STORAGE(OFF(25)); break;
+    STORAGE(OFF(26)); break;    STORAGE(OFF(27)); break;
+    STORAGE(OFF(28)); break;    STORAGE(OFF(29)); break;
+    STORAGE(OFF(30)); break;    STORAGE(OFF(31)); break;
+    STORAGE(OFF(32)); break;    STORAGE(OFF(33)); break;
+    STORAGE(OFF(34)); break;    STORAGE(OFF(35)); break;
+    STORAGE(OFF(36)); break;    STORAGE(OFF(37)); break;
+    STORAGE(OFF(38)); break;    STORAGE(OFF(39)); break;
+    STORAGE(OFF(40)); break;    STORAGE(OFF(41)); break;
+    STORAGE(OFF(42)); break;    STORAGE(OFF(43)); break;
+    STORAGE(OFF(44)); break;    STORAGE(OFF(45)); break;
+    STORAGE(OFF(46)); break;    STORAGE(OFF(47)); break;
+    STORAGE(OFF(48)); break;    STORAGE(OFF(49)); break;
+    STORAGE(OFF(50)); break;    STORAGE(OFF(51)); break;
+    STORAGE(OFF(52)); break;    STORAGE(OFF(53)); break;
+    STORAGE(OFF(54)); break;    STORAGE(OFF(55)); break;
+    STORAGE(OFF(56)); break;    STORAGE(OFF(57)); break;
+    STORAGE(OFF(58)); break;    STORAGE(OFF(59)); break;
+    STORAGE(OFF(60)); break;    STORAGE(OFF(61)); break;
+    STORAGE(OFF(62)); break;    STORAGE(OFF(63)); break;
+    STORAGE(OFF(64)); break;    STORAGE(OFF(65)); break;
+    STORAGE(OFF(66)); break;    STORAGE(OFF(67)); break;
+    STORAGE(OFF(68)); break;    STORAGE(OFF(69)); break;
+    STORAGE(OFF(70)); break;    STORAGE(OFF(71)); break;
+    STORAGE(OFF(72)); break;    STORAGE(OFF(73)); break;
+    STORAGE(OFF(74)); break;    STORAGE(OFF(75)); break;
+    STORAGE(OFF(76)); break;    STORAGE(OFF(77)); break;
+    STORAGE(OFF(78)); break;    STORAGE(OFF(79)); break;
+    STORAGE(OFF(80)); break;    STORAGE(OFF(81)); break;
+    STORAGE(OFF(82)); break;    STORAGE(OFF(83)); break;
+    STORAGE(OFF(84)); break;    STORAGE(OFF(85)); break;
+    STORAGE(OFF(86)); break;    STORAGE(OFF(87)); break;
+    STORAGE(OFF(88)); break;    STORAGE(OFF(89)); break;
+    STORAGE(OFF(90)); break;    STORAGE(OFF(91)); break;
+    STORAGE(OFF(92)); break;    STORAGE(OFF(93)); break;
+    STORAGE(OFF(94)); break;    STORAGE(OFF(95)); break;
+    STORAGE(OFF(96)); break;    STORAGE(OFF(97)); break;
+    STORAGE(OFF(98)); break;    STORAGE(OFF(99)); break;
+    STORAGE(OFF(100)); break;   STORAGE(OFF(101)); break;
+    STORAGE(OFF(102)); break;   STORAGE(OFF(103)); break;
+    STORAGE(OFF(104)); break;   STORAGE(OFF(105)); break;
+    STORAGE(OFF(106)); break;   STORAGE(OFF(107)); break;
+    STORAGE(OFF(108)); break;   STORAGE(OFF(109)); break;
+    STORAGE(OFF(110)); break;   STORAGE(OFF(111)); break;
+    STORAGE(OFF(112)); break;   STORAGE(OFF(113)); break;
+    STORAGE(OFF(114)); break;   STORAGE(OFF(115)); break;
+    STORAGE(OFF(116)); break;   STORAGE(OFF(117)); break;
+    STORAGE(OFF(118)); break;   STORAGE(OFF(119)); break;
+    STORAGE(OFF(120)); break;   STORAGE(OFF(121)); break;
+    STORAGE(OFF(122)); break;   STORAGE(OFF(123)); break;
+    STORAGE(OFF(124)); break;   STORAGE(OFF(125)); break;
+    STORAGE(OFF(126)); break;   STORAGE(OFF(127)); break;
+    STORAGE(OFF(128)); break;   STORAGE(OFF(129)); break;
+    STORAGE(OFF(130)); break;   STORAGE(OFF(131)); break;
+    STORAGE(OFF(132)); break;   STORAGE(OFF(133)); break;
+    STORAGE(OFF(134)); break;   STORAGE(OFF(135)); break;
+    STORAGE(OFF(136)); break;   STORAGE(OFF(137)); break;
+    STORAGE(OFF(138)); break;   STORAGE(OFF(139)); break;
+    STORAGE(OFF(140)); break;   STORAGE(OFF(141)); break;
+    STORAGE(OFF(142)); break;   STORAGE(OFF(143)); break;
+    STORAGE(OFF(144)); break;   STORAGE(OFF(145)); break;
+    STORAGE(OFF(146)); break;   STORAGE(OFF(147)); break;
+    STORAGE(OFF(148)); break;   STORAGE(OFF(149)); break;
+    STORAGE(OFF(150)); break;   STORAGE(OFF(151)); break;
+    STORAGE(OFF(152)); break;   STORAGE(OFF(153)); break;
+    STORAGE(OFF(154)); break;   STORAGE(OFF(155)); break;
+    STORAGE(OFF(156)); break;   STORAGE(OFF(157)); break;
+    STORAGE(OFF(158)); break;   STORAGE(OFF(159)); break;
+    STORAGE(OFF(160)); break;   STORAGE(OFF(161)); break;
+    STORAGE(OFF(162)); break;   STORAGE(OFF(163)); break;
+    STORAGE(OFF(164)); break;   STORAGE(OFF(165)); break;
+    STORAGE(OFF(166)); break;   STORAGE(OFF(167)); break;
+    STORAGE(OFF(168)); break;   STORAGE(OFF(169)); break;
+    STORAGE(OFF(170)); break;   STORAGE(OFF(171)); break;
+    STORAGE(OFF(172)); break;   STORAGE(OFF(173)); break;
+    STORAGE(OFF(174)); break;   STORAGE(OFF(175)); break;
+    STORAGE(OFF(176)); break;   STORAGE(OFF(177)); break;
+    STORAGE(OFF(178)); break;   STORAGE(OFF(179)); break;
+    STORAGE(OFF(180)); break;   STORAGE(OFF(181)); break;
+    STORAGE(OFF(182)); break;   STORAGE(OFF(183)); break;
+    STORAGE(OFF(184)); break;   STORAGE(OFF(185)); break;
+    STORAGE(OFF(186)); break;   STORAGE(OFF(187)); break;
+    STORAGE(OFF(188)); break;   STORAGE(OFF(189)); break;
+    STORAGE(OFF(190)); break;
 
     /*-------------------------------------------------------------------------
      * Prefetch controller.
@@ -1252,13 +1441,17 @@ irq:    update_irq_status(s);
     STORAGE(OSCCON); break;     // Oscillator Control
     STORAGE(OSCTUN); break;     // Oscillator Tuning
     STORAGE(SPLLCON); break;    // System PLL Control
-    STORAGE(PB1DIV); break;     // Peripheral bus 1 divisor
-    STORAGE(PB2DIV); break;     // Peripheral bus 2 divisor
-    STORAGE(PB3DIV); break;     // Peripheral bus 3 divisor
-    STORAGE(PB4DIV); break;     // Peripheral bus 4 divisor
-    STORAGE(PB5DIV); break;     // Peripheral bus 5 divisor
-    STORAGE(PB7DIV); break;     // Peripheral bus 7 divisor
-    STORAGE(PB8DIV); break;     // Peripheral bus 8 divisor
+    WRITEOP(REFO1CON); return;
+    WRITEOP(REFO2CON); return;
+    WRITEOP(REFO3CON); return;
+    WRITEOP(REFO4CON); return;
+    WRITEOP(PB1DIV); return;    // Peripheral bus 1 divisor
+    WRITEOP(PB2DIV); return;    // Peripheral bus 2 divisor
+    WRITEOP(PB3DIV); return;    // Peripheral bus 3 divisor
+    WRITEOP(PB4DIV); return;    // Peripheral bus 4 divisor
+    WRITEOP(PB5DIV); return;    // Peripheral bus 5 divisor
+    WRITEOP(PB7DIV); return;    // Peripheral bus 7 divisor
+    WRITEOP(PB8DIV); return;    // Peripheral bus 8 divisor
 
     /*-------------------------------------------------------------------------
      * Peripheral port select registers: input.
