@@ -385,47 +385,187 @@ static void io_reset(pic32_t *s)
     }
 
     /*
+     * Reset timers.
+     */
+    VALUE(T1CON)    = 0;
+    VALUE(TMR1)     = 0;
+    VALUE(PR1)      = 0xffff;
+    VALUE(T2CON)    = 0;
+    VALUE(TMR2)     = 0;
+    VALUE(PR2)      = 0xffff;
+    VALUE(T3CON)    = 0;
+    VALUE(TMR3)     = 0;
+    VALUE(PR3)      = 0xffff;
+    VALUE(T4CON)    = 0;
+    VALUE(TMR4)     = 0;
+    VALUE(PR4)      = 0xffff;
+    VALUE(T5CON)    = 0;
+    VALUE(TMR5)     = 0;
+    VALUE(PR5)      = 0xffff;
+    VALUE(T6CON)    = 0;
+    VALUE(TMR6)     = 0;
+    VALUE(PR6)      = 0xffff;
+    VALUE(T7CON)    = 0;
+    VALUE(TMR7)     = 0;
+    VALUE(PR7)      = 0xffff;
+    VALUE(T8CON)    = 0;
+    VALUE(TMR8)     = 0;
+    VALUE(PR8)      = 0xffff;
+    VALUE(T9CON)    = 0;
+    VALUE(TMR9)     = 0;
+    VALUE(PR9)      = 0xffff;
+
+    /*
      * Reset Ethernet.
      */
-    VALUE(ETHCON1) = 0;         // Control 1
-    VALUE(ETHCON2) = 0;         // Control 2: RX data buffer size
-    VALUE(ETHTXST) = 0;         // Tx descriptor start address
-    VALUE(ETHRXST) = 0;         // Rx descriptor start address
-    VALUE(ETHHT0) = 0;          // Hash tasble 0
-    VALUE(ETHHT1) = 0;          // Hash tasble 1
-    VALUE(ETHPMM0) = 0;         // Pattern match mask 0
-    VALUE(ETHPMM1) = 0;         // Pattern match mask 1
-    VALUE(ETHPMCS) = 0;         // Pattern match checksum
-    VALUE(ETHPMO) = 0;          // Pattern match offset
-    VALUE(ETHRXFC) = 0;         // Receive filter configuration
-    VALUE(ETHRXWM) = 0;         // Receive watermarks
-    VALUE(ETHIEN) = 0;          // Interrupt enable
-    VALUE(ETHIRQ) = 0;          // Interrupt request
-    VALUE(ETHSTAT) = 0;         // Status
-    VALUE(ETHRXOVFLOW) = 0;     // Receive overflow statistics
-    VALUE(ETHFRMTXOK) = 0;      // Frames transmitted OK statistics
-    VALUE(ETHSCOLFRM) = 0;      // Single collision frames statistics
-    VALUE(ETHMCOLFRM) = 0;      // Multiple collision frames statistics
-    VALUE(ETHFRMRXOK) = 0;      // Frames received OK statistics
-    VALUE(ETHFCSERR) = 0;       // Frame check sequence error statistics
-    VALUE(ETHALGNERR) = 0;      // Alignment errors statistics
-    VALUE(EMAC1CFG1) = 0x800d;  // MAC configuration 1
-    VALUE(EMAC1CFG2) = 0x4082;  // MAC configuration 2
-    VALUE(EMAC1IPGT) = 0x0012;  // MAC back-to-back interpacket gap
-    VALUE(EMAC1IPGR) = 0x0c12;  // MAC non-back-to-back interpacket gap
-    VALUE(EMAC1CLRT) = 0x370f;  // MAC collision window/retry limit
-    VALUE(EMAC1MAXF) = 0x05ee;  // MAC maximum frame length
-    VALUE(EMAC1SUPP) = 0x1000;  // MAC PHY support
-    VALUE(EMAC1TEST) = 0;       // MAC test
-    VALUE(EMAC1MCFG) = 0x0020;  // MII configuration
-    VALUE(EMAC1MCMD) = 0;       // MII command
-    VALUE(EMAC1MADR) = 0x0100;  // MII address
-    VALUE(EMAC1MWTD) = 0;       // MII write data
-    VALUE(EMAC1MRDD) = 0;       // MII read data
-    VALUE(EMAC1MIND) = 0;       // MII indicators
-    VALUE(EMAC1SA0) = 0x79c1;   // MAC station address 0
-    VALUE(EMAC1SA1) = 0xcbc0;   // MAC station address 1
-    VALUE(EMAC1SA2) = 0x1e00;   // MAC station address 2
+    VALUE(ETHCON1)      = 0;        // Control 1
+    VALUE(ETHCON2)      = 0;        // Control 2: RX data buffer size
+    VALUE(ETHTXST)      = 0;        // Tx descriptor start address
+    VALUE(ETHRXST)      = 0;        // Rx descriptor start address
+    VALUE(ETHHT0)       = 0;        // Hash tasble 0
+    VALUE(ETHHT1)       = 0;        // Hash tasble 1
+    VALUE(ETHPMM0)      = 0;        // Pattern match mask 0
+    VALUE(ETHPMM1)      = 0;        // Pattern match mask 1
+    VALUE(ETHPMCS)      = 0;        // Pattern match checksum
+    VALUE(ETHPMO)       = 0;        // Pattern match offset
+    VALUE(ETHRXFC)      = 0;        // Receive filter configuration
+    VALUE(ETHRXWM)      = 0;        // Receive watermarks
+    VALUE(ETHIEN)       = 0;        // Interrupt enable
+    VALUE(ETHIRQ)       = 0;        // Interrupt request
+    VALUE(ETHSTAT)      = 0;        // Status
+    VALUE(ETHRXOVFLOW)  = 0;        // Receive overflow statistics
+    VALUE(ETHFRMTXOK)   = 0;        // Frames transmitted OK statistics
+    VALUE(ETHSCOLFRM)   = 0;        // Single collision frames statistics
+    VALUE(ETHMCOLFRM)   = 0;        // Multiple collision frames statistics
+    VALUE(ETHFRMRXOK)   = 0;        // Frames received OK statistics
+    VALUE(ETHFCSERR)    = 0;        // Frame check sequence error statistics
+    VALUE(ETHALGNERR)   = 0;        // Alignment errors statistics
+    VALUE(EMAC1CFG1)    = 0x800d;   // MAC configuration 1
+    VALUE(EMAC1CFG2)    = 0x4082;   // MAC configuration 2
+    VALUE(EMAC1IPGT)    = 0x0012;   // MAC back-to-back interpacket gap
+    VALUE(EMAC1IPGR)    = 0x0c12;   // MAC non-back-to-back interpacket gap
+    VALUE(EMAC1CLRT)    = 0x370f;   // MAC collision window/retry limit
+    VALUE(EMAC1MAXF)    = 0x05ee;   // MAC maximum frame length
+    VALUE(EMAC1SUPP)    = 0x1000;   // MAC PHY support
+    VALUE(EMAC1TEST)    = 0;        // MAC test
+    VALUE(EMAC1MCFG)    = 0x0020;   // MII configuration
+    VALUE(EMAC1MCMD)    = 0;        // MII command
+    VALUE(EMAC1MADR)    = 0x0100;   // MII address
+    VALUE(EMAC1MWTD)    = 0;        // MII write data
+    VALUE(EMAC1MRDD)    = 0;        // MII read data
+    VALUE(EMAC1MIND)    = 0;        // MII indicators
+    VALUE(EMAC1SA0)     = 0x79c1;   // MAC station address 0
+    VALUE(EMAC1SA1)     = 0xcbc0;   // MAC station address 1
+    VALUE(EMAC1SA2)     = 0x1e00;   // MAC station address 2
+
+    /*
+     * Reset USB.
+     */
+    VALUE(USBCSR0)      = 0x2000;
+    VALUE(USBCSR1)      = 0x00ff0000;
+    VALUE(USBCSR2)      = 0x060000fe;
+    VALUE(USBCSR3)      = 0;
+    VALUE(USBIENCSR0)   = 0;
+    VALUE(USBIENCSR1)   = 0;
+    VALUE(USBIENCSR2)   = 0;
+    VALUE(USBIENCSR3)   = 0;
+    VALUE(USBFIFO0)     = 0;
+    VALUE(USBFIFO1)     = 0;
+    VALUE(USBFIFO2)     = 0;
+    VALUE(USBFIFO3)     = 0;
+    VALUE(USBFIFO4)     = 0;
+    VALUE(USBFIFO5)     = 0;
+    VALUE(USBFIFO6)     = 0;
+    VALUE(USBFIFO7)     = 0;
+    VALUE(USBOTG)       = 0x0080;
+    VALUE(USBFIFOA)     = 0;
+    VALUE(USBHWVER)     = 0x0800;
+    VALUE(USBINFO)      = 0x3C5C8C77;
+    VALUE(USBEOFRST)    = 0x00727780;
+    VALUE(USBE0TXA)     = 0;
+    VALUE(USBE0RXA)     = 0;
+    VALUE(USBE1TXA)     = 0;
+    VALUE(USBE1RXA)     = 0;
+    VALUE(USBE2TXA)     = 0;
+    VALUE(USBE2RXA)     = 0;
+    VALUE(USBE3TXA)     = 0;
+    VALUE(USBE3RXA)     = 0;
+    VALUE(USBE4TXA)     = 0;
+    VALUE(USBE4RXA)     = 0;
+    VALUE(USBE5TXA)     = 0;
+    VALUE(USBE5RXA)     = 0;
+    VALUE(USBE6TXA)     = 0;
+    VALUE(USBE6RXA)     = 0;
+    VALUE(USBE7TXA)     = 0;
+    VALUE(USBE7RXA)     = 0;
+    VALUE(USBE0CSR0)    = 0;
+    VALUE(USBE0CSR2)    = 0;
+    VALUE(USBE0CSR3)    = 0;
+    VALUE(USBE1CSR0)    = 0;
+    VALUE(USBE1CSR1)    = 0;
+    VALUE(USBE1CSR2)    = 0;
+    VALUE(USBE1CSR3)    = 0;
+    VALUE(USBE2CSR0)    = 0;
+    VALUE(USBE2CSR1)    = 0;
+    VALUE(USBE2CSR2)    = 0;
+    VALUE(USBE2CSR3)    = 0;
+    VALUE(USBE3CSR0)    = 0;
+    VALUE(USBE3CSR1)    = 0;
+    VALUE(USBE3CSR2)    = 0;
+    VALUE(USBE3CSR3)    = 0;
+    VALUE(USBE4CSR0)    = 0;
+    VALUE(USBE4CSR1)    = 0;
+    VALUE(USBE4CSR2)    = 0;
+    VALUE(USBE4CSR3)    = 0;
+    VALUE(USBE5CSR0)    = 0;
+    VALUE(USBE5CSR1)    = 0;
+    VALUE(USBE5CSR2)    = 0;
+    VALUE(USBE5CSR3)    = 0;
+    VALUE(USBE6CSR0)    = 0;
+    VALUE(USBE6CSR1)    = 0;
+    VALUE(USBE6CSR2)    = 0;
+    VALUE(USBE6CSR3)    = 0;
+    VALUE(USBE7CSR0)    = 0;
+    VALUE(USBE7CSR1)    = 0;
+    VALUE(USBE7CSR2)    = 0;
+    VALUE(USBE7CSR3)    = 0;
+    VALUE(USBDMAINT)    = 0;
+    VALUE(USBDMA1C)     = 0;
+    VALUE(USBDMA1A)     = 0;
+    VALUE(USBDMA1N)     = 0;
+    VALUE(USBDMA2C)     = 0;
+    VALUE(USBDMA2A)     = 0;
+    VALUE(USBDMA2N)     = 0;
+    VALUE(USBDMA3C)     = 0;
+    VALUE(USBDMA3A)     = 0;
+    VALUE(USBDMA3N)     = 0;
+    VALUE(USBDMA4C)     = 0;
+    VALUE(USBDMA4A)     = 0;
+    VALUE(USBDMA4N)     = 0;
+    VALUE(USBDMA5C)     = 0;
+    VALUE(USBDMA5A)     = 0;
+    VALUE(USBDMA5N)     = 0;
+    VALUE(USBDMA6C)     = 0;
+    VALUE(USBDMA6A)     = 0;
+    VALUE(USBDMA6N)     = 0;
+    VALUE(USBDMA7C)     = 0;
+    VALUE(USBDMA7A)     = 0;
+    VALUE(USBDMA7N)     = 0;
+    VALUE(USBDMA8C)     = 0;
+    VALUE(USBDMA8A)     = 0;
+    VALUE(USBDMA8N)     = 0;
+    VALUE(USBE1RPC)     = 0;
+    VALUE(USBE2RPC)     = 0;
+    VALUE(USBE3RPC)     = 0;
+    VALUE(USBE4RPC)     = 0;
+    VALUE(USBE5RPC)     = 0;
+    VALUE(USBE6RPC)     = 0;
+    VALUE(USBE7RPC)     = 0;
+    VALUE(USBDPBFD)     = 0;
+    VALUE(USBTMCON1)    = 0x05E64074;
+    VALUE(USBTMCON2)    = 0;
+    VALUE(USBLPMR1)     = 0;
+    VALUE(USBLMPR2)     = 0;
 }
 
 static unsigned io_read32(pic32_t *s, unsigned offset, const char **namep)
@@ -1058,6 +1198,37 @@ static unsigned io_read32(pic32_t *s, unsigned offset, const char **namep)
     STORAGE(SPI4CON2INV); *bufp = 0; break;
 
     /*-------------------------------------------------------------------------
+     * Timers.
+     */
+    STORAGE(T1CON); break;
+    STORAGE(TMR1); break;
+    STORAGE(PR1); break;
+    STORAGE(T2CON); break;
+    STORAGE(TMR2); break;
+    STORAGE(PR2); break;
+    STORAGE(T3CON); break;
+    STORAGE(TMR3); break;
+    STORAGE(PR3); break;
+    STORAGE(T4CON); break;
+    STORAGE(TMR4); break;
+    STORAGE(PR4); break;
+    STORAGE(T5CON); break;
+    STORAGE(TMR5); break;
+    STORAGE(PR5); break;
+    STORAGE(T6CON); break;
+    STORAGE(TMR6); break;
+    STORAGE(PR6); break;
+    STORAGE(T7CON); break;
+    STORAGE(TMR7); break;
+    STORAGE(PR7); break;
+    STORAGE(T8CON); break;
+    STORAGE(TMR8); break;
+    STORAGE(PR8); break;
+    STORAGE(T9CON); break;
+    STORAGE(TMR9); break;
+    STORAGE(PR9); break;
+
+    /*-------------------------------------------------------------------------
      * Ethernet.
      */
     STORAGE(ETHCON1); break;            // Control 1
@@ -1099,6 +1270,115 @@ static unsigned io_read32(pic32_t *s, unsigned offset, const char **namep)
     STORAGE(EMAC1SA0); break;           // MAC station address 0
     STORAGE(EMAC1SA1); break;           // MAC station address 1
     STORAGE(EMAC1SA2); break;           // MAC station address 2
+
+    /*-------------------------------------------------------------------------
+     * USB.
+     */
+    STORAGE(USBCSR0); break;
+    STORAGE(USBCSR1); break;
+    STORAGE(USBCSR2); break;
+    STORAGE(USBCSR3); break;
+    STORAGE(USBIENCSR0); break;
+    STORAGE(USBIENCSR1); break;
+    STORAGE(USBIENCSR2); break;
+    STORAGE(USBIENCSR3); break;
+    STORAGE(USBFIFO0); break;
+    STORAGE(USBFIFO1); break;
+    STORAGE(USBFIFO2); break;
+    STORAGE(USBFIFO3); break;
+    STORAGE(USBFIFO4); break;
+    STORAGE(USBFIFO5); break;
+    STORAGE(USBFIFO6); break;
+    STORAGE(USBFIFO7); break;
+    STORAGE(USBOTG); break;
+    STORAGE(USBFIFOA); break;
+    STORAGE(USBHWVER); break;
+    STORAGE(USBINFO); break;
+    STORAGE(USBEOFRST); break;
+    STORAGE(USBE0TXA); break;
+    STORAGE(USBE0RXA); break;
+    STORAGE(USBE1TXA); break;
+    STORAGE(USBE1RXA); break;
+    STORAGE(USBE2TXA); break;
+    STORAGE(USBE2RXA); break;
+    STORAGE(USBE3TXA); break;
+    STORAGE(USBE3RXA); break;
+    STORAGE(USBE4TXA); break;
+    STORAGE(USBE4RXA); break;
+    STORAGE(USBE5TXA); break;
+    STORAGE(USBE5RXA); break;
+    STORAGE(USBE6TXA); break;
+    STORAGE(USBE6RXA); break;
+    STORAGE(USBE7TXA); break;
+    STORAGE(USBE7RXA); break;
+    STORAGE(USBE0CSR0); break;
+    STORAGE(USBE0CSR2); break;
+    STORAGE(USBE0CSR3); break;
+    STORAGE(USBE1CSR0); break;
+    STORAGE(USBE1CSR1); break;
+    STORAGE(USBE1CSR2); break;
+    STORAGE(USBE1CSR3); break;
+    STORAGE(USBE2CSR0); break;
+    STORAGE(USBE2CSR1); break;
+    STORAGE(USBE2CSR2); break;
+    STORAGE(USBE2CSR3); break;
+    STORAGE(USBE3CSR0); break;
+    STORAGE(USBE3CSR1); break;
+    STORAGE(USBE3CSR2); break;
+    STORAGE(USBE3CSR3); break;
+    STORAGE(USBE4CSR0); break;
+    STORAGE(USBE4CSR1); break;
+    STORAGE(USBE4CSR2); break;
+    STORAGE(USBE4CSR3); break;
+    STORAGE(USBE5CSR0); break;
+    STORAGE(USBE5CSR1); break;
+    STORAGE(USBE5CSR2); break;
+    STORAGE(USBE5CSR3); break;
+    STORAGE(USBE6CSR0); break;
+    STORAGE(USBE6CSR1); break;
+    STORAGE(USBE6CSR2); break;
+    STORAGE(USBE6CSR3); break;
+    STORAGE(USBE7CSR0); break;
+    STORAGE(USBE7CSR1); break;
+    STORAGE(USBE7CSR2); break;
+    STORAGE(USBE7CSR3); break;
+    STORAGE(USBDMAINT); break;
+    STORAGE(USBDMA1C); break;
+    STORAGE(USBDMA1A); break;
+    STORAGE(USBDMA1N); break;
+    STORAGE(USBDMA2C); break;
+    STORAGE(USBDMA2A); break;
+    STORAGE(USBDMA2N); break;
+    STORAGE(USBDMA3C); break;
+    STORAGE(USBDMA3A); break;
+    STORAGE(USBDMA3N); break;
+    STORAGE(USBDMA4C); break;
+    STORAGE(USBDMA4A); break;
+    STORAGE(USBDMA4N); break;
+    STORAGE(USBDMA5C); break;
+    STORAGE(USBDMA5A); break;
+    STORAGE(USBDMA5N); break;
+    STORAGE(USBDMA6C); break;
+    STORAGE(USBDMA6A); break;
+    STORAGE(USBDMA6N); break;
+    STORAGE(USBDMA7C); break;
+    STORAGE(USBDMA7A); break;
+    STORAGE(USBDMA7N); break;
+    STORAGE(USBDMA8C); break;
+    STORAGE(USBDMA8A); break;
+    STORAGE(USBDMA8N); break;
+    STORAGE(USBE1RPC); break;
+    STORAGE(USBE2RPC); break;
+    STORAGE(USBE3RPC); break;
+    STORAGE(USBE4RPC); break;
+    STORAGE(USBE5RPC); break;
+    STORAGE(USBE6RPC); break;
+    STORAGE(USBE7RPC); break;
+    STORAGE(USBDPBFD); break;
+    STORAGE(USBTMCON1); break;
+    STORAGE(USBTMCON2); break;
+    STORAGE(USBLPMR1); break;
+    STORAGE(USBLMPR2); break;
 
     default:
         printf("--- Read 1f8%05x: peripheral register not supported\n",
@@ -1852,6 +2132,37 @@ irq:    update_irq_status(s);
     WRITEOP(SPI4BRG); return;                       // Baud rate
     WRITEOP(SPI4CON2); return;                      // Control 2
 
+    /*
+     * Timers 1-9.
+     */
+    WRITEOP(T1CON); return;
+    WRITEOP(TMR1); return;
+    WRITEOP(PR1); return;
+    WRITEOP(T2CON); return;
+    WRITEOP(TMR2); return;
+    WRITEOP(PR2); return;
+    WRITEOP(T3CON); return;
+    WRITEOP(TMR3); return;
+    WRITEOP(PR3); return;
+    WRITEOP(T4CON); return;
+    WRITEOP(TMR4); return;
+    WRITEOP(PR4); return;
+    WRITEOP(T5CON); return;
+    WRITEOP(TMR5); return;
+    WRITEOP(PR5); return;
+    WRITEOP(T6CON); return;
+    WRITEOP(TMR6); return;
+    WRITEOP(PR6); return;
+    WRITEOP(T7CON); return;
+    WRITEOP(TMR7); return;
+    WRITEOP(PR7); return;
+    WRITEOP(T8CON); return;
+    WRITEOP(TMR8); return;
+    WRITEOP(PR8); return;
+    WRITEOP(T9CON); return;
+    WRITEOP(TMR9); return;
+    WRITEOP(PR9); return;
+
     /*-------------------------------------------------------------------------
      * Ethernet.
      */
@@ -1900,6 +2211,115 @@ irq:    update_irq_status(s);
     WRITEOP(EMAC1SA0); return;          // MAC station address 0
     WRITEOP(EMAC1SA1); return;          // MAC station address 1
     WRITEOP(EMAC1SA2); return;          // MAC station address 2
+
+    /*-------------------------------------------------------------------------
+     * USB.
+     */
+    STORAGE(USBCSR0); break;
+    STORAGE(USBCSR1); break;
+    STORAGE(USBCSR2); break;
+    STORAGE(USBCSR3); break;
+    STORAGE(USBIENCSR0); break;
+    STORAGE(USBIENCSR1); break;
+    STORAGE(USBIENCSR2); break;
+    STORAGE(USBIENCSR3); break;
+    STORAGE(USBFIFO0); break;
+    STORAGE(USBFIFO1); break;
+    STORAGE(USBFIFO2); break;
+    STORAGE(USBFIFO3); break;
+    STORAGE(USBFIFO4); break;
+    STORAGE(USBFIFO5); break;
+    STORAGE(USBFIFO6); break;
+    STORAGE(USBFIFO7); break;
+    STORAGE(USBOTG); break;
+    STORAGE(USBFIFOA); break;
+    STORAGE(USBHWVER); break;
+    STORAGE(USBINFO); break;
+    STORAGE(USBEOFRST); break;
+    STORAGE(USBE0TXA); break;
+    STORAGE(USBE0RXA); break;
+    STORAGE(USBE1TXA); break;
+    STORAGE(USBE1RXA); break;
+    STORAGE(USBE2TXA); break;
+    STORAGE(USBE2RXA); break;
+    STORAGE(USBE3TXA); break;
+    STORAGE(USBE3RXA); break;
+    STORAGE(USBE4TXA); break;
+    STORAGE(USBE4RXA); break;
+    STORAGE(USBE5TXA); break;
+    STORAGE(USBE5RXA); break;
+    STORAGE(USBE6TXA); break;
+    STORAGE(USBE6RXA); break;
+    STORAGE(USBE7TXA); break;
+    STORAGE(USBE7RXA); break;
+    STORAGE(USBE0CSR0); break;
+    STORAGE(USBE0CSR2); break;
+    STORAGE(USBE0CSR3); break;
+    STORAGE(USBE1CSR0); break;
+    STORAGE(USBE1CSR1); break;
+    STORAGE(USBE1CSR2); break;
+    STORAGE(USBE1CSR3); break;
+    STORAGE(USBE2CSR0); break;
+    STORAGE(USBE2CSR1); break;
+    STORAGE(USBE2CSR2); break;
+    STORAGE(USBE2CSR3); break;
+    STORAGE(USBE3CSR0); break;
+    STORAGE(USBE3CSR1); break;
+    STORAGE(USBE3CSR2); break;
+    STORAGE(USBE3CSR3); break;
+    STORAGE(USBE4CSR0); break;
+    STORAGE(USBE4CSR1); break;
+    STORAGE(USBE4CSR2); break;
+    STORAGE(USBE4CSR3); break;
+    STORAGE(USBE5CSR0); break;
+    STORAGE(USBE5CSR1); break;
+    STORAGE(USBE5CSR2); break;
+    STORAGE(USBE5CSR3); break;
+    STORAGE(USBE6CSR0); break;
+    STORAGE(USBE6CSR1); break;
+    STORAGE(USBE6CSR2); break;
+    STORAGE(USBE6CSR3); break;
+    STORAGE(USBE7CSR0); break;
+    STORAGE(USBE7CSR1); break;
+    STORAGE(USBE7CSR2); break;
+    STORAGE(USBE7CSR3); break;
+    STORAGE(USBDMAINT); break;
+    STORAGE(USBDMA1C); break;
+    STORAGE(USBDMA1A); break;
+    STORAGE(USBDMA1N); break;
+    STORAGE(USBDMA2C); break;
+    STORAGE(USBDMA2A); break;
+    STORAGE(USBDMA2N); break;
+    STORAGE(USBDMA3C); break;
+    STORAGE(USBDMA3A); break;
+    STORAGE(USBDMA3N); break;
+    STORAGE(USBDMA4C); break;
+    STORAGE(USBDMA4A); break;
+    STORAGE(USBDMA4N); break;
+    STORAGE(USBDMA5C); break;
+    STORAGE(USBDMA5A); break;
+    STORAGE(USBDMA5N); break;
+    STORAGE(USBDMA6C); break;
+    STORAGE(USBDMA6A); break;
+    STORAGE(USBDMA6N); break;
+    STORAGE(USBDMA7C); break;
+    STORAGE(USBDMA7A); break;
+    STORAGE(USBDMA7N); break;
+    STORAGE(USBDMA8C); break;
+    STORAGE(USBDMA8A); break;
+    STORAGE(USBDMA8N); break;
+    STORAGE(USBE1RPC); break;
+    STORAGE(USBE2RPC); break;
+    STORAGE(USBE3RPC); break;
+    STORAGE(USBE4RPC); break;
+    STORAGE(USBE5RPC); break;
+    STORAGE(USBE6RPC); break;
+    STORAGE(USBE7RPC); break;
+    STORAGE(USBDPBFD); break;
+    STORAGE(USBTMCON1); break;
+    STORAGE(USBTMCON2); break;
+    STORAGE(USBLPMR1); break;
+    STORAGE(USBLMPR2); break;
 
     default:
         printf("--- Write %08x to 1f8%05x: peripheral register not supported\n",

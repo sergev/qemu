@@ -46,6 +46,9 @@ struct _eth_t {
     pic32_t     *pic32;
     NICState    *eth_nic;       /* virtual network interface */
     NICConf     eth_conf;       /* network configuration */
+
+    uint16_t    phy_reg[32];    /* PHY registers */
+
 };
 
 /*
@@ -113,6 +116,23 @@ typedef struct {
 #define PHY_SPECIAL_100         0x0008  /* Speed 100 Mbps */
 
 /*
+ * Reset the PHY chip.
+ */
+static void phy_reset(eth_t *e)
+{
+    TRACE("---     PHY reset\n");
+    e->phy_reg[PHY_ID1]     = 0x0007;               /* Vendor: SMSC */
+    e->phy_reg[PHY_ID2]     = 0xc111;               /* Device: LAN8740A */
+    e->phy_reg[PHY_CONTROL] = 0x1000;
+    e->phy_reg[PHY_STATUS]  = PHY_STATUS_ANEG_ACK |
+                              PHY_STATUS_CAP_ANEG |
+                              PHY_STATUS_LINK;
+    e->phy_reg[PHY_SPECIAL] = PHY_SPECIAL_AUTODONE |
+                              PHY_SPECIAL_FDX |
+                              PHY_SPECIAL_100;
+}
+
+/*
  * Reset the Ethernet controller.
  */
 static void eth_reset(eth_t *e)
@@ -121,6 +141,8 @@ static void eth_reset(eth_t *e)
     pic32_t *s = e->pic32;
 
     TRACE("--- %s()\n", __func__);
+    if (qemu_loglevel_mask(CPU_LOG_INSTR))
+        fprintf(qemu_logfile, "--- Ethernet reset\n");
     s->irq_clear(s, PIC32_IRQ_ETH);
     VALUE(ETHSTAT) = 0;
     VALUE(EMAC1SA2) = macaddr[0] | (macaddr[1] << 8);
@@ -149,11 +171,14 @@ void pic32_eth_control(pic32_t *s)
         unsigned nbytes, i;
         unsigned char buf[2048];
 
+
         d.hdr   = ldl_le_phys(&address_space_memory, paddr);
         d.paddr = ldl_le_phys(&address_space_memory, paddr + 4);
         TRACE("--- TX desc [%08x] = %08x %08x\n", paddr, d.hdr, d.paddr);
 
         nbytes = DESC_BYTECNT(&d);
+        if (qemu_loglevel_mask(CPU_LOG_INSTR))
+            fprintf(qemu_logfile, "--- Ethernet transmit request, %u bytes\n", nbytes);
         if (nbytes > 0 && nbytes <= sizeof(buf)) {
             for (i=0; i<nbytes; i+=4)
                 *(uint32_t*) (buf + i) = ldl_le_phys(&address_space_memory,
@@ -179,36 +204,17 @@ void pic32_eth_control(pic32_t *s)
  */
 void pic32_mii_command(pic32_t *s)
 {
+    eth_t *e = s->eth;
     unsigned cmd = VALUE(EMAC1MCMD);
     unsigned addr = VALUE(EMAC1MADR);
-    unsigned data = 0;
+    unsigned data;
 
     if (cmd & (PIC32_EMAC1MCMD_READ | PIC32_EMAC1MCMD_SCAN)) {
         TRACE("--- %s() cmd = %04x, addr = %04x\n", __func__, cmd, addr);
-        switch (addr & 0x1f) {
-        case PHY_CONTROL:                   /* Basic Control Register */
-            data = 0;
-            break;
-        case PHY_STATUS:                    /* Basic Status Register */
-            data = PHY_STATUS_ANEG_ACK |
-                   PHY_STATUS_CAP_ANEG |
-                   PHY_STATUS_LINK;
-            break;
-        case PHY_ID1:                       /* PHY identifier 1 */
-            data = 0x0007;                  /* Vendor: SMSC */
-            break;
-        case PHY_ID2:                       /* PHY identifier 2 */
-            data = 0xc111;                  /* Device: LAN8740A */
-            break;
-        case PHY_MODE:                      /* Special Modes */
-            data = cmd >> 8;                /* PHY id. */
-            break;
-        case PHY_SPECIAL:                   /* Special Control/Status Register */
-            data = PHY_SPECIAL_AUTODONE |
-                   PHY_SPECIAL_FDX |
-                   PHY_SPECIAL_100;
-            break;
-        }
+        data = e->phy_reg[addr & 0x1f];
+        if (qemu_loglevel_mask(CPU_LOG_INSTR))
+            fprintf(qemu_logfile, "--- Ethernet MII read register [%u] = %04x\n",
+                addr & 0x1f, data);
         TRACE("---     return %04x\n", data);
         VALUE(EMAC1MRDD) = data;
     }
@@ -219,14 +225,19 @@ void pic32_mii_command(pic32_t *s)
  */
 void pic32_mii_write(pic32_t *s)
 {
+    eth_t *e = s->eth;
     unsigned addr = VALUE(EMAC1MADR);
     unsigned data = VALUE(EMAC1MWTD);
 
     TRACE("--- %s() addr = %04x, data = %04x\n", __func__, addr, data);
+    if (qemu_loglevel_mask(CPU_LOG_INSTR))
+        fprintf(qemu_logfile, "--- Ethernet MII write register [%u] = %04x\n",
+            addr & 0x1f, data);
     switch (addr & 0x1f) {
     case PHY_CONTROL:                   /* Basic Control Register */
+        e->phy_reg[PHY_CONTROL] = data;
         if (data & PHY_CONTROL_RESET) {
-            TRACE("---     PHY reset\n");
+            phy_reset(e);
         }
         break;
     }
@@ -275,6 +286,8 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     eth_desc_t *d, desc0, desc1;
 
     TRACE("--- %s: %d bytes\n", __func__, (int) size);
+    if (qemu_loglevel_mask(CPU_LOG_INSTR))
+        fprintf(qemu_logfile, "--- Ethernet receive, %u bytes\n", (unsigned)size);
     if (! (VALUE(ETHCON1) & PIC32_ETHCON1_ON)) {
         /* Ethernet controller is down. */
         return -1;
@@ -455,6 +468,7 @@ static void eth_object_reset(DeviceState *dev)
 
     //TRACE("--- %s()\n", __func__);
     eth_reset(e);
+    phy_reset(e);
 }
 
 /*
