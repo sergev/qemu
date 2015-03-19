@@ -105,6 +105,10 @@ typedef struct {
 
 #define PHY_CONTROL_RESET       0x8000  /* Soft reset, bit self cleared */
 
+#define PHY_STATUS_CAP_100_FDX  0x4000  /* Can do 100Base-TX full duplex */
+#define PHY_STATUS_CAP_100_HDX  0x2000  /* Can do 100Base-TX half duplex */
+#define PHY_STATUS_CAP_10_FDX   0x1000  /* Can do 10Base-TX full duplex */
+#define PHY_STATUS_CAP_10_HDX   0x0800  /* Can do 10Base-TX half duplex */
 #define PHY_STATUS_ANEG_ACK     0x0020  /* Auto-negotiation acknowledge */
 #define PHY_STATUS_CAP_ANEG     0x0008  /* Auto-negotiation available */
 #define PHY_STATUS_LINK         0x0004  /* Link valid */
@@ -124,9 +128,14 @@ static void phy_reset(eth_t *e)
     e->phy_reg[PHY_ID1]     = 0x0007;               /* Vendor: SMSC */
     e->phy_reg[PHY_ID2]     = 0xc111;               /* Device: LAN8740A */
     e->phy_reg[PHY_CONTROL] = 0x1000;
+    e->phy_reg[PHY_MODE]    = 0x4000;               /* RMII interface */
     e->phy_reg[PHY_STATUS]  = PHY_STATUS_ANEG_ACK |
                               PHY_STATUS_CAP_ANEG |
-                              PHY_STATUS_LINK;
+                              PHY_STATUS_LINK |
+                              PHY_STATUS_CAP_100_FDX |
+                              PHY_STATUS_CAP_100_HDX |
+                              PHY_STATUS_CAP_10_FDX |
+                              PHY_STATUS_CAP_10_HDX;
     e->phy_reg[PHY_SPECIAL] = PHY_SPECIAL_AUTODONE |
                               PHY_SPECIAL_FDX |
                               PHY_SPECIAL_100;
@@ -157,9 +166,9 @@ void pic32_eth_control(pic32_t *s)
 {
     eth_t *e = s->eth;
 
-    TRACE("--- %s()\n", __func__);
     if (! (VALUE(ETHCON1) & PIC32_ETHCON1_ON)) {
         /* Ethernet controller is disabled. */
+        TRACE("--- %s() ETH disabled\n", __func__);
         eth_reset(e);
         return;
     }
@@ -171,12 +180,12 @@ void pic32_eth_control(pic32_t *s)
         unsigned nbytes, i;
         unsigned char buf[2048];
 
-
         d.hdr   = ldl_le_phys(&address_space_memory, paddr);
         d.paddr = ldl_le_phys(&address_space_memory, paddr + 4);
-        TRACE("--- TX desc [%08x] = %08x %08x\n", paddr, d.hdr, d.paddr);
 
         nbytes = DESC_BYTECNT(&d);
+        TRACE("--- %s() trasmit request %u bytes\n", __func__, nbytes);
+        TRACE("--- TX desc [%08x] = %08x %08x\n", paddr, d.hdr, d.paddr);
         if (qemu_loglevel_mask(CPU_LOG_INSTR))
             fprintf(qemu_logfile, "--- Ethernet transmit request, %u bytes\n", nbytes);
         if (nbytes > 0 && nbytes <= sizeof(buf)) {
@@ -210,12 +219,12 @@ void pic32_mii_command(pic32_t *s)
     unsigned data;
 
     if (cmd & (PIC32_EMAC1MCMD_READ | PIC32_EMAC1MCMD_SCAN)) {
-        TRACE("--- %s() cmd = %04x, addr = %04x\n", __func__, cmd, addr);
         data = e->phy_reg[addr & 0x1f];
+        //TRACE("--- %s() cmd = %04x, addr = %04x\n", __func__, cmd, addr);
+        TRACE("--- %s() read register [%u] = %04x\n", __func__, addr & 0x1f, data);
         if (qemu_loglevel_mask(CPU_LOG_INSTR))
             fprintf(qemu_logfile, "--- Ethernet MII read register [%u] = %04x\n",
                 addr & 0x1f, data);
-        TRACE("---     return %04x\n", data);
         VALUE(EMAC1MRDD) = data;
     }
 }
@@ -229,7 +238,7 @@ void pic32_mii_write(pic32_t *s)
     unsigned addr = VALUE(EMAC1MADR);
     unsigned data = VALUE(EMAC1MWTD);
 
-    TRACE("--- %s() addr = %04x, data = %04x\n", __func__, addr, data);
+    TRACE("--- %s() write register [%u] = %04x\n", __func__, addr & 0x1f, data);
     if (qemu_loglevel_mask(CPU_LOG_INSTR))
         fprintf(qemu_logfile, "--- Ethernet MII write register [%u] = %04x\n",
             addr & 0x1f, data);
