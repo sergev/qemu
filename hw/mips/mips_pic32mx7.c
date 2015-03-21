@@ -889,8 +889,8 @@ irq:    update_irq_status(s);
     /*-------------------------------------------------------------------------
      * System controller.
      */
-    STORAGE(OSCCON); break;     // Oscillator Control
-    STORAGE(OSCTUN); break;     // Oscillator Tuning
+    WRITEOPR(OSCCON, PIC32_OSCCON_UNUSED); break; // Oscillator Control
+    WRITEOPR(OSCTUN, PIC32_OSCTUN_UNUSED); break; // Oscillator Tuning
     STORAGE(DDPCON); break;     // Debug Data Port Control
     READONLY(DEVID);            // Device Identifier
     STORAGE(SYSKEY);            // System Key
@@ -902,7 +902,7 @@ irq:    update_irq_status(s);
         else
             s->syskey_unlock = 0;
         break;
-    STORAGE(RCON); break;       // Reset Control
+    WRITEOPR(RCON, PIC32_RCON_UNUSED); break;       // Reset Control
     WRITEOP(RSWRST);            // Software Reset
         if (s->syskey_unlock == 2 && (VALUE(RSWRST) & 1)) {
             /* Reset CPU. */
@@ -1435,9 +1435,9 @@ static void pic32_init(MachineState *machine, int board_type)
         BOOTMEM(DEVCFG3) = 0xffff0722;
         VALUE(DEVID)     = 0x04307053;      // MX795F512L
         VALUE(OSCCON)    = 0x01453320;      // external oscillator 8MHz
-        s->sdcard_spi_port = 3;             // SD card at SPI4,
-        cs0_port = 3;  cs0_pin = 3;         // select0 at D3,
-        cs1_port = 3;  cs1_pin = 4;         // select1 at D4
+        s->sdcard_spi_port = 1;             // SD card at SPI2,
+        cs0_port = 2;  cs0_pin = 14;        // select0 at C14,
+        cs1_port = 3;  cs1_pin = 1;         // select1 at D1
         break;
     case BOARD_MAXIMITE:
         BOOTMEM(DEVCFG0) = 0xffffff7f;      // TODO: get real data from Maximite board
