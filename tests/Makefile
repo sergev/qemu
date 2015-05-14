@@ -352,7 +352,7 @@ tests/vhost-user-test$(EXESUF): tests/vhost-user-test.o qemu-char.o qemu-timer.o
 tests/qemu-iotests/socket_scm_helper$(EXESUF): tests/qemu-iotests/socket_scm_helper.o
 tests/test-qemu-opts$(EXESUF): tests/test-qemu-opts.o libqemuutil.a libqemustub.a
 
-ifeq ($(CONFIG_POSIX),y)
+ifeq ($(CONFIG_POSIX)$(CONFIG)_HAIKU),yn)
 LIBS += -lutil
 endif
 

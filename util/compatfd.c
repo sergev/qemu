@@ -17,7 +17,9 @@
 #include "qemu/compatfd.h"
 #include "qemu/thread.h"
 
+#ifndef CONFIG_HAIKU
 #include <sys/syscall.h>
+#endif
 
 struct sigfd_compat_info
 {

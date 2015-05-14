@@ -60,7 +60,10 @@ extern int daemon(int, int);
 #include <sys/mman.h>
 #include <libgen.h>
 #include <setjmp.h>
+
+#ifndef CONFIG_HAIKU
 #include <sys/signal.h>
+#endif
 
 #ifdef CONFIG_LINUX
 #include <sys/syscall.h>
@@ -82,7 +85,11 @@ int qemu_get_thread_id(void)
 
 int qemu_daemon(int nochdir, int noclose)
 {
+#ifndef CONFIG_HAIKU
     return daemon(nochdir, noclose);
+#else
+	return -1;
+#endif
 }
 
 void *qemu_oom_check(void *ptr)

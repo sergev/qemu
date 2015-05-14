@@ -1,0 +1,20 @@
+IN PROGRESS - DO NOT RELEASE
+
+Required files:
+
+Qemu files - git clone https://github.com/sergev/qemu.git ~/qemu
+glib2 and glib2-devel installed
+Apply patches from http://lists.nongnu.org/archive/html/qemu-devel/2015-03/msg04953.html
+
+
+Configure the compiler:
+
+setarch x86
+
+
+Configure the qemu package:
+
+./configure --prefix=/boot/home/config/non-packaged/ --target-list=mipsel-softmmu --enable-vnc
+make
+make install
+

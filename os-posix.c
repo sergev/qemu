@@ -323,6 +323,9 @@ bool is_daemonized(void)
 
 int os_mlock(void)
 {
+#ifdef CONFIG_HAIKU
+	return ENOSYS;
+#else
     int ret = 0;
 
     ret = mlockall(MCL_CURRENT | MCL_FUTURE);
@@ -331,4 +334,5 @@ int os_mlock(void)
     }
 
     return ret;
+#endif
 }

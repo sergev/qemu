@@ -81,7 +81,9 @@ static int qemu_signal_init(void)
      */
     sigemptyset(&set);
     sigaddset(&set, SIG_IPI);
+#ifdef SIGIO
     sigaddset(&set, SIGIO);
+#endif
     sigaddset(&set, SIGALRM);
     sigaddset(&set, SIGBUS);
     /* SIGINT cannot be handled via signalfd, so that ^C can be used
