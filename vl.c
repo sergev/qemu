@@ -1109,7 +1109,7 @@ static int cleanup_add_fd(void *opaque, QemuOpts *opts, Error **errp)
 #define FD_OPTS ""
 #define PFLASH_OPTS ""
 #define MTD_OPTS ""
-#define SD_OPTS ""
+#define SD_OPTS "format=raw"
 
 static int drive_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
