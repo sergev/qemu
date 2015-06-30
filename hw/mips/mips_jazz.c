@@ -210,7 +210,7 @@ static void mips_jazz_init(MachineState *machine,
 
     /* Init CPU internal devices */
     cpu_mips_irq_init_cpu(env);
-    cpu_mips_clock_init(env);
+    cpu_mips_clock_init(env, 100*1000*1000);
 
     /* Chipset */
     rc4030 = rc4030_init(&dmas, &rc4030_dma_mr);
