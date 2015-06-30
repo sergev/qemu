@@ -32,7 +32,7 @@ static void cpu_mips_irq_request(void *opaque, int irq, int level)
     CPUMIPSState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
 
-    if (irq < 0 || irq > 7)
+    if (irq < 0 || irq > 7 || (env->CP0_Config3 & (1 << CP0C3_VEIC)))
         return;
 
     if (level) {
@@ -74,5 +74,12 @@ void cpu_mips_soft_irq(CPUMIPSState *env, int irq, int level)
         return;
     }
 
-    qemu_set_irq(env->irq[irq], level);
+    if (env->CP0_Config3 & (1 << CP0C3_VEIC)) {
+        /* External interrupt controller mode. */
+        if (level > 0)
+            env->eic_soft_irq(env, irq);
+    } else {
+        /* Legacy or vectored interrupt mode. */
+        qemu_set_irq(env->irq[irq], level);
+    }
 }
