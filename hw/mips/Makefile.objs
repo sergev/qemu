@@ -3,3 +3,6 @@ obj-y += addr.o cputimer.o mips_int.o
 obj-$(CONFIG_JAZZ) += mips_jazz.o
 obj-$(CONFIG_FULONG) += mips_fulong2e.o
 obj-y += gt64xxx_pci.o
+obj-$(CONFIG_PIC32) += mips_pic32mx7.o mips_pic32mz.o
+obj-$(CONFIG_PIC32) += pic32_load_hex.o pic32_uart.o pic32_gpio.o
+obj-$(CONFIG_PIC32) += pic32_spi.o pic32_sdcard.o pic32_ethernet.o
