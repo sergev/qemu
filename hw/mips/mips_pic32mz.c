@@ -313,6 +313,38 @@ static void io_reset(pic32_t *s)
     VALUE(CNENG) = 0;                   // Input change interrupt enable
     VALUE(CNSTATG) = 0;                 // Input change status
 
+    VALUE(ANSELH) = 0xFFFF;             // Port H: analog select
+    VALUE(TRISH) = 0xFFFF;              // Port H: mask of inputs
+    VALUE(PORTH) = 0xFFFF;              // Port H: read inputs, write outputs
+    VALUE(LATH)  = 0xFFFF;              // Port H: read/write outputs
+    VALUE(ODCH)  = 0;                   // Port H: open drain configuration
+    VALUE(CNPUH) = 0;                   // Input pin pull-up
+    VALUE(CNPDH) = 0;                   // Input pin pull-down
+    VALUE(CNCONH) = 0;                  // Interrupt-on-change control
+    VALUE(CNENH) = 0;                   // Input change interrupt enable
+    VALUE(CNSTATH) = 0;                 // Input change status
+
+    VALUE(ANSELJ) = 0xFFFF;             // Port J: analog select
+    VALUE(TRISJ) = 0xFFFF;              // Port J: mask of inputs
+    VALUE(PORTJ) = 0xFFFF;              // Port J: read inputs, write outputs
+    VALUE(LATJ)  = 0xFFFF;              // Port J: read/write outputs
+    VALUE(ODCJ)  = 0;                   // Port J: open drain configuration
+    VALUE(CNPUJ) = 0;                   // Input pin pull-up
+    VALUE(CNPDJ) = 0;                   // Input pin pull-down
+    VALUE(CNCONJ) = 0;                  // Interrupt-on-change control
+    VALUE(CNENJ) = 0;                   // Input change interrupt enable
+    VALUE(CNSTATJ) = 0;                 // Input change status
+
+    VALUE(TRISK) = 0xFFFF;              // Port K: mask of inputs
+    VALUE(PORTK) = 0xFFFF;              // Port K: read inputs, write outputs
+    VALUE(LATK)  = 0xFFFF;              // Port K: read/write outputs
+    VALUE(ODCK)  = 0;                   // Port K: open drain configuration
+    VALUE(CNPUK) = 0;                   // Input pin pull-up
+    VALUE(CNPDK) = 0;                   // Input pin pull-down
+    VALUE(CNCONK) = 0;                  // Interrupt-on-change control
+    VALUE(CNENK) = 0;                   // Input change interrupt enable
+    VALUE(CNSTATK) = 0;                 // Input change status
+
     /*
      * Reset UARTs.
      */
@@ -974,6 +1006,38 @@ static unsigned io_read32(pic32_t *s, unsigned offset, const char **namep)
     STORAGE(CNCONG); break;     // Interrupt-on-change control
     STORAGE(CNENG); break;      // Input change interrupt enable
     STORAGE(CNSTATG); break;    // Input change status
+
+    STORAGE(ANSELH); break;     // Port H: analog select
+    STORAGE(TRISH); break;      // Port H: mask of inputs
+    STORAGE(PORTH); break;      // Port H: read inputs
+    STORAGE(LATH); break;       // Port H: read outputs
+    STORAGE(ODCH); break;       // Port H: open drain configuration
+    STORAGE(CNPUH); break;      // Input pin pull-up
+    STORAGE(CNPDH); break;      // Input pin pull-down
+    STORAGE(CNCONH); break;     // Interrupt-on-change control
+    STORAGE(CNENH); break;      // Input change interrupt enable
+    STORAGE(CNSTATH); break;    // Input change status
+
+    STORAGE(ANSELJ); break;     // Port J: analog select
+    STORAGE(TRISJ); break;      // Port J: mask of inputs
+    STORAGE(PORTJ); break;      // Port J: read inputs
+    STORAGE(LATJ); break;       // Port J: read outputs
+    STORAGE(ODCJ); break;       // Port J: open drain configuration
+    STORAGE(CNPUJ); break;      // Input pin pull-up
+    STORAGE(CNPDJ); break;      // Input pin pull-down
+    STORAGE(CNCONJ); break;     // Interrupt-on-change control
+    STORAGE(CNENJ); break;      // Input change interrupt enable
+    STORAGE(CNSTATJ); break;    // Input change status
+
+    STORAGE(TRISK); break;      // Port K: mask of inputs
+    STORAGE(PORTK); break;      // Port K: read inputs
+    STORAGE(LATK); break;       // Port K: read outputs
+    STORAGE(ODCK); break;       // Port K: open drain configuration
+    STORAGE(CNPUK); break;      // Input pin pull-up
+    STORAGE(CNPDK); break;      // Input pin pull-down
+    STORAGE(CNCONK); break;     // Interrupt-on-change control
+    STORAGE(CNENK); break;      // Input change interrupt enable
+    STORAGE(CNSTATK); break;    // Input change status
 
     /*-------------------------------------------------------------------------
      * UART 1.
