@@ -52,11 +52,9 @@
 static void read_data(int fd, unsigned offset,
     unsigned char *buf, unsigned blen)
 {
-    /* Fill uninitialized blocks by FF: simulate real flash media. */
-    memset(buf, 0xFF, blen);
-
     if (pread(fd, buf, blen, offset) != blen) {
-        printf("sdcard: pread failed, offset %#x\n", offset);
+        /* Seek past the end of file: return all FFs. */
+        memset(buf, 0xFF, blen);
         return;
     }
 #if 0
