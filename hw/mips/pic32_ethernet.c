@@ -105,6 +105,7 @@ typedef struct {
 #define PHY_STATUS              1       /* Basic Status Register */
 #define PHY_ID1                 2       /* PHY identifier 1 */
 #define PHY_ID2                 3       /* PHY identifier 2 */
+#define PHY_ADVRT               4       /* Auto-negotiation advertisement */
 #define PHY_MODE                18      /* Special Modes */
 #define PHY_SPECIAL             31      /* Special Control/Status Register */
 
@@ -253,6 +254,9 @@ void pic32_mii_write(pic32_t *s)
         if (data & PHY_CONTROL_RESET) {
             phy_reset(e);
         }
+        break;
+    case PHY_ADVRT:                     /* Auto-negotiation advertisement */
+        e->phy_reg[PHY_ADVRT] = data;
         break;
     }
 }
