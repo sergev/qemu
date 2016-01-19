@@ -181,24 +181,46 @@ void pic32_eth_control(pic32_t *s)
 
     if (VALUE(ETHCON1) & PIC32_ETHCON1_TXRTS) {
         /* Transmit request. */
-        eth_desc_t d = { 0 };
-        unsigned paddr = VALUE(ETHTXST);
-        unsigned nbytes, i;
+        unsigned txst = VALUE(ETHTXST);
+        unsigned nbytes = 0, n;
         unsigned char buf[2048];
+        eth_desc_t desc;
 
-        d.hdr   = ldl_le_phys(&address_space_memory, paddr);
-        d.paddr = ldl_le_phys(&address_space_memory, paddr + 4);
+        /* Process a chain of descriptors */
+        DPRINT("--- %s() trasmit request\n", __func__);
+        for (;;) {
+            /* Fetch descriptor */
+            dma_memory_read(&address_space_memory, txst, &desc, sizeof(desc));
+            n = DESC_BYTECNT(&desc);
+            DPRINT("--- TX desc [%08x] = %08x %08x (%u bytes)\n",
+                txst, desc.hdr, desc.paddr, n);
 
-        nbytes = DESC_BYTECNT(&d);
-        DPRINT("--- %s() trasmit request %u bytes\n", __func__, nbytes);
-        DPRINT("--- TX desc [%08x] = %08x %08x\n", paddr, d.hdr, d.paddr);
+            /* Check EOWN flag */
+            if (!DESC_EOWN(&desc))
+                break;
+
+            /* Copy data to buffer */
+            if (n + nbytes > sizeof(buf))
+                break;
+            dma_memory_read(&address_space_memory, desc.paddr, buf + nbytes, n);
+            nbytes += n;
+
+            /* Update EOWN flag */
+            DESC_CLEAR_EOWN(&desc);
+            dma_memory_write(&address_space_memory, txst, &desc, 4);
+
+            /* Check EOP flag */
+            if (DESC_EOP(&desc))
+                break;
+
+            /* Next descriptor */
+            txst += sizeof(desc);
+        }
+
         if (TRACE)
             fprintf(qemu_logfile, "--- Ethernet transmit request, %u bytes\n", nbytes);
-        if (nbytes > 0 && nbytes <= sizeof(buf)) {
-            for (i=0; i<nbytes; i+=4)
-                *(uint32_t*) (buf + i) = ldl_le_phys(&address_space_memory,
-                                                     d.paddr + i);
-
+        if (nbytes > 0) {
+            int i;
             DPRINT("--- %u bytes of data: %02x", nbytes, buf[0]);
             for (i=1; i<nbytes; i++)
                 DPRINT("-%02x", buf[i]);
@@ -227,7 +249,7 @@ void pic32_mii_command(pic32_t *s)
     if (cmd & (PIC32_EMAC1MCMD_READ | PIC32_EMAC1MCMD_SCAN)) {
         data = e->phy_reg[addr & 0x1f];
         //DPRINT("--- %s() cmd = %04x, addr = %04x\n", __func__, cmd, addr);
-        DPRINT("--- %s() read register [%u] = %04x\n", __func__, addr & 0x1f, data);
+        //DPRINT("--- %s() read register [%u] = %04x\n", __func__, addr & 0x1f, data);
         if (TRACE)
             fprintf(qemu_logfile, "--- Ethernet MII read register [%u] = %04x\n",
                 addr & 0x1f, data);
@@ -310,6 +332,11 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         /* Ethernet controller is down. */
         return -1;
     }
+    DPRINT("--- RX data: %02x", buf[0]);
+    int i;
+    for (i=1; i<size; i++)
+        DPRINT("-%02x", buf[i]);
+    DPRINT("\n");
 
     if (eth_buffer_full(s))
         return -1;
