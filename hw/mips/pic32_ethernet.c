@@ -220,12 +220,13 @@ void pic32_eth_control(pic32_t *s)
         if (TRACE)
             fprintf(qemu_logfile, "--- Ethernet transmit request, %u bytes\n", nbytes);
         if (nbytes > 0) {
+#if 0
             int i;
             DPRINT("--- %u bytes of data: %02x", nbytes, buf[0]);
             for (i=1; i<nbytes; i++)
                 DPRINT("-%02x", buf[i]);
             DPRINT("\n");
-
+#endif
             qemu_send_packet(qemu_get_queue(e->eth_nic), buf, nbytes);
         }
 
@@ -284,33 +285,31 @@ void pic32_mii_write(pic32_t *s)
 }
 
 /*
- * Return true when no receive buffers available.
+ * Check whether we have enough RX space for given packet size.
  */
-static int eth_buffer_full(pic32_t *s)
+static int have_rx_space(pic32_t *s, size_t size)
 {
+    unsigned rxst = VALUE(ETHRXST);
+    unsigned rxbufsz = VALUE(ETHCON2) & 0x7f0;
     eth_desc_t d = { 0 };
 
-    d.hdr = ldl_le_phys(&address_space_memory, VALUE(ETHRXST));
-    return !DESC_EOWN(&d);
-}
+    while (size > 0) {
+        /* Check EOWN bit */
+        d.hdr = ldl_le_phys(&address_space_memory, rxst);
+        if (!DESC_EOWN(&d))
+            return 0;
 
-/*
- * Return true when we are ready to receive a packet.
- */
-static int nic_can_receive(NetClientState *nc)
-{
-    eth_t *e = qemu_get_nic_opaque(nc);
-    pic32_t *s = e->pic32;
+        /* Check size */
+        if (size <= rxbufsz)
+            return 1;
+        size -= rxbufsz;
 
-    //DPRINT("--- %s()\n", __func__);
-    if (! (VALUE(ETHCON1) & PIC32_ETHCON1_ON)) {
-        /* While interface is down,
-         * we can receive anything (and discard). */
-        return 1;
+        /* Switch to next descriptor. */
+        rxst += 16;
+        if (DESC_NPV(&d))
+            rxst = ldl_le_phys(&address_space_memory, rxst);
     }
-
-    /* Check whether we have at least one receive buffer available. */
-    return !eth_buffer_full(s);
+    return 0;
 }
 
 /*
@@ -332,13 +331,14 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         /* Ethernet controller is down. */
         return -1;
     }
+#if 0
     DPRINT("--- RX data: %02x", buf[0]);
     int i;
     for (i=1; i<size; i++)
         DPRINT("-%02x", buf[i]);
     DPRINT("\n");
-
-    if (eth_buffer_full(s))
+#endif
+    if (! have_rx_space(s, size))
         return -1;
 
     /* Cast acceptance filter. */
@@ -482,7 +482,6 @@ static int eth_object_init(SysBusDevice *sbd)
     static NetClientInfo nic_info = {
         .type           = NET_CLIENT_OPTIONS_KIND_NIC,
         .size           = sizeof(NICState),
-        .can_receive    = nic_can_receive,
         .receive        = nic_receive,
         .cleanup        = nic_cleanup,
     };
