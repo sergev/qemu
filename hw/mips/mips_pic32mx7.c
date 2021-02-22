@@ -450,6 +450,25 @@ static void io_reset(pic32_t *s)
         s->spi[i].rfifo = 0;
         s->spi[i].wfifo = 0;
     }
+
+    /*
+     * Reset timers.
+     */
+    VALUE(T1CON)    = 0;
+    VALUE(TMR1)     = 0;
+    VALUE(PR1)      = 0xffff;
+    VALUE(T2CON)    = 0;
+    VALUE(TMR2)     = 0;
+    VALUE(PR2)      = 0xffff;
+    VALUE(T3CON)    = 0;
+    VALUE(TMR3)     = 0;
+    VALUE(PR3)      = 0xffff;
+    VALUE(T4CON)    = 0;
+    VALUE(TMR4)     = 0;
+    VALUE(PR4)      = 0xffff;
+    VALUE(T5CON)    = 0;
+    VALUE(TMR5)     = 0;
+    VALUE(PR5)      = 0xffff;
 }
 
 static unsigned io_read32(pic32_t *s, unsigned offset, const char **namep)
@@ -830,6 +849,25 @@ static unsigned io_read32(pic32_t *s, unsigned offset, const char **namep)
     STORAGE(SPI4BRGSET); *bufp = 0; break;
     STORAGE(SPI4BRGINV); *bufp = 0; break;
 
+    /*-------------------------------------------------------------------------
+     * Timers.
+     */
+    STORAGE(T1CON); break;
+    STORAGE(TMR1); break;
+    STORAGE(PR1); break;
+    STORAGE(T2CON); break;
+    STORAGE(TMR2); break;
+    STORAGE(PR2); break;
+    STORAGE(T3CON); break;
+    STORAGE(TMR3); break;
+    STORAGE(PR3); break;
+    STORAGE(T4CON); break;
+    STORAGE(TMR4); break;
+    STORAGE(PR4); break;
+    STORAGE(T5CON); break;
+    STORAGE(TMR5); break;
+    STORAGE(PR5); break;
+
     default:
         printf("--- Read 1f8%05x: peripheral register not supported\n",
             offset);
@@ -1188,6 +1226,25 @@ irq:    update_irq_status(s);
         pic32_spi_writebuf(s, 3, data);
         return;
     WRITEOP(SPI4BRG); return;                       // Baud rate
+
+    /*
+     * Timers 1-5.
+     */
+    WRITEOP(T1CON); return;
+    WRITEOP(TMR1); return;
+    WRITEOP(PR1); return;
+    WRITEOP(T2CON); return;
+    WRITEOP(TMR2); return;
+    WRITEOP(PR2); return;
+    WRITEOP(T3CON); return;
+    WRITEOP(TMR3); return;
+    WRITEOP(PR3); return;
+    WRITEOP(T4CON); return;
+    WRITEOP(TMR4); return;
+    WRITEOP(PR4); return;
+    WRITEOP(T5CON); return;
+    WRITEOP(TMR5); return;
+    WRITEOP(PR5); return;
 
     default:
         printf("--- Write %08x to 1f8%05x: peripheral register not supported\n",
