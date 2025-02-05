@@ -1,0 +1,64 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: sudo apt-get install libpixman-1-dev libfdt-dev zlib1g-dev libglib2.0-dev libsdl1.2-dev python2 neofetch unzip
+
+    - name: Show host configuration
+      run: neofetch --stdout
+        # Host configuration:
+        # OS: Ubuntu 22.04.5 LTS x86_64
+        # Host: Virtual Machine 7.0
+        # Kernel: 6.5.0-1025-azure
+        # Uptime: 10 mins
+        # Packages: 1576 (dpkg), 4 (snap)
+        # Shell: bash 5.1.16
+        # Resolution: 1024x768
+        # Terminal: Runner.Worker
+        # CPU: AMD EPYC 7763 (4) @ 3.221GHz
+        # GPU: 00:08.0 Microsoft Corporation Hyper-V virtual VGA
+        # Memory: 653MiB / 15981MiB
+
+    - name: Configure QEMU
+      run: ./configure --target-list=mipsel-softmmu --python=/usr/bin/python2 --disable-werror
+
+    - name: Build QEMU
+      run: make -j4 CFLAGS="-O3 -Wno-error -isystem /usr/include/glib-2.0 -isystem /usr/lib/$(uname -m)-linux-gnu/glib-2.0/include"
+
+    - name: Download 'hello' binaries
+      run: |
+            wget https://raw.githubusercontent.com/wiki/sergev/qemu/binaries/boot-max32.hex
+            wget https://raw.githubusercontent.com/wiki/sergev/qemu/binaries/hello-max32.hex
+
+    - name: Run 'hello' test
+      run: timeout 3s ./mipsel-softmmu/qemu-system-mipsel -machine pic32mx7-max32 -nographic -monitor none -serial stdio -bios boot-max32.hex -kernel hello-max32.hex || test $? == 124
+
+    - name: Download RetroBSD binaries
+      run: |
+            wget https://raw.githubusercontent.com/wiki/sergev/qemu/binaries/unix.hex
+            wget https://raw.githubusercontent.com/wiki/sergev/qemu/binaries/retrobsd.zip
+            unzip retrobsd.zip
+
+    - name: Run RetroBSD test
+      run: timeout 5s ./mipsel-softmmu/qemu-system-mipsel -machine pic32mx7-max32 -nographic -monitor none -serial stdio -bios boot-max32.hex -kernel unix.hex -sd retrobsd.img || test $? == 124
+
+    - name: Download LiteBSD binaries
+      run: |
+            wget https://raw.githubusercontent.com/wiki/sergev/qemu/binaries/boot-wifire.hex
+            wget https://raw.githubusercontent.com/wiki/sergev/qemu/binaries/vmunix.hex
+            wget https://raw.githubusercontent.com/wiki/sergev/qemu/binaries/litebsd.zip
+            unzip litebsd.zip
+
+    - name: Run LiteBSD test
+      run: timeout 5s ./mipsel-softmmu/qemu-system-mipsel -machine pic32mz-wifire -nographic -monitor none -serial vc -serial vc -serial vc -serial stdio -bios boot-wifire.hex -kernel vmunix.hex -sd litebsd.img || test $? == 124
