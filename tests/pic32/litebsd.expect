@@ -1,0 +1,29 @@
+#!/usr/bin/expect -f
+
+# Run LiteBSD session.
+set timeout 15
+spawn ./mipsel-softmmu/qemu-system-mipsel \
+    -machine pic32mz-wifire \
+    -nographic \
+    -monitor none \
+    -serial vc \
+    -serial vc \
+    -serial vc \
+    -serial stdio \
+    -bios boot-wifire.hex \
+    -kernel vmunix.hex \
+    -sd litebsd.img
+
+expect "login:"; send "root\r"
+expect "# "; send "date\r"
+expect "# "; send "df\r"
+expect "# "; send "vmstat\r"
+expect "# "; send "ps aux\r"
+expect "# "; send "netstat -i\r"
+expect "# "; send "ls /bin\r"
+expect "# "; send "ls /usr/bin\r"
+
+# Finish.
+expect "# "; send "halt -q\r"
+expect "halted"; puts "\n"
+exit

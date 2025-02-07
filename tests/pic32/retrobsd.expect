@@ -1,0 +1,32 @@
+#!/usr/bin/expect -f
+
+# Run RetroBSD session.
+set timeout 15
+spawn ./mipsel-softmmu/qemu-system-mipsel \
+    -machine pic32mx7-max32 \
+    -nographic \
+    -monitor none \
+    -serial stdio \
+    -bios boot-max32.hex \
+    -kernel unix.hex \
+    -sd retrobsd.img
+
+expect "login:"; send "root\r"
+expect "word:"; send "\r"
+expect "# "; send "date\r"
+expect "# "; send "df\r"
+expect "# "; send "ps aux\r"
+expect "# "; send "ls /bin\r"
+expect "# "; send "cd /share/examples/asm\r"
+expect "# "; send "make clean\r"
+expect "# "; send "make ashello\r"
+expect "# "; send "./ashello\r"
+expect "# "; send "cd /share/examples/c\r"
+expect "# "; send "make clean\r"
+expect "# "; send "make hello\r"
+expect "# "; send "./hello\r"
+
+# Finish.
+expect "# "; send "halt\r"
+expect "halted"; puts "\n"
+exit

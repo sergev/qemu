@@ -1,0 +1,15 @@
+#!/usr/bin/expect -f
+
+# Run 'hello' demo.
+set timeout 5
+spawn ./mipsel-softmmu/qemu-system-mipsel \
+    -machine pic32mx7-max32 \
+    -nographic \
+    -monitor none \
+    -serial stdio \
+    -bios boot-max32.hex \
+    -kernel hello-max32.hex
+
+expect "Hello, World!"
+puts "\n"
+exit

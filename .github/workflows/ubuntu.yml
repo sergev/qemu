@@ -13,7 +13,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Install dependencies
-      run: sudo apt-get install libpixman-1-dev libfdt-dev zlib1g-dev libglib2.0-dev libsdl1.2-dev python2 neofetch unzip
+      run: sudo apt-get install libpixman-1-dev libfdt-dev zlib1g-dev libglib2.0-dev libsdl1.2-dev python2 neofetch unzip expect
 
     - name: Show host configuration
       run: neofetch --stdout
@@ -34,7 +34,7 @@ jobs:
       run: ./configure --target-list=mipsel-softmmu --python=/usr/bin/python2 --disable-werror --disable-opengl --disable-libnfs
 
     - name: Build QEMU
-      run: make -j4 CFLAGS="-O3 -Wno-error -isystem /usr/include/glib-2.0 -isystem /usr/lib/$(uname -m)-linux-gnu/glib-2.0/include"
+      run: make -j"$(nproc)"
 
     - name: Download 'hello' binaries
       run: |
@@ -42,7 +42,7 @@ jobs:
             wget https://raw.githubusercontent.com/wiki/sergev/qemu/binaries/hello-max32.hex
 
     - name: Run 'hello' test
-      run: timeout 3s ./mipsel-softmmu/qemu-system-mipsel -machine pic32mx7-max32 -nographic -monitor none -serial stdio -bios boot-max32.hex -kernel hello-max32.hex || test $? == 124
+      run: timeout 5s tests/pic32/hello.expect
 
     - name: Download RetroBSD binaries
       run: |
@@ -51,7 +51,7 @@ jobs:
             unzip retrobsd.zip
 
     - name: Run RetroBSD test
-      run: timeout 5s ./mipsel-softmmu/qemu-system-mipsel -machine pic32mx7-max32 -nographic -monitor none -serial stdio -bios boot-max32.hex -kernel unix.hex -sd retrobsd.img || test $? == 124
+      run: timeout 15s tests/pic32/retrobsd.expect
 
     - name: Download LiteBSD binaries
       run: |
@@ -61,4 +61,4 @@ jobs:
             unzip litebsd.zip
 
     - name: Run LiteBSD test
-      run: timeout 5s ./mipsel-softmmu/qemu-system-mipsel -machine pic32mz-wifire -nographic -monitor none -serial vc -serial vc -serial vc -serial stdio -bios boot-wifire.hex -kernel vmunix.hex -sd litebsd.img || test $? == 124
+      run: timeout 15s tests/pic32/litebsd.expect
