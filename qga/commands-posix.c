@@ -12,7 +12,9 @@
  */
 
 #include <glib.h>
+#ifndef __APPLE__
 #include <sys/sysmacros.h>
+#endif
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 #include <unistd.h>
