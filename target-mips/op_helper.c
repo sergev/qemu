@@ -2460,9 +2460,13 @@ static const char *cop0_name[32*8] = {
 static void dump_changed_cop0_reg(CPUMIPSState *env, int idx, target_ulong value)
 {
     if (value != env->last_cop0[idx]) {
+        const char *name = cop0_name[idx];
+        if (name) {
+            fprintf(qemu_logfile, "    Write %s = %08x\n", name, (unsigned) value);
+        } else {
+            fprintf(qemu_logfile, "    Write cop0:%d = %08x\n", idx, (unsigned) value);
+        }
         env->last_cop0[idx] = value;
-        fprintf(qemu_logfile, "    Write %s = %08x\n",
-            cop0_name[idx], (unsigned) value);
     }
 }
 

@@ -485,9 +485,9 @@ void mips_cpu_do_interrupt(CPUState *cs)
     bool update_badinstr = 0;
     target_ulong offset;
     int cause = -1;
-    const char *name;
 
     if (qemu_log_enabled() && cs->exception_index != EXCP_EXT_INTERRUPT) {
+        const char *name;
         if (cs->exception_index < 0 || cs->exception_index > EXCP_LAST) {
             name = "unknown";
         } else {
@@ -772,8 +772,8 @@ void mips_cpu_do_interrupt(CPUState *cs)
             fprintf (qemu_logfile, "--- Interrupt, vector "TARGET_FMT_lx"\n",
                 env->active_tc.PC);
         else
-            fprintf (qemu_logfile, "--- Exception #%u: %s, vector "TARGET_FMT_lx"\n",
-                cause, name, env->active_tc.PC);
+            fprintf (qemu_logfile, "--- Exception #%u: vector "TARGET_FMT_lx"\n",
+                cause, env->active_tc.PC);
     } else
     if (qemu_log_enabled() && cs->exception_index != EXCP_EXT_INTERRUPT) {
         qemu_log("%s: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " cause %d\n"
