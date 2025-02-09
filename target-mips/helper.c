@@ -477,6 +477,15 @@ static inline void set_badinstr_registers(CPUMIPSState *env)
 }
 #endif
 
+static void print_retrobsd_syscall(CPUMIPSState *env)
+{
+    int opcode = cpu_ldl_code(env, env->CP0_EPC);
+    int syscall = (opcode >> 6) & 0xfffff;
+
+    fprintf (qemu_logfile, "--- Syscall #%u at "TARGET_FMT_lx"\n",
+        syscall, env->CP0_EPC);
+}
+
 void mips_cpu_do_interrupt(CPUState *cs)
 {
 #if !defined(CONFIG_USER_ONLY)
@@ -494,7 +503,7 @@ void mips_cpu_do_interrupt(CPUState *cs)
             name = excp_names[cs->exception_index];
         }
 
-        if (! qemu_loglevel_mask(CPU_LOG_INSTR))
+        if (! qemu_loglevel_mask(CPU_LOG_INSTR) && ! qemu_loglevel_mask(CPU_LOG_RETROBSD))
             qemu_log("%s enter: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " %s exception\n",
                      __func__, env->active_tc.PC, env->CP0_EPC, name);
     }
@@ -774,6 +783,8 @@ void mips_cpu_do_interrupt(CPUState *cs)
         else
             fprintf (qemu_logfile, "--- Exception #%u: vector "TARGET_FMT_lx"\n",
                 cause, env->active_tc.PC);
+    } else if (qemu_loglevel_mask(CPU_LOG_RETROBSD) && cs->exception_index == EXCP_SYSCALL) {
+        print_retrobsd_syscall(env);
     } else
     if (qemu_log_enabled() && cs->exception_index != EXCP_EXT_INTERRUPT) {
         qemu_log("%s: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " cause %d\n"

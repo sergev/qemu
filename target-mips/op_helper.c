@@ -40,7 +40,9 @@ static inline void QEMU_NORETURN do_raise_exception_err(CPUMIPSState *env,
     CPUState *cs = CPU(mips_env_get_cpu(env));
 
     if (exception < EXCP_SC) {
-        qemu_log("%s: %d %d\n", __func__, exception, error_code);
+        if (!qemu_loglevel_mask(CPU_LOG_INSTR) && ! qemu_loglevel_mask(CPU_LOG_RETROBSD)) {
+            qemu_log("%s: %d %d\n", __func__, exception, error_code);
+        }
     }
     cs->exception_index = exception;
     env->error_code = error_code;
@@ -2123,6 +2125,34 @@ static void debug_pre_eret(CPUMIPSState *env)
         if (env->hflags & MIPS_HFLAG_DM)
             qemu_log(" DEPC " TARGET_FMT_lx, env->CP0_DEPC);
         qemu_log("\n");
+    }
+    if (qemu_loglevel_mask(CPU_LOG_RETROBSD) &&
+        !(env->CP0_Status & (1 << CP0St_ERL)) &&
+        (env->CP0_Status & (2 << CP0St_KSU)) && /* return to User mode */
+        env->CP0_EPC > 0x7f008008 && env->CP0_EPC < 0x7f020000) {
+        /*
+         * Returning from syscall?
+         */
+        unsigned pc = env->CP0_EPC - 4;
+        int opcode = cpu_ldl_code(env, pc);
+        bool is_syscall = (opcode & 0x3f) == 0x0c;
+        if (!is_syscall) {
+            pc = env->CP0_EPC - 12;
+            opcode = cpu_ldl_code(env, pc);
+            is_syscall = (opcode & 0x3f) == 0x0c;
+        }
+        if (is_syscall) {
+            /*
+             * Print return value of syscall.
+             */
+            int syscall = (opcode >> 6) & 0xfffff;
+            uint32_t retval = env->active_tc.gpr[2];
+
+            fprintf(qemu_logfile, "---     return %d", (int32_t)retval);
+            if (retval >= 10)
+                fprintf(qemu_logfile, " = 0x%x", retval);
+            fprintf(qemu_logfile, " from syscall #%u at %08x\n", syscall, pc);
+        }
     }
 }
 
