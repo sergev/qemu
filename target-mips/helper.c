@@ -26,6 +26,7 @@
 #include "cpu.h"
 #include "sysemu/kvm.h"
 #include "exec/cpu_ldst.h"
+#include "retrobsd_syscall.h"
 
 enum {
     TLBRET_XI = -6,
@@ -477,13 +478,147 @@ static inline void set_badinstr_registers(CPUMIPSState *env)
 }
 #endif
 
+static const char * const retrobsd_syscall_name[SYS_LAST + 1] = {
+    [SYS_exit] = "exit",
+    [SYS_fork] = "fork",
+    [SYS_read] = "read",
+    [SYS_write] = "write",
+    [SYS_open] = "open",
+    [SYS_close] = "close",
+    [SYS_wait4] = "wait4",
+    [SYS_link] = "link",
+    [SYS_unlink] = "unlink",
+    [SYS_execv] = "execv",
+    [SYS_chdir] = "chdir",
+    [SYS_fchdir] = "fchdir",
+    [SYS_mknod] = "mknod",
+    [SYS_chmod] = "chmod",
+    [SYS_chown] = "chown",
+    [SYS_chflags] = "chflags",
+    [SYS_fchflags] = "fchflags",
+    [SYS_lseek] = "lseek",
+    [SYS_getpid] = "getpid",
+    [SYS_mount] = "mount",
+    [SYS_umount] = "umount",
+    [SYS___sysctl] = "__sysctl",
+    [SYS_getuid] = "getuid",
+    [SYS_geteuid] = "geteuid",
+    [SYS_ptrace] = "ptrace",
+    [SYS_getppid] = "getppid",
+    [SYS_statfs] = "statfs",
+    [SYS_fstatfs] = "fstatfs",
+    [SYS_getfsstat] = "getfsstat",
+    [SYS_sigaction] = "sigaction",
+    [SYS_sigprocmask] = "sigprocmask",
+    [SYS_access] = "access",
+    [SYS_sigpending] = "sigpending",
+    [SYS_sigaltstack] = "sigaltstack",
+    [SYS_sync] = "sync",
+    [SYS_kill] = "kill",
+    [SYS_stat] = "stat",
+    [SYS_lstat] = "lstat",
+    [SYS_dup] = "dup",
+    [SYS_pipe] = "pipe",
+    [SYS_profil] = "profil",
+    [SYS_setuid] = "setuid",
+    [SYS_seteuid] = "seteuid",
+    [SYS_getgid] = "getgid",
+    [SYS_getegid] = "getegid",
+    [SYS_setgid] = "setgid",
+    [SYS_setegid] = "setegid",
+    [SYS_kmemdev] = "kmemdev",
+    [SYS_phys] = "phys",
+    [SYS_lock] = "lock",
+    [SYS_ioctl] = "ioctl",
+    [SYS_reboot] = "reboot",
+    [SYS_sigwait] = "sigwait",
+    [SYS_symlink] = "symlink",
+    [SYS_readlink] = "readlink",
+    [SYS_execve] = "execve",
+    [SYS_umask] = "umask",
+    [SYS_chroot] = "chroot",
+    [SYS_fstat] = "fstat",
+    [SYS_pselect] = "pselect",
+    [SYS_vfork] = "vfork",
+    [SYS_sbrk] = "sbrk",
+    [SYS_rdglob] = "rdglob",
+    [SYS_wrglob] = "wrglob",
+    [SYS_msec] = "msec",
+    [SYS_vhangup] = "vhangup",
+    [SYS_getgroups] = "getgroups",
+    [SYS_setgroups] = "setgroups",
+    [SYS_getpgrp] = "getpgrp",
+    [SYS_setpgrp] = "setpgrp",
+    [SYS_setitimer] = "setitimer",
+    [SYS_swapon] = "swapon",
+    [SYS_getitimer] = "getitimer",
+    [SYS_getdtablesize] = "getdtablesize",
+    [SYS_dup2] = "dup2",
+    [SYS_fcntl] = "fcntl",
+    [SYS_select] = "select",
+    [SYS_fsync] = "fsync",
+    [SYS_setpriority] = "setpriority",
+    [SYS_socket] = "socket",
+    [SYS_connect] = "connect",
+    [SYS_accept] = "accept",
+    [SYS_getpriority] = "getpriority",
+    [SYS_send] = "send",
+    [SYS_recv] = "recv",
+    [SYS_sigreturn] = "sigreturn",
+    [SYS_bind] = "bind",
+    [SYS_setsockopt] = "setsockopt",
+    [SYS_listen] = "listen",
+    [SYS_sigsuspend] = "sigsuspend",
+    [SYS_sigstack] = "sigstack",
+    [SYS_recvmsg] = "recvmsg",
+    [SYS_sendmsg] = "sendmsg",
+    [SYS_gettimeofday] = "gettimeofday",
+    [SYS_getrusage] = "getrusage",
+    [SYS_getsockopt] = "getsockopt",
+    [SYS_readv] = "readv",
+    [SYS_writev] = "writev",
+    [SYS_settimeofday] = "settimeofday",
+    [SYS_fchown] = "fchown",
+    [SYS_fchmod] = "fchmod",
+    [SYS_recvfrom] = "recvfrom",
+    [SYS_rename] = "rename",
+    [SYS_truncate] = "truncate",
+    [SYS_ftruncate] = "ftruncate",
+    [SYS_flock] = "flock",
+    [SYS_sendto] = "sendto",
+    [SYS_shutdown] = "shutdown",
+    [SYS_socketpair] = "socketpair",
+    [SYS_mkdir] = "mkdir",
+    [SYS_rmdir] = "rmdir",
+    [SYS_utimes] = "utimes",
+    [SYS_adjtime] = "adjtime",
+    [SYS_getpeername] = "getpeername",
+    [SYS_getrlimit] = "getrlimit",
+    [SYS_setrlimit] = "setrlimit",
+    [SYS_killpg] = "killpg",
+    [SYS_setquota] = "setquota",
+    [SYS_quota] = "quota",
+    [SYS_getsockname] = "getsockname",
+    [SYS_ustore] = "ustore",
+    [SYS_ufetch] = "ufetch",
+    [SYS_ucall] = "ucall",
+};
+
 static void print_retrobsd_syscall(CPUMIPSState *env)
 {
     int opcode = cpu_ldl_code(env, env->CP0_EPC);
     int syscall = (opcode >> 6) & 0xfffff;
 
-    fprintf (qemu_logfile, "--- Syscall #%u at "TARGET_FMT_lx"\n",
+    fprintf(qemu_logfile, "--- Syscall #%u at "TARGET_FMT_lx,
         syscall, env->CP0_EPC);
+    if (syscall > 0 && syscall <= SYS_LAST) {
+        const char *name = retrobsd_syscall_name[syscall];
+        if (name) {
+            fprintf(qemu_logfile, ": %s()", name);
+            //TODO: print arguments
+        }
+    }
+    fprintf(qemu_logfile, "\n");
 }
 
 void mips_cpu_do_interrupt(CPUState *cs)

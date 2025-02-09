@@ -2135,11 +2135,11 @@ static void debug_pre_eret(CPUMIPSState *env)
          */
         unsigned pc = env->CP0_EPC - 4;
         int opcode = cpu_ldl_code(env, pc);
-        bool is_syscall = (opcode & 0x3f) == 0x0c;
+        bool is_syscall = (opcode & 0xfc00003f) == 0x0000000c;
         if (!is_syscall) {
             pc = env->CP0_EPC - 12;
             opcode = cpu_ldl_code(env, pc);
-            is_syscall = (opcode & 0x3f) == 0x0c;
+            is_syscall = (opcode & 0xfc00003f) == 0x0000000c;
         }
         if (is_syscall) {
             /*
