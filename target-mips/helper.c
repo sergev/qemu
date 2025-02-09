@@ -479,7 +479,7 @@ static inline void set_badinstr_registers(CPUMIPSState *env)
 #endif
 
 static const char * const retrobsd_syscall_name[SYS_LAST + 1] = {
-    [SYS_exit] = "exit",
+    [SYS_exit] = "_exit",
     [SYS_fork] = "fork",
     [SYS_read] = "read",
     [SYS_write] = "write",
@@ -604,6 +604,22 @@ static const char * const retrobsd_syscall_name[SYS_LAST + 1] = {
     [SYS_ucall] = "ucall",
 };
 
+static void print_retrobsd_string(CPUMIPSState *env, target_ulong ptr)
+{
+    fprintf(qemu_logfile, TARGET_FMT_lx, ptr);
+    if (ptr >= 0x7f008000 && ptr < 0x7f020000) {
+        // Good pointer.
+        fprintf(qemu_logfile, " \"");
+        for (;;) {
+            char ch = cpu_ldub_data(env, ptr++);
+            if (!ch)
+                break;
+            fputc(ch, qemu_logfile);
+        }
+        fprintf(qemu_logfile, "\"");
+    }
+}
+
 static void print_retrobsd_syscall(CPUMIPSState *env)
 {
     int opcode = cpu_ldl_code(env, env->CP0_EPC);
@@ -614,8 +630,107 @@ static void print_retrobsd_syscall(CPUMIPSState *env)
     if (syscall > 0 && syscall <= SYS_LAST) {
         const char *name = retrobsd_syscall_name[syscall];
         if (name) {
-            fprintf(qemu_logfile, ": %s()", name);
-            //TODO: print arguments
+            fprintf(qemu_logfile, ": %s(", name);
+
+            // Print up to 4 arguments.
+            const target_ulong *arg = &env->active_tc.gpr[4];
+            switch (syscall) {
+            case SYS_exit:
+            case SYS_close:
+            case SYS_dup:
+            case SYS_seteuid:
+            case SYS_setegid:
+                fprintf(qemu_logfile, "%d", arg[0]);
+                break;
+            case SYS_sbrk:
+                fprintf(qemu_logfile, "%#x", arg[0]);
+                break;
+            case SYS_vfork:
+            case SYS_getpid:
+            case SYS_getuid:
+            case SYS_geteuid:
+            case SYS_sync:
+            case SYS_setpgrp:
+            case SYS_vhangup:
+            case SYS_getdtablesize:
+                // No arguments.
+                break;
+            case SYS_read:
+            case SYS_write:
+                fprintf(qemu_logfile, "%d, "TARGET_FMT_lx", %u", arg[0], arg[1], arg[2]);
+                break;
+            case SYS_open:
+                print_retrobsd_string(env, arg[0]);
+                fprintf(qemu_logfile, ", %#x, %#o", arg[1], arg[2]);
+                break;
+            case SYS_wait4:
+                fprintf(qemu_logfile, "%d, "TARGET_FMT_lx", %d, "TARGET_FMT_lx, arg[0], arg[1], arg[2], arg[3]);
+                break;
+            case SYS_execv:
+            case SYS_stat:
+            case SYS_lstat:
+                print_retrobsd_string(env, arg[0]);
+                fprintf(qemu_logfile, ", "TARGET_FMT_lx, arg[1]);
+                break;
+            case SYS_chdir:
+                print_retrobsd_string(env, arg[0]);
+                break;
+            case SYS_chmod:
+            case SYS_access:
+                print_retrobsd_string(env, arg[0]);
+                fprintf(qemu_logfile, ", %#o", arg[1]);
+                break;
+            case SYS_chown:
+                print_retrobsd_string(env, arg[0]);
+                fprintf(qemu_logfile, ", %d, %d", arg[1], arg[2]);
+                break;
+            case SYS_lseek:
+                fprintf(qemu_logfile, "%d, %#x, %d", arg[0], arg[1], arg[2]);
+                break;
+            case SYS_mount:
+                print_retrobsd_string(env, arg[0]);
+                fprintf(qemu_logfile, ", ");
+                print_retrobsd_string(env, arg[1]);
+                fprintf(qemu_logfile, ", %#x", arg[2]);
+                break;
+            case SYS___sysctl:
+                fprintf(qemu_logfile, TARGET_FMT_lx", %u, "TARGET_FMT_lx", "TARGET_FMT_lx", ...",
+                        arg[0], arg[1], arg[2], arg[3]);
+                break;
+            case SYS_sigaction:
+            case SYS_sigprocmask:
+            case SYS_setitimer:
+                fprintf(qemu_logfile, "%d, "TARGET_FMT_lx", "TARGET_FMT_lx, arg[0], arg[1], arg[2]);
+                break;
+            case SYS_kill:
+            case SYS_dup2:
+            case SYS_flock:
+            case SYS_ftruncate:
+                fprintf(qemu_logfile, "%d, %d", arg[0], arg[1]);
+                break;
+            case SYS_ioctl:
+            case SYS_fcntl:
+                fprintf(qemu_logfile, "%d, %#x, "TARGET_FMT_lx, arg[0], arg[1], arg[2]);
+                break;
+            case SYS_execve:
+                print_retrobsd_string(env, arg[0]);
+                fprintf(qemu_logfile, ", "TARGET_FMT_lx", "TARGET_FMT_lx, arg[1], arg[2]);
+                break;
+            case SYS_fstat:
+                fprintf(qemu_logfile, "%d, "TARGET_FMT_lx, arg[0], arg[1]);
+                break;
+            case SYS_select:
+                fprintf(qemu_logfile, "%d, "TARGET_FMT_lx", "TARGET_FMT_lx", "TARGET_FMT_lx", ...",
+                        arg[0], arg[1], arg[2], arg[3]);
+                break;
+            case SYS_sigsuspend:
+                fprintf(qemu_logfile, TARGET_FMT_lx, arg[0]);
+                break;
+            case SYS_gettimeofday:
+                fprintf(qemu_logfile, TARGET_FMT_lx", "TARGET_FMT_lx, arg[0], arg[1]);
+                break;
+            }
+            fprintf(qemu_logfile, ")");
         }
     }
     fprintf(qemu_logfile, "\n");
