@@ -620,6 +620,23 @@ static void print_retrobsd_string(CPUMIPSState *env, target_ulong ptr)
     }
 }
 
+static void print_string_vector(CPUMIPSState *env, target_ulong ptr)
+{
+    fprintf(qemu_logfile, TARGET_FMT_lx, ptr);
+    if (ptr >= 0x7f008000 && ptr < 0x7f020000) {
+        // Good pointer.
+        int sp = cpu_ldl_data(env, ptr);
+        fprintf(qemu_logfile, " [");
+        while (sp != 0) {
+            print_retrobsd_string(env, sp);
+            fprintf(qemu_logfile, ", ");
+            ptr += 4;
+            sp = cpu_ldl_data(env, ptr);
+        }
+        fprintf(qemu_logfile, "0]");
+    }
+}
+
 static void print_retrobsd_syscall(CPUMIPSState *env)
 {
     int opcode = cpu_ldl_code(env, env->CP0_EPC);
@@ -667,6 +684,10 @@ static void print_retrobsd_syscall(CPUMIPSState *env)
                 fprintf(qemu_logfile, "%d, "TARGET_FMT_lx", %d, "TARGET_FMT_lx, arg[0], arg[1], arg[2], arg[3]);
                 break;
             case SYS_execv:
+                print_retrobsd_string(env, arg[0]);
+                fprintf(qemu_logfile, ", ");
+                print_string_vector(env, arg[1]);
+                break;
             case SYS_stat:
             case SYS_lstat:
                 print_retrobsd_string(env, arg[0]);
@@ -714,7 +735,10 @@ static void print_retrobsd_syscall(CPUMIPSState *env)
                 break;
             case SYS_execve:
                 print_retrobsd_string(env, arg[0]);
-                fprintf(qemu_logfile, ", "TARGET_FMT_lx", "TARGET_FMT_lx, arg[1], arg[2]);
+                fprintf(qemu_logfile, ", ");
+                print_string_vector(env, arg[1]);
+                fprintf(qemu_logfile, ", ");
+                print_string_vector(env, arg[2]);
                 break;
             case SYS_fstat:
                 fprintf(qemu_logfile, "%d, "TARGET_FMT_lx, arg[0], arg[1]);
