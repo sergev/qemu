@@ -1160,24 +1160,24 @@ for opt do
   esac
 done
 
-if ! has $python; then
-  error_exit "Python not found. Use --python=/path/to/python"
-fi
+#if ! has $python; then
+#  error_exit "Python not found. Use --python=/path/to/python"
+#fi
 
 # Note that if the Python conditional here evaluates True we will exit
 # with status 1 which is a shell 'false' value.
-if ! $python -c 'import sys; sys.exit(sys.version_info < (2,4) or sys.version_info >= (3,))'; then
-  error_exit "Cannot use '$python', Python 2.4 or later is required." \
-      "Note that Python 3 or later is not yet supported." \
-      "Use --python=/path/to/python to specify a supported Python."
-fi
+#if ! $python -c 'import sys; sys.exit(sys.version_info < (2,4) or sys.version_info >= (3,))'; then
+#  error_exit "Cannot use '$python', Python 2.4 or later is required." \
+#      "Note that Python 3 or later is not yet supported." \
+#      "Use --python=/path/to/python to specify a supported Python."
+#fi
 
 # The -B switch was added in Python 2.6.
 # If it is supplied, compiled files are not written.
 # Use it for Python versions which support it.
-if $python -B -c 'import sys; sys.exit(0)' 2>/dev/null; then
-  python="$python -B"
-fi
+#if $python -B -c 'import sys; sys.exit(0)' 2>/dev/null; then
+#  python="$python -B"
+#fi
 
 case "$cpu" in
     ppc)
@@ -3857,7 +3857,7 @@ if test "$guest_agent_msi" != "no"; then
   fi
 
   QEMU_GA_MSI_MINGW_DLL_PATH="-D Mingw_dlls=`$pkg_config --variable=prefix glib-2.0`/bin"
-  
+
   case "$cpu" in
   x86_64)
     QEMU_GA_MSI_ARCH="-a x64 -D Arch=64"
@@ -3937,11 +3937,11 @@ fi
 ##########################################
 # check if trace backend exists
 
-$python "$source_path/scripts/tracetool.py" "--backends=$trace_backends" --check-backends  > /dev/null 2> /dev/null
-if test "$?" -ne 0 ; then
-  error_exit "invalid trace backends" \
-      "Please choose supported trace backends."
-fi
+#$python "$source_path/scripts/tracetool.py" "--backends=$trace_backends" --check-backends  > /dev/null 2> /dev/null
+#if test "$?" -ne 0 ; then
+#  error_exit "invalid trace backends" \
+#      "Please choose supported trace backends."
+#fi
 
 ##########################################
 # For 'ust' backend, test if ust headers are present
@@ -4567,7 +4567,7 @@ if test "$mingw32" = "yes" ; then
     echo "WIN_SDK=\"$win_sdk\"" >> $config_host_mak
   fi
   if test "$guest_agent_msi" != "no"; then
-    echo "QEMU_GA_MSI_ENABLED=yes" >> $config_host_mak  
+    echo "QEMU_GA_MSI_ENABLED=yes" >> $config_host_mak
     echo "QEMU_GA_MSI_MINGW_DLL_PATH=${QEMU_GA_MSI_MINGW_DLL_PATH}" >> $config_host_mak
     echo "QEMU_GA_MSI_WITH_VSS=${QEMU_GA_MSI_WITH_VSS}" >> $config_host_mak
     echo "QEMU_GA_MSI_ARCH=${QEMU_GA_MSI_ARCH}" >> $config_host_mak

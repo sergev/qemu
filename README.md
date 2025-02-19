@@ -29,20 +29,12 @@ The build is performed in four steps:
 On Linux:
 
     sudo apt install libpixman-1-dev libfdt-dev zlib1g-dev libglib2.0-dev libsdl1.2-dev readline-dev libssl-dev
-    curl -fsSL https://pyenv.run | bash
-    ~/.pyenv/bin/pyenv install 2.7
-
-On MacOS:
-
-    brew install pyenv
-    ~/.pyenv/bin/pyenv install 2.7
 
 ## Configure QEMU
 
     git clone git@github.com:sergev/qemu.git
     cd qemu
-    ./configure --target-list=mipsel-softmmu --python=$HOME/.pyenv/versions/2.7.18/bin/python2 \
-        --disable-werror --disable-opengl --disable-libnfs
+    ./configure --target-list=mipsel-softmmu --disable-werror --disable-opengl --disable-libnfs
 
 ## Compile
 

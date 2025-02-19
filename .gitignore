@@ -28,11 +28,11 @@
 /linux-headers/asm
 /qga/qapi-generated
 /qapi-generated
-/qapi-types.[ch]
-/qapi-visit.[ch]
-/qapi-event.[ch]
-/qmp-commands.h
-/qmp-marshal.c
+#/qapi-types.[ch]
+#/qapi-visit.[ch]
+#/qapi-event.[ch]
+#/qmp-commands.h
+#/qmp-marshal.c
 /qemu-doc.html
 /qemu-tech.html
 /qemu-doc.info
